@@ -1,0 +1,57 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the SwiftNIO open source project
+//
+// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Licensed under Apache License v2.0
+//
+// See LICENSE.txt for license information
+// See CONTRIBUTORS.txt for the list of SwiftNIO project authors
+// swift-tools-version:4.0
+//
+// swift-tools-version:4.0
+// SPDX-License-Identifier: Apache-2.0
+//
+//===----------------------------------------------------------------------===//
+import NIO
+
+/// A tag protocol that can be used to cover all errors thrown by `NIOTransportServices`.
+///
+/// Users are strongly encouraged not to conform their own types to this protocol.
+public protocol NIOTSError: Error, Equatable { }
+
+public enum NIOTSErrors {
+    /// `InvalidChannelStateTransition` is thrown when a channel has been asked to do something
+    /// that is incompatible with its current channel state: e.g. attempting to register an
+    /// already registered channel.
+    public struct InvalidChannelStateTransition: NIOTSError { }
+
+    /// `NotPreConfigured` is thrown when a channel has had `registerAlreadyConfigured`
+    /// called on it, but has not had the appropriate underlying network object provided.
+    public struct NotPreConfigured: NIOTSError { }
+
+    /// `UnsupportedSocketOption` is thrown when an attempt is made to configure a socket option that
+    /// is not supported by Network.framework.
+    public struct UnsupportedSocketOption: NIOTSError {
+        public let optionValue: SocketOption.AssociatedValueType
+
+        public static func ==(lhs: UnsupportedSocketOption, rhs: UnsupportedSocketOption) -> Bool {
+            return lhs.optionValue == rhs.optionValue
+        }
+    }
+
+    /// `NoCurrentPath` is thrown when an attempt is made to request path details from a channel and
+    /// that channel has no path available. This can manifest, for example, when asking for remote
+    /// or local addresses.
+    public struct NoCurrentPath: NIOTSError { }
+
+    /// `InvalidPort` is thrown when the port passed to a method is not valid.
+    public struct InvalidPort: NIOTSError {
+        /// The provided port.
+        public let port: Int
+    }
+
+    /// `UnableToResolveEndpoint` is thrown when an attempt is made to resolve a local endpoint, but
+    /// insufficient information is available to create it.
+    public struct UnableToResolveEndpoint: NIOTSError { }
+}
