@@ -67,6 +67,12 @@ internal final class NIOTSListenerChannel {
     /// Whether autoRead is enabled for this channel.
     private var autoRead: Bool = true
 
+    /// The value of SO_REUSEADDR.
+    private var reuseAddress = false
+
+    /// The value of SO_REUSEPORT.
+    private var reusePort = false
+
     /// Create a `NIOTSListenerChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSListenerChannel` objects cannot be created on arbitrary loops types.
@@ -148,7 +154,16 @@ extension NIOTSListenerChannel: Channel {
             }
         case _ as SocketOption:
             let optionValue = option as! SocketOption
-            try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
+
+            // SO_REUSEADDR and SO_REUSEPORT are handled here.
+            switch optionValue.value {
+            case (SOL_SOCKET, SO_REUSEADDR):
+                self.reuseAddress = (value as! SocketOptionValue) != Int32(0)
+            case (SOL_SOCKET, SO_REUSEPORT):
+                self.reusePort = (value as! SocketOptionValue) != Int32(0)
+            default:
+                try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
+            }
         default:
             fatalError("option \(option) not supported")
         }
@@ -176,7 +191,16 @@ extension NIOTSListenerChannel: Channel {
             return autoRead as! T.OptionType
         case _ as SocketOption:
             let optionValue = option as! SocketOption
-            return try self.tcpOptions.valueFor(socketOption: optionValue) as! T.OptionType
+
+            // SO_REUSEADDR and SO_REUSEPORT are handled here.
+            switch optionValue.value {
+            case (SOL_SOCKET, SO_REUSEADDR):
+                return Int32(self.reuseAddress ? 1 : 0) as! T.OptionType
+            case (SOL_SOCKET, SO_REUSEPORT):
+                return Int32(self.reusePort ? 1 : 0) as! T.OptionType
+            default:
+                return try self.tcpOptions.valueFor(socketOption: optionValue) as! T.OptionType
+            }
         default:
             fatalError("option \(option) not supported")
         }
@@ -246,6 +270,10 @@ extension NIOTSListenerChannel: StateManagedChannel {
         case .service(_, _, _, let interface):
             parameters.requiredInterface = interface
         }
+
+        // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
+        // either.
+        parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort
 
         let listener: NWListener
         do {
