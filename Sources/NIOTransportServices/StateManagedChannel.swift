@@ -200,14 +200,19 @@ extension StateManagedChannel {
 
             self.doClose0(error: error)
 
-            if case .active = oldState {
+            switch oldState {
+            case .active:
                 self.pipeline.fireChannelInactive()
+                fallthrough
+            case .registered, .activating:
+                self.tsEventLoop.deregister(self)
+                self.pipeline.fireChannelUnregistered()
+            case .idle:
+                // If this was already idle we don't have anything to do.
+                break
+            case .inactive:
+                preconditionFailure("Should be prevented by state machine")
             }
-
-            // TODO: If we want slightly more complex state management, we can actually fire this only when the
-            // state transitions into .cancelled. For the moment I didn't think it was necessary.
-            self.tsEventLoop.deregister(self)
-            self.pipeline.fireChannelUnregistered()
 
             // Next we fire the promise passed to this method.
             promise?.succeed(result: ())
