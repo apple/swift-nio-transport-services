@@ -425,4 +425,42 @@ class NIOTSConnectionChannelTests: XCTestCase {
             XCTAssertTrue(connection.isWritable)
         }.wait()
     }
+
+    func testSettingGettingReuseaddr() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group).bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .connect(to: listener.localAddress!)
+            .wait()
+        defer {
+            XCTAssertNoThrow(try connection.close().wait())
+        }
+
+        XCTAssertEqual(0, try connection.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR)).wait())
+        XCTAssertNoThrow(try connection.setOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR), value: 5).wait())
+        XCTAssertEqual(1, try connection.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR)).wait())
+        XCTAssertNoThrow(try connection.setOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR), value: 0).wait())
+        XCTAssertEqual(0, try connection.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR)).wait())
+    }
+
+    func testSettingGettingReuseport() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group).bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .connect(to: listener.localAddress!)
+            .wait()
+        defer {
+            XCTAssertNoThrow(try connection.close().wait())
+        }
+
+        XCTAssertEqual(0, try connection.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT)).wait())
+        XCTAssertNoThrow(try connection.setOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT), value: 5).wait())
+        XCTAssertEqual(1, try connection.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT)).wait())
+        XCTAssertNoThrow(try connection.setOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT), value: 0).wait())
+        XCTAssertEqual(0, try connection.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT)).wait())
+    }
 }

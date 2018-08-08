@@ -189,6 +189,12 @@ internal final class NIOTSConnectionChannel {
     /// An object to keep track of pending writes and manage our backpressure signaling.
     private var backpressureManager = BackpressureManager()
 
+    /// The value of SO_REUSEADDR.
+    private var reuseAddress = false
+
+    /// The value of SO_REUSEPORT.
+    private var reusePort = false
+
     /// Create a `NIOTSConnectionChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSConnectionChannel` objects cannot be created on arbitrary loops types.
@@ -284,7 +290,16 @@ extension NIOTSConnectionChannel: Channel {
             self.options.supportRemoteHalfClosure = value as! Bool
         case _ as SocketOption:
             let optionValue = option as! SocketOption
-            try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
+
+            // SO_REUSEADDR and SO_REUSEPORT are handled here.
+            switch optionValue.value {
+            case (SOL_SOCKET, SO_REUSEADDR):
+                self.reuseAddress = (value as! SocketOptionValue) != Int32(0)
+            case (SOL_SOCKET, SO_REUSEPORT):
+                self.reusePort = (value as! SocketOptionValue) != Int32(0)
+            default:
+                try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
+            }
         case _ as WriteBufferWaterMarkOption:
             if self.backpressureManager.writabilityChanges(whenUpdatingWaterMarks: value as! WriteBufferWaterMark) {
                 self.pipeline.fireChannelWritabilityChanged()
@@ -318,7 +333,16 @@ extension NIOTSConnectionChannel: Channel {
             return self.options.supportRemoteHalfClosure as! T.OptionType
         case _ as SocketOption:
             let optionValue = option as! SocketOption
-            return try self.tcpOptions.valueFor(socketOption: optionValue) as! T.OptionType
+
+            // SO_REUSEADDR and SO_REUSEPORT are handled here.
+            switch optionValue.value {
+            case (SOL_SOCKET, SO_REUSEADDR):
+                return Int32(self.reuseAddress ? 1 : 0) as! T.OptionType
+            case (SOL_SOCKET, SO_REUSEPORT):
+                return Int32(self.reusePort ? 1 : 0) as! T.OptionType
+            default:
+                return try self.tcpOptions.valueFor(socketOption: optionValue) as! T.OptionType
+            }
         case _ as WriteBufferWaterMarkOption:
             return self.backpressureManager.waterMarks as! T.OptionType
         default:
@@ -396,6 +420,11 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         self.connectPromise = promise
 
         let parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
+
+        // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
+        // either.
+        parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort
+
         let connection = NWConnection(to: target, using: parameters)
         connection.stateUpdateHandler = self.stateUpdateHandler(newState:)
         connection.betterPathUpdateHandler = self.betterPathHandler
