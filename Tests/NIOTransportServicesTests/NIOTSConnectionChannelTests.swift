@@ -463,4 +463,28 @@ class NIOTSConnectionChannelTests: XCTestCase {
         XCTAssertNoThrow(try connection.setOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT), value: 0).wait())
         XCTAssertEqual(0, try connection.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT)).wait())
     }
+
+    func testErrorsInChannelSetupAreFine() throws {
+        struct MyError: Error { }
+
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connectFuture = NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in channel.eventLoop.newFailedFuture(error: MyError()) }
+            .connect(to: listener.localAddress!)
+
+        do {
+            let conn = try connectFuture.wait()
+            XCTAssertNoThrow(try conn.close().wait())
+            XCTFail("Did not throw")
+        } catch is MyError {
+            // fine
+        } catch {
+            XCTFail("Unexpected error")
+        }
+    }
 }

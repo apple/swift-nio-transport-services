@@ -138,4 +138,22 @@ class NIOTSListenerChannelTests: XCTestCase {
         XCTAssertNoThrow(try listener.setOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT), value: 0).wait())
         XCTAssertEqual(0, try listener.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT)).wait())
     }
+
+    func testErrorsInChannelSetupAreFine() throws {
+        struct MyError: Error { }
+
+        let listenerFuture = NIOTSListenerBootstrap(group: self.group)
+            .serverChannelInitializer { channel in channel.eventLoop.newFailedFuture(error: MyError()) }
+            .bind(host: "localhost", port: 0)
+
+        do {
+            let listener = try listenerFuture.wait()
+            XCTAssertNoThrow(try listener.close().wait())
+            XCTFail("Did not throw")
+        } catch is MyError {
+            // fine
+        } catch {
+            XCTFail("Unexpected error")
+        }
+    }
 }
