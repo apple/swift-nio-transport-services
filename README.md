@@ -14,9 +14,14 @@ All regular NIO applications should work just fine with NIO Transport Services, 
 
 Network.framework is Apple's reference implementation of the [proposed post-sockets API](https://datatracker.ietf.org/wg/taps/charter/) that is currently being worked on by the Transport Services Working Group (taps) of the IETF. To indicate the proposed long-term future of interfaces like Network.framework, we decided to call this module NIOTransportServices. Also, NIONetworkFramework didn't appeal to us much as a name.
 
-## Limitations
+## How to Use?
 
-Network.framework is only available on macOS 10.14+, iOS 12+, and tvOS 12+. This does not match the current minimum deployment target for Swift Package Manager, so building this repository with Swift Package Manager requires that you pass custom build flags, e.g:
+Today, the easiest way to use SwiftNIO Transport Services is through CocoaPods:
+
+    pod 'SwiftNIO'
+    pod 'SwiftNIOTransportServices'
+
+You can also use the Swift Package Manager, however Network.framework is only available on macOS 10.14+, iOS 12+, and tvOS 12+. This does not match the current minimum deployment target for Swift Package Manager, so building this repository with Swift Package Manager requires that you pass custom build flags, e.g:
 
 ```
 swift build -Xswiftc -target -Xswiftc x86_64-apple-macosx10.14
