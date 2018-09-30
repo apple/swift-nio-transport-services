@@ -240,9 +240,7 @@ extension StateManagedChannel {
             return
         }
 
-        if let promise = promise {
-            promise.succeed(result: ())
-        }
+        promise?.succeed(result: ())
         self.pipeline.fireChannelActive()
         self.readIfNeeded0()
     }
