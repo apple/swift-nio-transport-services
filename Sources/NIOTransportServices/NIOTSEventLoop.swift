@@ -105,19 +105,19 @@ internal class NIOTSEventLoop: QoSEventLoop {
             return Scheduled(promise: p, cancellationTask: { } )
         }
 
-        // Dispatch has no support for cancellation, so instead we synchronize over this nice variable.
-        var cancelled = false
-
-        self.taskQueue.asyncAfter(deadline: DispatchTime(uptimeNanoseconds: DispatchTime.now().uptimeNanoseconds + UInt64(time.nanoseconds)), qos: qos) {
-            guard !cancelled else { return }
+        // Dispatch support for cancellation exists at the work-item level, so we explicitly create one here.
+        // We set the QoS on this work item and explicitly enforce it when the block runs.
+        let workItem = DispatchWorkItem(qos: qos, flags: .enforceQoS) {
             do {
                 p.succeed(result: try task())
             } catch {
                 p.fail(error: error)
             }
         }
+        
+        self.taskQueue.asyncAfter(deadline: DispatchTime(uptimeNanoseconds: DispatchTime.now().uptimeNanoseconds + UInt64(time.nanoseconds)), execute: workItem)
 
-        return Scheduled(promise: p, cancellationTask: { self.taskQueue.async { cancelled = true } })
+        return Scheduled(promise: p, cancellationTask: { workItem.cancel() })
     }
 
     public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping (Error?) -> Void) {

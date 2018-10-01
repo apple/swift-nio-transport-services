@@ -46,12 +46,10 @@ internal enum ChannelState<ActiveSubstate: ActiveChannelSubstate> {
     }
 
     fileprivate mutating func beginActivating() throws {
-        switch self {
-        case .registered:
-            self = .activating
-        case .idle, .activating, .active, .inactive:
+        guard case .registered = self else {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
+        self = .activating
     }
 
     fileprivate mutating func becomeActive() throws {
@@ -242,9 +240,7 @@ extension StateManagedChannel {
             return
         }
 
-        if let promise = promise {
-            promise.succeed(result: ())
-        }
+        promise?.succeed(result: ())
         self.pipeline.fireChannelActive()
         self.readIfNeeded0()
     }
