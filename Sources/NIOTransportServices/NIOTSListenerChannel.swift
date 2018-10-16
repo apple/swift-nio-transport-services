@@ -147,14 +147,12 @@ extension NIOTSListenerChannel: Channel {
 
         // TODO: Many more channel options, both from NIO and Network.framework.
         switch option {
-        case _ as AutoReadOption:
+        case is AutoReadOption:
             // AutoRead is currently mandatory for TS listeners.
             if value as! AutoReadOption.OptionType == false {
                 throw ChannelError.operationUnsupported
             }
-        case _ as SocketOption:
-            let optionValue = option as! SocketOption
-
+        case let optionValue as SocketOption:
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch optionValue.value {
             case (SOL_SOCKET, SO_REUSEADDR):
@@ -187,11 +185,9 @@ extension NIOTSListenerChannel: Channel {
         }
 
         switch option {
-        case _ as AutoReadOption:
+        case is AutoReadOption:
             return autoRead as! T.OptionType
-        case _ as SocketOption:
-            let optionValue = option as! SocketOption
-
+        case let optionValue as SocketOption:
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch optionValue.value {
             case (SOL_SOCKET, SO_REUSEADDR):
@@ -313,16 +309,12 @@ extension NIOTSListenerChannel: StateManagedChannel {
     }
 
     public func doClose0(error: Error) {
-        guard let listener = self.nwListener else {
-            // We don't have a connection to close here, so we're actually done. Our old state
-            // was idle.
-            return
+        // Step 1: tell the networking stack (if created) that we're done.
+        if let listener = self.nwListener {
+            listener.cancel()
         }
-
-        // Step 1 is to tell the network stack we're done.
-        listener.cancel()
-
-        // Step 2 is to cancel a pending bind promise, if any.
+        
+        // Step 2: fail any pending bind promise.
         if let pendingBind = self.bindPromise {
             self.bindPromise = nil
             pendingBind.fail(error: error)
