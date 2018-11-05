@@ -276,16 +276,16 @@ private class AcceptHandler: ChannelInboundHandler {
         @inline(__always)
         func setupChildChannel() -> EventLoopFuture<Void> {
             return self.childChannelOptions.applyAll(channel: newChannel).then { () -> EventLoopFuture<Void> in
-                assert(childLoop.inEventLoop)
+                childLoop.assertInEventLoop()
                 return childInitializer(newChannel)
             }
         }
 
         @inline(__always)
         func fireThroughPipeline(_ future: EventLoopFuture<Void>) {
-            assert(ctxEventLoop.inEventLoop)
+            ctxEventLoop.assertInEventLoop()
             future.then { (_) -> EventLoopFuture<Void> in
-                assert(ctxEventLoop.inEventLoop)
+                ctxEventLoop.assertInEventLoop()
                 guard ctx.channel.isActive else {
                     return newChannel.close().thenThrowing {
                         throw ChannelError.ioOnClosedChannel
@@ -294,7 +294,7 @@ private class AcceptHandler: ChannelInboundHandler {
                 ctx.fireChannelRead(self.wrapInboundOut(newChannel))
                 return ctx.eventLoop.newSucceededFuture(result: ())
             }.whenFailure { error in
-                assert(ctx.eventLoop.inEventLoop)
+                ctx.eventLoop.assertInEventLoop()
                 _ = newChannel.close()
                 ctx.fireErrorCaught(error)
             }
