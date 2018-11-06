@@ -71,6 +71,12 @@ internal class NIOTSEventLoop: QoSEventLoop {
         return self.state == .active
     }
 
+    /// Returns whether the currently executing code is on the event loop.
+    ///
+    /// Due to limitations in Dispatch's API, this check is pessimistic: there are circumstances where a perfect
+    /// implementation *could* return `true`, but this version will be unable to prove that and will return `false`.
+    /// If you need to write an assertion about being in the event loop that must be correct, use SwiftNIO 1.11 or
+    /// later and call `preconditionInEventLoop` and `assertInEventLoop`.
     public var inEventLoop: Bool {
         return DispatchQueue.getSpecific(key: self.inQueueKey) == self.loopID
     }
@@ -126,6 +132,10 @@ internal class NIOTSEventLoop: QoSEventLoop {
         }.whenFailure { error in
             queue.async { callback(error) }
         }
+    }
+
+    func preconditionInEventLoop(file: StaticString, line: UInt) {
+        dispatchPrecondition(condition: .onQueue(self.loop))
     }
 }
 

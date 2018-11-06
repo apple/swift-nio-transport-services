@@ -23,7 +23,7 @@ let package = Package(
         .executable(name: "NIOTSHTTPServer", targets: ["NIOTSHTTPServer"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "1.8.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "1.11.0"),
     ],
     targets: [
         .target(name: "NIOTransportServices",

@@ -276,7 +276,7 @@ extension NIOTSConnectionChannel: Channel {
     }
 
     private func setOption0<T: ChannelOption>(option: T, value: T.OptionType) throws {
-        assert(eventLoop.inEventLoop)
+        self.eventLoop.assertInEventLoop()
 
         guard !self.closed else {
             throw ChannelError.ioOnClosedChannel
@@ -320,7 +320,7 @@ extension NIOTSConnectionChannel: Channel {
     }
 
     func getOption0<T: ChannelOption>(option: T) throws -> T.OptionType {
-        assert(eventLoop.inEventLoop)
+        self.eventLoop.assertInEventLoop()
 
         guard !self.closed else {
             throw ChannelError.ioOnClosedChannel
