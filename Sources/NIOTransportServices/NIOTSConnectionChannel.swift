@@ -305,7 +305,7 @@ extension NIOTSConnectionChannel: Channel {
                 self.pipeline.fireChannelWritabilityChanged()
             }
         default:
-            fatalError("option \(option) not supported")
+            fatalError("option \(type(of: option)).\(option) not supported")
         }
     }
 
@@ -346,7 +346,7 @@ extension NIOTSConnectionChannel: Channel {
         case _ as WriteBufferWaterMarkOption:
             return self.backpressureManager.waterMarks as! T.OptionType
         default:
-            fatalError("option \(option) not supported")
+            fatalError("option \(type(of: option)).\(option) not supported")
         }
     }
 }
