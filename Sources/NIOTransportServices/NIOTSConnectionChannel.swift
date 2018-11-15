@@ -650,7 +650,6 @@ extension NIOTSConnectionChannel {
         guard self.isActive else {
             // If we're already not active, we aren't going to process any of this: it's likely the result of an extra
             // read somewhere along the line.
-            assert(content == nil)
             return
         }
 
