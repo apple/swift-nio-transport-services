@@ -17,6 +17,7 @@ import XCTest
 import Network
 import NIO
 import NIOTransportServices
+import Foundation
 
 
 final class ConnectRecordingHandler: ChannelOutboundHandler {
@@ -64,6 +65,17 @@ final class WritabilityChangedHandler: ChannelInboundHandler {
 
     func channelWritabilityChanged(ctx: ChannelHandlerContext) {
         self.cb(ctx.channel.isWritable)
+    }
+}
+
+
+final class DisableWaitingAfterConnect: ChannelOutboundHandler {
+    typealias OutboundIn = Any
+    typealias OutboundOut = Any
+
+    func connect(ctx: ChannelHandlerContext, to address: SocketAddress, promise: EventLoopPromise<Void>?) {
+        ctx.connect(to: address, promise: promise)
+        ctx.channel.setOption(option: NIOTSChannelOptions.waitForActivity, value: false)
     }
 }
 
@@ -486,5 +498,62 @@ class NIOTSConnectionChannelTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error")
         }
+    }
+
+    func testEarlyExitForWaitingChannel() throws {
+        let connectFuture = NIOTSConnectionBootstrap(group: self.group)
+            .channelOption(NIOTSChannelOptions.waitForActivity, value: false)
+            .connect(to: try SocketAddress(unixDomainSocketPath: "/this/path/definitely/doesnt/exist"))
+
+        do {
+            let conn = try connectFuture.wait()
+            XCTAssertNoThrow(try conn.close().wait())
+            XCTFail("Did not throw")
+        } catch is NWError {
+            // fine
+        } catch {
+            XCTFail("Unexpected error \(error)")
+        }
+    }
+
+    func testEarlyExitCanBeSetInWaitingState() throws {
+        let connectFuture = NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                channel.pipeline.add(handler: DisableWaitingAfterConnect())
+            }.connect(to: try SocketAddress(unixDomainSocketPath: "/this/path/definitely/doesnt/exist"))
+
+        do {
+            let conn = try connectFuture.wait()
+            XCTAssertNoThrow(try conn.close().wait())
+            XCTFail("Did not throw")
+        } catch is NWError {
+            // fine
+        } catch {
+            XCTFail("Unexpected error \(error)")
+        }
+    }
+
+    func testCanObserveValueOfDisableWaiting() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connectFuture = NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                return channel.getOption(option: NIOTSChannelOptions.waitForActivity).map { value in
+                    XCTAssertTrue(value)
+                }.then {
+                    channel.setOption(option: NIOTSChannelOptions.waitForActivity, value: false)
+                }.then {
+                    channel.getOption(option: NIOTSChannelOptions.waitForActivity)
+                }.map { value in
+                    XCTAssertFalse(value)
+                }
+            }.connect(to: listener.localAddress!)
+
+        let conn = try connectFuture.wait()
+        XCTAssertNoThrow(try conn.close().wait())
     }
 }
