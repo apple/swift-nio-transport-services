@@ -53,6 +53,9 @@ private struct ConnectionChannelOptions {
     /// Whether we support remote half closure. If not true, remote half closure will
     /// cause connection drops.
     internal var supportRemoteHalfClosure: Bool = false
+
+    /// Whether this channel should wait for the connection to become active.
+    internal var waitForActivity: Bool = true
 }
 
 
@@ -304,6 +307,14 @@ extension NIOTSConnectionChannel: Channel {
             if self.backpressureManager.writabilityChanges(whenUpdatingWaterMarks: value as! WriteBufferWaterMark) {
                 self.pipeline.fireChannelWritabilityChanged()
             }
+        case _ as NIOTSWaitForActivityOption:
+            let newValue = value as! Bool
+            self.options.waitForActivity = newValue
+
+            if let state = self.nwConnection?.state, case .waiting(let err) = state {
+                // We're in waiting now, so we should drop the connection.
+                self.close0(error: err, mode: .all, promise: nil)
+            }
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -345,6 +356,8 @@ extension NIOTSConnectionChannel: Channel {
             }
         case _ as WriteBufferWaterMarkOption:
             return self.backpressureManager.waterMarks as! T.OptionType
+        case _ as NIOTSWaitForActivityOption:
+            return self.options.waitForActivity as! T.OptionType
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -605,9 +618,9 @@ extension NIOTSConnectionChannel {
         case .setup:
             preconditionFailure("Should not be told about this state.")
         case .waiting(let err):
-            if case .activating = self.state {
+            if case .activating = self.state, self.options.waitForActivity {
                 // This means the connection cannot currently be completed. We should notify the pipeline
-                // here, or support this with a channel option or something, but for now for the same of
+                // here, or support this with a channel option or something, but for now for the sake of
                 // demos we will just allow ourselves into this stage.
                 break
             }
