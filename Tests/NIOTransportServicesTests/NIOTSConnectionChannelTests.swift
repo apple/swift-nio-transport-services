@@ -80,6 +80,22 @@ final class DisableWaitingAfterConnect: ChannelOutboundHandler {
 }
 
 
+final class PromiseOnActiveHandler: ChannelInboundHandler {
+    typealias InboundIn = Any
+    typealias InboudOut = Any
+
+    private let promise: EventLoopPromise<Void>
+
+    init(_ promise: EventLoopPromise<Void>) {
+        self.promise = promise
+    }
+
+    func channelActive(ctx: ChannelHandlerContext) {
+        self.promise.succeed(result: ())
+    }
+}
+
+
 class NIOTSConnectionChannelTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
 
@@ -555,5 +571,26 @@ class NIOTSConnectionChannelTests: XCTestCase {
 
         let conn = try connectFuture.wait()
         XCTAssertNoThrow(try conn.close().wait())
+    }
+
+    func testCanSafelyInvokeActiveFromMultipleThreads() throws {
+        // This test exists to trigger TSAN violations if we screw things up.
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let activePromise: EventLoopPromise<Void> = self.group.next().newPromise()
+
+        let channel = try NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                channel.pipeline.add(handler: PromiseOnActiveHandler(activePromise))
+            }.connect(to: listener.localAddress!).wait()
+
+        XCTAssertNoThrow(try activePromise.futureResult.wait())
+        XCTAssertTrue(channel.isActive)
+
+        XCTAssertNoThrow(try channel.close().wait())
     }
 }
