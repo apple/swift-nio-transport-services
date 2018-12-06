@@ -176,6 +176,9 @@ internal final class NIOTSConnectionChannel {
     /// The state of this connection channel.
     internal var state: ChannelState<ActiveSubstate> = .idle
 
+    /// The active state, used for safely reporting the channel state across threads.
+    internal var isActive0: Atomic<Bool> = Atomic(value: false)
+
     /// The kinds of channel activation this channel supports
     internal let supportedActivationType: ActivationType = .connect
 

@@ -16,6 +16,7 @@
 import Foundation
 import NIO
 import NIOFoundationCompat
+import NIOConcurrencyHelpers
 import Dispatch
 import Network
 
@@ -59,6 +60,9 @@ internal final class NIOTSListenerChannel {
 
     /// The kinds of channel activation this channel supports
     internal let supportedActivationType: ActivationType = .bind
+
+    /// The active state, used for safely reporting the channel state across threads.
+    internal var isActive0: Atomic<Bool> = Atomic(value: false)
 
     /// Whether a call to NWListener.receive has been made, but the completion
     /// handler has not yet been invoked.

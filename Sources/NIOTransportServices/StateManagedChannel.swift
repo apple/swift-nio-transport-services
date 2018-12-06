@@ -16,6 +16,7 @@
 import Foundation
 import NIO
 import NIOFoundationCompat
+import NIOConcurrencyHelpers
 import Dispatch
 import Network
 
@@ -93,6 +94,8 @@ internal protocol StateManagedChannel: Channel, ChannelCore {
 
     var state: ChannelState<ActiveSubstate> { get set }
 
+    var isActive0: Atomic<Bool> { get set }
+
     var tsEventLoop: NIOTSEventLoop { get }
 
     var closePromise: EventLoopPromise<Void> { get }
@@ -119,12 +122,7 @@ extension StateManagedChannel {
 
     /// Whether this channel is currently active.
     public var isActive: Bool {
-        switch self.state {
-        case .active:
-            return true
-        case .idle, .registered, .activating, .inactive:
-            return false
-        }
+        return self.isActive0.load()
     }
 
     /// Whether this channel is currently closed. This is not necessary for the public
@@ -196,6 +194,8 @@ extension StateManagedChannel {
                 return
             }
 
+            self.isActive0.store(false)
+
             self.doClose0(error: error)
 
             switch oldState {
@@ -240,6 +240,7 @@ extension StateManagedChannel {
             return
         }
 
+        self.isActive0.store(true)
         promise?.succeed(result: ())
         self.pipeline.fireChannelActive()
         self.readIfNeeded0()
