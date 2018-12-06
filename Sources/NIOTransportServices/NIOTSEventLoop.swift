@@ -196,13 +196,13 @@ extension NIOTSEventLoop {
             throw EventLoopError.shutdown
         }
 
-        assert(channel.eventLoop === self)
+        channel.eventLoop.assertInEventLoop()
         self.registeredChannels[ObjectIdentifier(channel)] = channel
     }
 
     // We don't allow deregister to fail, as it doesn't make any sense.
     internal func deregister(_ channel: Channel) {
-        assert(channel.eventLoop === self)
+        channel.eventLoop.assertInEventLoop()
         let oldChannel = self.registeredChannels.removeValue(forKey: ObjectIdentifier(channel))
         assert(oldChannel != nil)
     }

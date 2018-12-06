@@ -339,11 +339,15 @@ extension NIOTSListenerChannel: StateManagedChannel {
     }
 
     public func channelRead0(_ data: NIOAny) {
+        self.eventLoop.assertInEventLoop()
+
         let channel = self.unwrapData(data, as: NIOTSConnectionChannel.self)
-        let p: EventLoopPromise<Void> = self.eventLoop.newPromise()
-        channel.registerAlreadyConfigured0(promise: p)
-        p.futureResult.whenFailure { (_: Error) in
-            channel.close(promise: nil)
+        let p: EventLoopPromise<Void> = channel.eventLoop.newPromise()
+        channel.eventLoop.execute {
+            channel.registerAlreadyConfigured0(promise: p)
+            p.futureResult.whenFailure { (_: Error) in
+                channel.close(promise: nil)
+            }
         }
     }
 

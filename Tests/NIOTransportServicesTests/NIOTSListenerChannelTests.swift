@@ -156,4 +156,32 @@ class NIOTSListenerChannelTests: XCTestCase {
             XCTFail("Unexpected error")
         }
     }
+
+    func testCanSafelyInvokeChannelsAcrossThreads() throws {
+        // This is a test that aims to trigger TSAN violations.
+        let childGroup = NIOTSEventLoopGroup(loopCount: 2)
+        let childChannelPromise: EventLoopPromise<Channel> = childGroup.next().newPromise()
+        let activePromise: EventLoopPromise<Void> = childGroup.next().newPromise()
+
+        let listener = try NIOTSListenerBootstrap(group: self.group, childGroup: childGroup)
+            .childChannelInitializer { channel in
+                childChannelPromise.succeed(result: channel)
+                return channel.pipeline.add(handler: PromiseOnActiveHandler(activePromise))
+            }.bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        // Connect to the listener.
+        let channel = try NIOTSConnectionBootstrap(group: self.group)
+            .connect(to: listener.localAddress!).wait()
+
+        // Wait for the child channel to become active.
+        let childChannel = try childChannelPromise.futureResult.wait()
+        XCTAssertNoThrow(try activePromise.futureResult.wait())
+
+        // Now close the child channel.
+        XCTAssertNoThrow(try childChannel.close().wait())
+        XCTAssertNoThrow(try channel.closeFuture.wait())
+    }
 }
