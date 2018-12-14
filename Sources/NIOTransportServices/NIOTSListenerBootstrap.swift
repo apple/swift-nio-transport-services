@@ -145,12 +145,12 @@ public final class NIOTSListenerBootstrap {
     ///     - port: The port to bind on.
     public func bind(host: String, port: Int) -> EventLoopFuture<Channel> {
         return self.bind0 { channel in
-            let p: EventLoopPromise<Void> = channel.eventLoop.newPromise()
+            let p: EventLoopPromise<Void> = channel.eventLoop.makePromise()
             do {
                 // NWListener does not actually resolve hostname-based NWEndpoints
                 // for use with requiredLocalEndpoint, so we fall back to
                 // SocketAddress for this.
-                let address = try SocketAddress.newAddressResolving(host: host, port: port)
+                let address = try SocketAddress.makeAddressResolvingHost(host, port: port)
                 channel.bind(to: address, promise: p)
             } catch {
                 p.fail(error: error)
@@ -175,7 +175,7 @@ public final class NIOTSListenerBootstrap {
     ///     - unixDomainSocketPath: The _Unix domain socket_ path to bind to. `unixDomainSocketPath` must not exist, it will be created by the system.
     public func bind(unixDomainSocketPath: String) -> EventLoopFuture<Channel> {
         return self.bind0 { channel in
-            let p: EventLoopPromise<Void> = channel.eventLoop.newPromise()
+            let p: EventLoopPromise<Void> = channel.eventLoop.makePromise()
             do {
                 let address = try SocketAddress(unixDomainSocketPath: unixDomainSocketPath)
                 channel.bind(to: address, promise: p)
@@ -199,7 +199,7 @@ public final class NIOTSListenerBootstrap {
     private func bind0(_ binder: @escaping (Channel) -> EventLoopFuture<Void>) -> EventLoopFuture<Channel> {
         let eventLoop = self.group.next() as! NIOTSEventLoop
         let childEventLoopGroup = self.childGroup as! NIOTSEventLoopGroup
-        let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.newSucceededFuture(result: ()) }
+        let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(result: ()) }
         let childChannelInit = self.childChannelInit
         let serverChannelOptions = self.serverChannelOptions
         let childChannelOptions = self.childChannelOptions
@@ -227,7 +227,7 @@ public final class NIOTSListenerBootstrap {
                 serverChannel as Channel
             }.thenIfError { error in
                 serverChannel.close0(error: error, mode: .all, promise: nil)
-                return eventLoop.newFailedFuture(error: error)
+                return eventLoop.makeFailedFuture(error: error)
             }
         }.then {
             $0
@@ -265,7 +265,7 @@ private class AcceptHandler: ChannelInboundHandler {
         let conn = self.unwrapInboundIn(data)
         let childLoop = self.childGroup.next() as! NIOTSEventLoop
         let ctxEventLoop = ctx.eventLoop
-        let childInitializer = self.childChannelInitializer ?? { _ in childLoop.newSucceededFuture(result: ()) }
+        let childInitializer = self.childChannelInitializer ?? { _ in childLoop.makeSucceededFuture(result: ()) }
         let newChannel = NIOTSConnectionChannel(wrapping: conn,
                                                 on: childLoop,
                                                 parent: ctx.channel,
@@ -292,7 +292,7 @@ private class AcceptHandler: ChannelInboundHandler {
                     }
                 }
                 ctx.fireChannelRead(self.wrapInboundOut(newChannel))
-                return ctx.eventLoop.newSucceededFuture(result: ())
+                return ctx.eventLoop.makeSucceededFuture(result: ())
             }.whenFailure { error in
                 ctx.eventLoop.assertInEventLoop()
                 _ = newChannel.close()

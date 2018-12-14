@@ -210,7 +210,7 @@ internal final class NIOTSConnectionChannel {
                   tcpOptions: NWProtocolTCP.Options,
                   tlsOptions: NWProtocolTLS.Options?) {
         self.tsEventLoop = eventLoop
-        self.closePromise = eventLoop.newPromise()
+        self.closePromise = eventLoop.makePromise()
         self.parent = parent
         self.connectionQueue = eventLoop.channelQueue(label: "nio.nioTransportServices.connectionchannel", qos: qos)
         self.tcpOptions = tcpOptions
@@ -273,7 +273,7 @@ extension NIOTSConnectionChannel: Channel {
 
     public func setOption<T>(option: T, value: T.OptionType) -> EventLoopFuture<Void> where T : ChannelOption {
         if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<Void> = eventLoop.newPromise()
+            let promise: EventLoopPromise<Void> = eventLoop.makePromise()
             executeAndComplete(promise) { try setOption0(option: option, value: value) }
             return promise.futureResult
         } else {
@@ -325,7 +325,7 @@ extension NIOTSConnectionChannel: Channel {
 
     public func getOption<T>(option: T) -> EventLoopFuture<T.OptionType> where T : ChannelOption {
         if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<T.OptionType> = eventLoop.newPromise()
+            let promise: EventLoopPromise<T.OptionType> = eventLoop.makePromise()
             executeAndComplete(promise) { try getOption0(option: option) }
             return promise.futureResult
         } else {

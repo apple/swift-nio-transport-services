@@ -74,8 +74,13 @@ final class DisableWaitingAfterConnect: ChannelOutboundHandler {
     typealias OutboundOut = Any
 
     func connect(ctx: ChannelHandlerContext, to address: SocketAddress, promise: EventLoopPromise<Void>?) {
-        ctx.connect(to: address, promise: promise)
-        ctx.channel.setOption(option: NIOTSChannelOptions.waitForActivity, value: false)
+
+        let f = ctx.channel.setOption(option: NIOTSChannelOptions.waitForActivity, value: false).then {
+            ctx.connect(to: address)
+        }
+        if let promise = promise {
+            f.cascade(promise: promise)
+        }
     }
 }
 
@@ -151,7 +156,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
 
         try connection.eventLoop.submit {
             XCTAssertEqual(connectRecordingHandler.connectTargets, [])
-            XCTAssertEqual(connectRecordingHandler.endpointTargets, [NWEndpoint.hostPort(host: "localhost", port: NWEndpoint.Port(rawValue: listener.localAddress!.port!)!)])
+            XCTAssertEqual(connectRecordingHandler.endpointTargets, [NWEndpoint.hostPort(host: "localhost", port: NWEndpoint.Port(rawValue: UInt16(listener.localAddress!.port!))!)])
         }.wait()
     }
 
@@ -168,7 +173,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
         XCTAssertEqual(connectRecordingHandler.connectTargets, [])
         XCTAssertEqual(connectRecordingHandler.endpointTargets, [])
 
-        let target = NWEndpoint.hostPort(host: "localhost", port: NWEndpoint.Port(rawValue: listener.localAddress!.port!)!)
+        let target = NWEndpoint.hostPort(host: "localhost", port: NWEndpoint.Port(rawValue: UInt16(listener.localAddress!.port!))!)
 
         let connection = try connectBootstrap.connect(endpoint: target).wait()
         defer {
@@ -306,7 +311,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
 
             // Write a. After this write, we are still writable. When this write
             // succeeds, we'll still be not writable.
-            connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete {
+            connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete { (_: Result<Void, Error>) in
                 XCTAssertEqual(writabilities, [false])
                 XCTAssertFalse(connection.isWritable)
             }
@@ -315,7 +320,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
 
             // Write b. After this write we are still writable. When this write
             // succeeds we'll still be not writable.
-            connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete {
+            connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete { (_: Result<Void, Error>) in
                 XCTAssertEqual(writabilities, [false])
                 XCTAssertFalse(connection.isWritable)
             }
@@ -324,7 +329,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
 
             // Write c. After this write we are still writable (2047 bytes written).
             // When this write succeeds we'll still be not writable (2 bytes outstanding).
-            connection.write(buffer.getSlice(at: 0, length: 2045)).whenComplete {
+            connection.write(buffer.getSlice(at: 0, length: 2045)).whenComplete { (_: Result<Void, Error>) in
                 XCTAssertEqual(writabilities, [false])
                 XCTAssertFalse(connection.isWritable)
             }
@@ -334,7 +339,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             // Write d. After this write we are still writable (2048 bytes written).
             // When this write succeeds we'll become writable, but critically the promise fires before
             // the state change, so we'll *appear* to be unwritable.
-            connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete {
+            connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete { (_: Result<Void, Error>) in
                 XCTAssertEqual(writabilities, [false])
                 XCTAssertFalse(connection.isWritable)
             }
@@ -344,7 +349,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             // Write e. After this write we are now not writable (2049 bytes written).
             // When this write succeeds we'll have already been writable, thanks to the previous
             // write.
-            connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete {
+            connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete { (_: Result<Void, Error>) in
                 XCTAssertEqual(writabilities, [false, true])
                 XCTAssertTrue(connection.isWritable)
 
@@ -502,7 +507,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         let connectFuture = NIOTSConnectionBootstrap(group: self.group)
-            .channelInitializer { channel in channel.eventLoop.newFailedFuture(error: MyError()) }
+            .channelInitializer { channel in channel.eventLoop.makeFailedFuture(error: MyError()) }
             .connect(to: listener.localAddress!)
 
         do {
@@ -581,7 +586,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             XCTAssertNoThrow(try listener.close().wait())
         }
 
-        let activePromise: EventLoopPromise<Void> = self.group.next().newPromise()
+        let activePromise: EventLoopPromise<Void> = self.group.next().makePromise()
 
         let channel = try NIOTSConnectionBootstrap(group: self.group)
             .channelInitializer { channel in

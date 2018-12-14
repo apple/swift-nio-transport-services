@@ -103,7 +103,7 @@ public final class NIOTSConnectionBootstrap {
     /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
     public func connect(host: String, port: Int) -> EventLoopFuture<Channel> {
         guard let actualPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
-            return self.group.next().newFailedFuture(error: NIOTSErrors.InvalidPort(port: port))
+            return self.group.next().makeFailedFuture(error: NIOTSErrors.InvalidPort(port: port))
         }
         return self.connect(endpoint: NWEndpoint.hostPort(host: .init(host), port: actualPort))
     }
@@ -129,7 +129,7 @@ public final class NIOTSConnectionBootstrap {
             let address = try SocketAddress(unixDomainSocketPath: unixDomainSocketPath)
             return connect(to: address)
         } catch {
-            return group.next().newFailedFuture(error: error)
+            return group.next().makeFailedFuture(error: error)
         }
     }
 
@@ -146,7 +146,7 @@ public final class NIOTSConnectionBootstrap {
                                                    qos: self.qos,
                                                    tcpOptions: self.tcpOptions,
                                                    tlsOptions: self.tlsOptions)
-        let initializer = self.channelInitializer ?? { _ in conn.eventLoop.newSucceededFuture(result: ()) }
+        let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(result: ()) }
         let channelOptions = self.channelOptions
 
         return conn.eventLoop.submit {
@@ -155,14 +155,14 @@ public final class NIOTSConnectionBootstrap {
                 }.then {
                     conn.register()
                 }.then {
-                    let connectPromise: EventLoopPromise<Void> = conn.eventLoop.newPromise()
+                    let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
                     connectAction(conn, connectPromise)
                     let cancelTask = conn.eventLoop.scheduleTask(in: self.connectTimeout) {
                         connectPromise.fail(error: ChannelError.connectTimeout(self.connectTimeout))
                         conn.close(promise: nil)
                     }
 
-                    connectPromise.futureResult.whenComplete {
+                    connectPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
                         cancelTask.cancel()
                     }
                     return connectPromise.futureResult
@@ -200,7 +200,7 @@ internal struct ChannelOptionStorage {
     }
 
     func applyAll(channel: Channel) -> EventLoopFuture<Void> {
-        let applyPromise: EventLoopPromise<Void> = channel.eventLoop.newPromise()
+        let applyPromise: EventLoopPromise<Void> = channel.eventLoop.makePromise()
         var it = self.storage.makeIterator()
 
         func applyNext() {

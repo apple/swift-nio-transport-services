@@ -85,7 +85,7 @@ internal final class NIOTSListenerChannel {
                   tcpOptions: NWProtocolTCP.Options,
                   tlsOptions: NWProtocolTLS.Options?) {
         self.tsEventLoop = eventLoop
-        self.closePromise = eventLoop.newPromise()
+        self.closePromise = eventLoop.makePromise()
         self.connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
         self.tcpOptions = tcpOptions
         self.tlsOptions = tlsOptions
@@ -134,7 +134,7 @@ extension NIOTSListenerChannel: Channel {
 
     public func setOption<T>(option: T, value: T.OptionType) -> EventLoopFuture<Void> where T : ChannelOption {
         if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<Void> = eventLoop.newPromise()
+            let promise: EventLoopPromise<Void> = eventLoop.makePromise()
             executeAndComplete(promise) { try setOption0(option: option, value: value) }
             return promise.futureResult
         } else {
@@ -173,7 +173,7 @@ extension NIOTSListenerChannel: Channel {
 
     public func getOption<T>(option: T) -> EventLoopFuture<T.OptionType> where T : ChannelOption {
         if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<T.OptionType> = eventLoop.newPromise()
+            let promise: EventLoopPromise<T.OptionType> = eventLoop.makePromise()
             executeAndComplete(promise) { try getOption0(option: option) }
             return promise.futureResult
         } else {
@@ -269,6 +269,8 @@ extension NIOTSListenerChannel: StateManagedChannel {
             parameters.requiredLocalEndpoint = target
         case .service(_, _, _, let interface):
             parameters.requiredInterface = interface
+        @unknown default:
+            ()
         }
 
         // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
@@ -342,7 +344,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
         self.eventLoop.assertInEventLoop()
 
         let channel = self.unwrapData(data, as: NIOTSConnectionChannel.self)
-        let p: EventLoopPromise<Void> = channel.eventLoop.newPromise()
+        let p: EventLoopPromise<Void> = channel.eventLoop.makePromise()
         channel.eventLoop.execute {
             channel.registerAlreadyConfigured0(promise: p)
             p.futureResult.whenFailure { (_: Error) in
