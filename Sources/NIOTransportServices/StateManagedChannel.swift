@@ -39,10 +39,14 @@ internal enum ChannelState<ActiveSubstate: ActiveChannelSubstate> {
     case active(ActiveSubstate)
     case inactive
 
-    fileprivate mutating func register() throws {
+    /// Unlike every other one of these methods, this one has a side-effect. This is because
+    /// it's impossible to correctly be in the reigstered state without verifying that
+    /// registration has occurred.
+    fileprivate mutating func register(eventLoop: NIOTSEventLoop, channel: Channel) throws {
         guard case .idle = self else {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
+        try eventLoop.register(channel)
         self = .registered
     }
 
@@ -139,8 +143,7 @@ extension StateManagedChannel {
     public func register0(promise: EventLoopPromise<Void>?) {
         // TODO: does this need to do anything more than this?
         do {
-            try self.state.register()
-            try self.tsEventLoop.register(self)
+            try self.state.register(eventLoop: self.tsEventLoop, channel: self)
             self.pipeline.fireChannelRegistered()
             promise?.succeed(result: ())
         } catch {
@@ -151,8 +154,7 @@ extension StateManagedChannel {
 
     public func registerAlreadyConfigured0(promise: EventLoopPromise<Void>?) {
         do {
-            try self.state.register()
-            try self.tsEventLoop.register(self)
+            try self.state.register(eventLoop: self.tsEventLoop, channel: self)
             self.pipeline.fireChannelRegistered()
             try self.state.beginActivating()
 			promise?.succeed(result: ())
