@@ -184,4 +184,19 @@ class NIOTSListenerChannelTests: XCTestCase {
         XCTAssertNoThrow(try childChannel.close().wait())
         XCTAssertNoThrow(try channel.closeFuture.wait())
     }
+
+    func testBindingChannelsOnShutdownEventLoopsFails() throws {
+        let temporaryGroup = NIOTSEventLoopGroup()
+        XCTAssertNoThrow(try temporaryGroup.syncShutdownGracefully())
+
+        let bootstrap = NIOTSListenerBootstrap(group: temporaryGroup)
+
+        do {
+            _ = try bootstrap.bind(host: "localhost", port: 0).wait()
+        } catch EventLoopError.shutdown {
+            // Expected
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
 }
