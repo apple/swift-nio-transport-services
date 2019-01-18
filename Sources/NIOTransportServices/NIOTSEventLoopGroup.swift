@@ -68,7 +68,7 @@ public final class NIOTSEventLoopGroup: EventLoopGroup {
             g.enter()
             loop.closeGently().mapIfError { err in
                 q.sync { error = err }
-            }.whenComplete {
+            }.whenComplete { (_: Result<Void, Error>) in
                 g.leave()
             }
         }
@@ -76,5 +76,9 @@ public final class NIOTSEventLoopGroup: EventLoopGroup {
         g.notify(queue: q) {
             callback(error)
         }
+    }
+
+    public func makeIterator() -> EventLoopIterator {
+        return EventLoopIterator(self.eventLoops)
     }
 }

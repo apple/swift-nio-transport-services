@@ -52,7 +52,7 @@ final class ReadExpecter: ChannelInboundHandler {
     }
 
     func handlerAdded(ctx: ChannelHandlerContext) {
-        self.readPromise = ctx.eventLoop.newPromise()
+        self.readPromise = ctx.eventLoop.makePromise()
     }
 
     func handlerRemoved(ctx: ChannelHandlerContext) {
@@ -248,7 +248,7 @@ class NIOTSEndToEndTests: XCTestCase {
                     closeFutures.append(channel.closeFuture)
                 }
                 closeFutureGroup.leave()
-                return channel.eventLoop.newSucceededFuture(result: ())
+                return channel.eventLoop.makeSucceededFuture(result: ())
             }
             .bind(host: "localhost", port: 0).wait()
         defer {
@@ -279,7 +279,7 @@ class NIOTSEndToEndTests: XCTestCase {
     }
 
     func testAgreeOnRemoteLocalAddresses() throws {
-        let serverSideConnectionPromise: EventLoopPromise<Channel> = self.group.next().newPromise()
+        let serverSideConnectionPromise: EventLoopPromise<Channel> = self.group.next().makePromise()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
                 serverSideConnectionPromise.succeed(result: channel)
@@ -303,7 +303,7 @@ class NIOTSEndToEndTests: XCTestCase {
     }
 
     func testHalfClosureSupported() throws {
-        let halfClosedPromise: EventLoopPromise<Void> = self.group.next().newPromise()
+        let halfClosedPromise: EventLoopPromise<Void> = self.group.next().makePromise()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
                 channel.pipeline.add(handler: EchoHandler()).then { _ in

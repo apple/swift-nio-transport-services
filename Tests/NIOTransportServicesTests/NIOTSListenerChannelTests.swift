@@ -56,7 +56,7 @@ class NIOTSListenerChannelTests: XCTestCase {
 
     func testBindingToSocketAddressTraversesPipeline() throws {
         let bindRecordingHandler = BindRecordingHandler()
-        let target = try SocketAddress.newAddressResolving(host: "localhost", port: 0)
+        let target = try SocketAddress.makeAddressResolvingHost("localhost", port: 0)
         let bindBootstrap = NIOTSListenerBootstrap(group: self.group)
             .serverChannelInitializer { channel in channel.pipeline.add(handler: bindRecordingHandler)}
 
@@ -88,7 +88,7 @@ class NIOTSListenerChannelTests: XCTestCase {
         }
 
         try self.group.next().submit {
-            XCTAssertEqual(bindRecordingHandler.bindTargets, [try SocketAddress.newAddressResolving(host: "localhost", port: 0)])
+            XCTAssertEqual(bindRecordingHandler.bindTargets, [try SocketAddress.makeAddressResolvingHost("localhost", port: 0)])
             XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
         }.wait()
     }
@@ -143,7 +143,7 @@ class NIOTSListenerChannelTests: XCTestCase {
         struct MyError: Error { }
 
         let listenerFuture = NIOTSListenerBootstrap(group: self.group)
-            .serverChannelInitializer { channel in channel.eventLoop.newFailedFuture(error: MyError()) }
+            .serverChannelInitializer { channel in channel.eventLoop.makeFailedFuture(error: MyError()) }
             .bind(host: "localhost", port: 0)
 
         do {
@@ -160,8 +160,8 @@ class NIOTSListenerChannelTests: XCTestCase {
     func testCanSafelyInvokeChannelsAcrossThreads() throws {
         // This is a test that aims to trigger TSAN violations.
         let childGroup = NIOTSEventLoopGroup(loopCount: 2)
-        let childChannelPromise: EventLoopPromise<Channel> = childGroup.next().newPromise()
-        let activePromise: EventLoopPromise<Void> = childGroup.next().newPromise()
+        let childChannelPromise: EventLoopPromise<Channel> = childGroup.next().makePromise()
+        let activePromise: EventLoopPromise<Void> = childGroup.next().makePromise()
 
         let listener = try NIOTSListenerBootstrap(group: self.group, childGroup: childGroup)
             .childChannelInitializer { channel in

@@ -1,4 +1,4 @@
-// swift-tools-version:4.0
+// swift-tools-version:5.0
 //===----------------------------------------------------------------------===//
 //
 // This source file is part of the SwiftNIO open source project
@@ -17,13 +17,16 @@ import PackageDescription
 
 let package = Package(
     name: "swift-nio-transport-services",
+    platforms: [
+       .macOS(.v10_14), .iOS(.v12), .tvOS(.v12),
+    ],
     products: [
         .library(name: "NIOTransportServices", targets: ["NIOTransportServices"]),
         .executable(name: "NIOTSHTTPClient", targets: ["NIOTSHTTPClient"]),
         .executable(name: "NIOTSHTTPServer", targets: ["NIOTSHTTPServer"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "1.11.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", .branch("master")),
     ],
     targets: [
         .target(name: "NIOTransportServices",

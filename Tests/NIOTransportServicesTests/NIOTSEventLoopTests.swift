@@ -51,7 +51,7 @@ class NIOTSEventLoopTest: XCTestCase {
             firstTask.cancel()
         }
         let thirdTask = loop.scheduleTask(in: .milliseconds(50)) { }
-        firstTask.futureResult.whenComplete {
+        firstTask.futureResult.whenComplete { (_: Result<Void, Error>) in
             let newNow = DispatchTime.now()
             XCTAssertLessThan(newNow.uptimeNanoseconds - now.uptimeNanoseconds,
                               300 * 1000 * 1000)

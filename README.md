@@ -16,24 +16,21 @@ Network.framework is Apple's reference implementation of the [proposed post-sock
 
 ## How to Use?
 
-Today, the easiest way to use SwiftNIO Transport Services is through CocoaPods:
+Today, the easiest way to use SwiftNIO Transport Services in an iOS project is through CocoaPods:
 
     pod 'SwiftNIO'
     pod 'SwiftNIOTransportServices'
 
-You can also use the Swift Package Manager, however Network.framework is only available on macOS 10.14+, iOS 12+, and tvOS 12+. This does not match the current minimum deployment target for Swift Package Manager, so building this repository with Swift Package Manager requires that you pass custom build flags, e.g:
+You can also use the Swift Package Manager:
 
 ```
-swift build -Xswiftc -target -Xswiftc x86_64-apple-macosx10.14
+swift build
 ```
 
-Alternatively, if you want to use Xcode to build this repository, you can use the following xcconfig:
+and add the project as a sub-project by dragging it into your iOS project and adding the frameworks (such as `NIO.framework`) in 'Build Phases' -> 'Link Binary Libraries'.
 
-```
-MACOSX_DEPLOYMENT_TARGET = 10.14
-```
+Do note however that Network.framework requires macOS 10.14+, iOS 12+, or tvOS 12+.
 
-For support in iOS or tvOS, change the targets as necessary.
 
 ## Versioning
 

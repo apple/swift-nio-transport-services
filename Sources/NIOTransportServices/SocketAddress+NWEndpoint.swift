@@ -18,7 +18,7 @@ import Foundation
 import NIO
 import Network
 
-internal extension IPv4Address {
+extension IPv4Address {
     /// Create an `IPv4Address` object from a `sockaddr_in`.
     internal init(fromSockAddr sockAddr: sockaddr_in) {
         var localAddr = sockAddr
@@ -30,7 +30,7 @@ internal extension IPv4Address {
     }
 }
 
-internal extension IPv6Address {
+extension IPv6Address {
     internal init(fromSockAddr sockAddr: sockaddr_in6) {
         var localAddr = sockAddr
 
@@ -44,7 +44,7 @@ internal extension IPv6Address {
     }
 }
 
-internal extension NWEndpoint {
+extension NWEndpoint {
     /// Create an `NWEndpoint` value from a NIO `SocketAddress`.
     internal init(fromSocketAddress socketAddress: SocketAddress) {
         switch socketAddress {
@@ -57,11 +57,11 @@ internal extension NWEndpoint {
             self = NWEndpoint.unix(path: path)
         case .v4(let v4Addr):
             let v4Address = IPv4Address(fromSockAddr: v4Addr.address)
-            let port = NWEndpoint.Port(rawValue: socketAddress.port!)!
+            let port = NWEndpoint.Port(rawValue: UInt16(socketAddress.port!))!
             self = NWEndpoint.hostPort(host: .ipv4(v4Address), port: port)
         case .v6(let v6Addr):
             let v6Address = IPv6Address(fromSockAddr: v6Addr.address)
-            let port = NWEndpoint.Port(rawValue: socketAddress.port!)!
+            let port = NWEndpoint.Port(rawValue: UInt16(socketAddress.port!))!
             self = NWEndpoint.hostPort(host: .ipv6(v6Address), port: port)
         }
     }
@@ -69,7 +69,7 @@ internal extension NWEndpoint {
 
 // TODO: We'll want to get rid of this when we support returning NWEndpoint directly from
 // the various address-handling functions.
-internal extension SocketAddress {
+extension SocketAddress {
     internal init(fromNWEndpoint endpoint: NWEndpoint) throws {
         switch endpoint {
         case .hostPort(.ipv4(let host), let port):
@@ -96,8 +96,10 @@ internal extension SocketAddress {
             self = try .init(unixDomainSocketPath: path)
         case .service:
             preconditionFailure("Cannot represent service addresses in SocketAddress")
-        case .hostPort(.name, _):
-            preconditionFailure("Cannot represent host by name only as SocketAddress")
+        case .hostPort(_, _):
+            preconditionFailure("Cannot represent unknown host in SocketAddress")
+        @unknown default:
+            preconditionFailure("cannot create SocketAddress from unknown representation")
         }
     }
 }

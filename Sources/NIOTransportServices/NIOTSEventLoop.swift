@@ -104,7 +104,7 @@ internal class NIOTSEventLoop: QoSEventLoop {
     }
 
     public func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T> {
-        let p: EventLoopPromise<T> = self.newPromise()
+        let p: EventLoopPromise<T> = self.makePromise()
 
         guard self.state != .closed else {
             p.fail(error: EventLoopError.shutdown)
@@ -153,7 +153,7 @@ extension NIOTSEventLoop {
 
 extension NIOTSEventLoop {
     internal func closeGently() -> EventLoopFuture<Void> {
-        let p: EventLoopPromise<Void> = self.newPromise()
+        let p: EventLoopPromise<Void> = self.makePromise()
         self.taskQueue.async {
             guard self.open else {
                 p.fail(error: EventLoopError.shutdown)
@@ -181,7 +181,7 @@ extension NIOTSEventLoop {
             // event loop it will be forbidden from doing so.
             let completionFuture = EventLoopFuture<Void>.andAll(futures, eventLoop: self)
             completionFuture.cascade(promise: p)
-            completionFuture.whenComplete {
+            completionFuture.whenComplete { (_: Result<Void, Error>) in
                 self.state = .closed
             }
         }
