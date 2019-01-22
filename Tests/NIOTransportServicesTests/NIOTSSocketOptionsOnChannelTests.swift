@@ -31,15 +31,15 @@ private extension Channel {
     /// Asserts that a given socket option has a default value, that its value can be changed to a new value, and that it can then be
     /// switched back.
     func assertOptionRoundTrips(option: SocketOption, initialValue: SocketOptionValue, testAlternativeValue: SocketOptionValue) -> EventLoopFuture<Void> {
-        return self.getSocketOption(option).then { actualInitialValue in
+        return self.getSocketOption(option).flatMap { actualInitialValue in
             XCTAssertEqual(actualInitialValue, initialValue)
             return self.setSocketOption(option, to: testAlternativeValue)
-        }.then {
+        }.flatMap {
             self.getSocketOption(option)
-        }.then { actualNewValue in
+        }.flatMap { actualNewValue in
             XCTAssertEqual(actualNewValue, testAlternativeValue)
             return self.setSocketOption(option, to: initialValue)
-        }.then {
+        }.flatMap {
             self.getSocketOption(option)
         }.map { returnedToValue in
             XCTAssertEqual(returnedToValue, initialValue)

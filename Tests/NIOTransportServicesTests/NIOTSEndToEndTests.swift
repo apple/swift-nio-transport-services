@@ -148,7 +148,7 @@ extension Channel {
     /// Expect that the given bytes will be received.
     func expectRead(_ bytes: ByteBuffer) -> EventLoopFuture<Void> {
         let expecter = ReadExpecter(expecting: bytes)
-        return self.pipeline.add(handler: expecter).then {
+        return self.pipeline.add(handler: expecter).flatMap {
             return expecter.readFuture!
         }
     }
@@ -204,7 +204,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let bootstrap = NIOTSConnectionBootstrap(group: self.group)
 
         let completeFutures: [EventLoopFuture<Void>] = (0..<10).map { _ in
-            return bootstrap.connect(to: listener.localAddress!).then { channel -> EventLoopFuture<Void> in
+            return bootstrap.connect(to: listener.localAddress!).flatMap { channel -> EventLoopFuture<Void> in
                 let buffer = channel.allocator.bufferFor(string: "hello, world!")
                 let completeFuture = channel.expectRead(buffer)
                 channel.writeAndFlush(buffer, promise: nil)
@@ -227,7 +227,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let bootstrap = NIOTSConnectionBootstrap(group: self.group)
 
         let closeFutures: [EventLoopFuture<Void>] = (0..<10).map { _ in
-            bootstrap.connect(to: listener.localAddress!).then { channel in
+            bootstrap.connect(to: listener.localAddress!).flatMap { channel in
                 channel.closeFuture
             }
         }
@@ -306,7 +306,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let halfClosedPromise: EventLoopPromise<Void> = self.group.next().makePromise()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
-                channel.pipeline.add(handler: EchoHandler()).then { _ in
+                channel.pipeline.add(handler: EchoHandler()).flatMap { _ in
                     channel.pipeline.add(handler: HalfCloseHandler(halfClosedPromise))
                 }
             }
@@ -336,7 +336,7 @@ class NIOTSEndToEndTests: XCTestCase {
     func testDisabledHalfClosureCausesFullClosure() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
-                channel.pipeline.add(handler: EchoHandler()).then { _ in
+                channel.pipeline.add(handler: EchoHandler()).flatMap { _ in
                     channel.pipeline.add(handler: FailOnHalfCloseHandler())
                 }
             }

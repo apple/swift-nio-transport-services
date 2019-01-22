@@ -16,7 +16,7 @@
 import NIO
 import Dispatch
 import Network
-
+import _NIO1APIShims
 
 public final class NIOTSListenerBootstrap {
     private let group: EventLoopGroup
@@ -210,26 +210,26 @@ public final class NIOTSListenerBootstrap {
                                                  tlsOptions: self.tlsOptions)
 
         return eventLoop.submit {
-            return serverChannelOptions.applyAll(channel: serverChannel).then {
+            return serverChannelOptions.applyAll(channel: serverChannel).flatMap {
                 serverChannelInit(serverChannel)
-            }.then {
+            }.flatMap {
                 serverChannel.pipeline.add(handler: AcceptHandler(childChannelInitializer: childChannelInit,
                                                                   childGroup: childEventLoopGroup,
                                                                   childChannelOptions: childChannelOptions,
                                                                   childChannelQoS: self.childQoS,
                                                                   tcpOptions: self.tcpOptions,
                                                                   tlsOptions: self.tlsOptions))
-            }.then {
+            }.flatMap {
                 serverChannel.register()
-            }.then {
+            }.flatMap {
                 binder(serverChannel)
             }.map {
                 serverChannel as Channel
-            }.thenIfError { error in
+            }.flatMapError { error in
                 serverChannel.close0(error: error, mode: .all, promise: nil)
                 return eventLoop.makeFailedFuture(error: error)
             }
-        }.then {
+        }.flatMap {
             $0
         }
     }
@@ -275,7 +275,7 @@ private class AcceptHandler: ChannelInboundHandler {
 
         @inline(__always)
         func setupChildChannel() -> EventLoopFuture<Void> {
-            return self.childChannelOptions.applyAll(channel: newChannel).then { () -> EventLoopFuture<Void> in
+            return self.childChannelOptions.applyAll(channel: newChannel).flatMap { () -> EventLoopFuture<Void> in
                 childLoop.assertInEventLoop()
                 return childInitializer(newChannel)
             }
@@ -284,10 +284,10 @@ private class AcceptHandler: ChannelInboundHandler {
         @inline(__always)
         func fireThroughPipeline(_ future: EventLoopFuture<Void>) {
             ctxEventLoop.assertInEventLoop()
-            future.then { (_) -> EventLoopFuture<Void> in
+            future.flatMap { (_) -> EventLoopFuture<Void> in
                 ctxEventLoop.assertInEventLoop()
                 guard ctx.channel.isActive else {
-                    return newChannel.close().thenThrowing {
+                    return newChannel.close().flatMapThrowing {
                         throw ChannelError.ioOnClosedChannel
                     }
                 }
@@ -305,7 +305,7 @@ private class AcceptHandler: ChannelInboundHandler {
         } else {
             fireThroughPipeline(childLoop.submit {
                 return setupChildChannel()
-                }.then { $0 }.hopTo(eventLoop: ctxEventLoop))
+            }.flatMap { $0 }.hopTo(eventLoop: ctxEventLoop))
         }
     }
 }
