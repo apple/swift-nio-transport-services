@@ -18,6 +18,7 @@ import Network
 import NIO
 import NIOTransportServices
 import Foundation
+import _NIO1APIShims
 
 
 final class ConnectRecordingHandler: ChannelOutboundHandler {
@@ -75,7 +76,7 @@ final class DisableWaitingAfterConnect: ChannelOutboundHandler {
 
     func connect(ctx: ChannelHandlerContext, to address: SocketAddress, promise: EventLoopPromise<Void>?) {
 
-        let f = ctx.channel.setOption(option: NIOTSChannelOptions.waitForActivity, value: false).then {
+        let f = ctx.channel.setOption(option: NIOTSChannelOptions.waitForActivity, value: false).flatMap {
             ctx.connect(to: address)
         }
         if let promise = promise {
@@ -255,12 +256,12 @@ class NIOTSConnectionChannelTests: XCTestCase {
             XCTAssertNoThrow(try connection.close().wait())
         }
 
-        try connection.getOption(option: ChannelOptions.writeBufferWaterMark).then { option -> EventLoopFuture<Void> in
+        try connection.getOption(option: ChannelOptions.writeBufferWaterMark).flatMap { option -> EventLoopFuture<Void> in
             XCTAssertEqual(option.high, 64 * 1024)
             XCTAssertEqual(option.low, 32 * 1024)
 
             return connection.setOption(option: ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 1, high: 101))
-        }.then {
+        }.flatMap {
             connection.getOption(option: ChannelOptions.writeBufferWaterMark)
         }.map {
             XCTAssertEqual($0.high, 101)
@@ -422,31 +423,31 @@ class NIOTSConnectionChannelTests: XCTestCase {
             XCTAssertTrue(connection.isWritable)
         }.wait()
 
-        try connection.setOption(option: ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 128, high: 256)).then {
+        try connection.setOption(option: ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 128, high: 256)).flatMap {
             // High to 256, low to 128. No writability change.
             XCTAssertEqual(writabilities, [])
             XCTAssertTrue(connection.isWritable)
 
             return connection.setOption(option: ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 128, high: 255))
-        }.then {
+        }.flatMap {
             // High to 255, low to 127. Channel becomes not writable.
             XCTAssertEqual(writabilities, [false])
             XCTAssertFalse(connection.isWritable)
 
             return connection.setOption(option: ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 128, high: 256))
-        }.then {
+        }.flatMap {
             // High back to 256, low to 128. No writability change.
             XCTAssertEqual(writabilities, [false])
             XCTAssertFalse(connection.isWritable)
 
             return connection.setOption(option: ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 256, high: 1024))
-        }.then {
+        }.flatMap {
             // High to 1024, low to 128. No writability change.
             XCTAssertEqual(writabilities, [false])
             XCTAssertFalse(connection.isWritable)
 
             return connection.setOption(option: ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 257, high: 1024))
-        }.then {
+        }.flatMap {
             // Low to 257, channel becomes writable again.
             XCTAssertEqual(writabilities, [false, true])
             XCTAssertTrue(connection.isWritable)
@@ -565,9 +566,9 @@ class NIOTSConnectionChannelTests: XCTestCase {
             .channelInitializer { channel in
                 return channel.getOption(option: NIOTSChannelOptions.waitForActivity).map { value in
                     XCTAssertTrue(value)
-                }.then {
+                }.flatMap {
                     channel.setOption(option: NIOTSChannelOptions.waitForActivity, value: false)
-                }.then {
+                }.flatMap {
                     channel.getOption(option: NIOTSChannelOptions.waitForActivity)
                 }.map { value in
                     XCTAssertFalse(value)

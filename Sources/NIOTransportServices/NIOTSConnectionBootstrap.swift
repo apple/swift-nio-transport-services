@@ -150,27 +150,27 @@ public final class NIOTSConnectionBootstrap {
         let channelOptions = self.channelOptions
 
         return conn.eventLoop.submit {
-            return channelOptions.applyAll(channel: conn).then {
+            return channelOptions.applyAll(channel: conn).flatMap {
                 initializer(conn)
-                }.then {
-                    conn.register()
-                }.then {
-                    let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
-                    connectAction(conn, connectPromise)
-                    let cancelTask = conn.eventLoop.scheduleTask(in: self.connectTimeout) {
-                        connectPromise.fail(error: ChannelError.connectTimeout(self.connectTimeout))
-                        conn.close(promise: nil)
-                    }
-
-                    connectPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
-                        cancelTask.cancel()
-                    }
-                    return connectPromise.futureResult
-                }.map { conn }.thenIfErrorThrowing {
+            }.flatMap {
+                conn.register()
+            }.flatMap {
+                let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
+                connectAction(conn, connectPromise)
+                let cancelTask = conn.eventLoop.scheduleTask(in: self.connectTimeout) {
+                    connectPromise.fail(error: ChannelError.connectTimeout(self.connectTimeout))
                     conn.close(promise: nil)
-                    throw $0
+                }
+
+                connectPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
+                    cancelTask.cancel()
+                }
+                return connectPromise.futureResult
+            }.map { conn }.flatMapErrorThrowing {
+                conn.close(promise: nil)
+                throw $0
             }
-            }.then { $0 }
+        }.flatMap { $0 }
     }
 }
 

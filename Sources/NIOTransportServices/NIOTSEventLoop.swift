@@ -166,7 +166,7 @@ extension NIOTSEventLoop {
             // We need to tell all currently-registered channels to close.
             let futures: [EventLoopFuture<Void>] = self.registeredChannels.map { _, channel in
                 channel.close(promise: nil)
-                return channel.closeFuture.thenIfErrorThrowing { error in
+                return channel.closeFuture.flatMapErrorThrowing { error in
                     if let error = error as? ChannelError, error == .alreadyClosed {
                         return ()
                     } else {

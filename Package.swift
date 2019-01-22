@@ -30,12 +30,12 @@ let package = Package(
     ],
     targets: [
         .target(name: "NIOTransportServices",
-            dependencies: ["NIO", "NIOFoundationCompat", "NIOConcurrencyHelpers", "NIOTLS"]),
+            dependencies: ["NIO", "NIOFoundationCompat", "NIOConcurrencyHelpers", "NIOTLS", "_NIO1APIShims"]),
         .target(name: "NIOTSHTTPClient",
-            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1"]),
+            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1", "_NIO1APIShims"]),
         .target(name: "NIOTSHTTPServer",
-            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1"]),
+            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1", "_NIO1APIShims"]),
         .testTarget(name: "NIOTransportServicesTests",
-            dependencies: ["NIO", "NIOTransportServices"]),
+            dependencies: ["NIO", "NIOTransportServices", "_NIO1APIShims"]),
     ]
 )
