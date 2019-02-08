@@ -77,6 +77,9 @@ internal final class NIOTSListenerChannel {
     /// The value of SO_REUSEPORT.
     private var reusePort = false
 
+    /// Whether to enable peer-to-peer connectivity when using Bonjour services.
+    private var enablePeerToPeer = false
+
     /// Create a `NIOTSListenerChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSListenerChannel` objects cannot be created on arbitrary loops types.
@@ -166,6 +169,8 @@ extension NIOTSListenerChannel: Channel {
             default:
                 try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
+        case is NIOTSEnablePeerToPeerOption:
+            self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.OptionType
         default:
             fatalError("option \(option) not supported")
         }
@@ -201,6 +206,8 @@ extension NIOTSListenerChannel: Channel {
             default:
                 return try self.tcpOptions.valueFor(socketOption: optionValue) as! T.OptionType
             }
+        case is NIOTSEnablePeerToPeerOption:
+            return self.enablePeerToPeer as! T.OptionType
         default:
             fatalError("option \(option) not supported")
         }
@@ -274,6 +281,8 @@ extension NIOTSListenerChannel: StateManagedChannel {
         // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
         // either.
         parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort
+
+        parameters.includePeerToPeer = self.enablePeerToPeer
 
         let listener: NWListener
         do {
