@@ -143,7 +143,7 @@ class NIOTSListenerChannelTests: XCTestCase {
         struct MyError: Error { }
 
         let listenerFuture = NIOTSListenerBootstrap(group: self.group)
-            .serverChannelInitializer { channel in channel.eventLoop.makeFailedFuture(error: MyError()) }
+            .serverChannelInitializer { channel in channel.eventLoop.makeFailedFuture(MyError()) }
             .bind(host: "localhost", port: 0)
 
         do {
@@ -165,7 +165,7 @@ class NIOTSListenerChannelTests: XCTestCase {
 
         let listener = try NIOTSListenerBootstrap(group: self.group, childGroup: childGroup)
             .childChannelInitializer { channel in
-                childChannelPromise.succeed(result: channel)
+                childChannelPromise.succeed(channel)
                 return channel.pipeline.add(handler: PromiseOnActiveHandler(activePromise))
             }.bind(host: "localhost", port: 0).wait()
         defer {

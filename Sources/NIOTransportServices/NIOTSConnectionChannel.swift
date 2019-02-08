@@ -26,9 +26,9 @@ import Security
 func executeAndComplete<T>(_ promise: EventLoopPromise<T>?, _ body: () throws -> T) {
     do {
         let result = try body()
-        promise?.succeed(result: result)
+        promise?.succeed(result)
     } catch let e {
-        promise?.fail(error: e)
+        promise?.fail(e)
     }
 }
 
@@ -36,7 +36,7 @@ func executeAndComplete<T>(_ promise: EventLoopPromise<T>?, _ body: () throws ->
 private func mergePromises(_ first: EventLoopPromise<Void>?, _ second: EventLoopPromise<Void>?) -> EventLoopPromise<Void>? {
     if let first = first {
         if let second = second {
-            first.futureResult.cascade(promise: second)
+            first.futureResult.cascade(to: second)
         }
         return first
     } else {
@@ -190,7 +190,7 @@ internal final class NIOTSConnectionChannel {
     private var options: ConnectionChannelOptions = ConnectionChannelOptions()
 
     /// Any pending writes that have yet to be delivered to the network stack.
-    private var pendingWrites = CircularBuffer<PendingWrite>(initialRingCapacity: 8)
+    private var pendingWrites = CircularBuffer<PendingWrite>(initialCapacity: 8)
 
     /// An object to keep track of pending writes and manage our backpressure signaling.
     private var backpressureManager = BackpressureManager()
@@ -415,12 +415,12 @@ extension NIOTSConnectionChannel: StateManagedChannel {
 
     internal func alreadyConfigured0(promise: EventLoopPromise<Void>?) {
         guard let connection = nwConnection else {
-            promise?.fail(error: NIOTSErrors.NotPreConfigured())
+            promise?.fail(NIOTSErrors.NotPreConfigured())
             return
         }
 
         guard case .setup = connection.state else {
-            promise?.fail(error: NIOTSErrors.NotPreConfigured())
+            promise?.fail(NIOTSErrors.NotPreConfigured())
             return
         }
 
@@ -453,7 +453,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
 
     public func write0(_ data: NIOAny, promise: EventLoopPromise<Void>?) {
         guard self.isActive else {
-            promise?.fail(error: ChannelError.ioOnClosedChannel)
+            promise?.fail(ChannelError.ioOnClosedChannel)
             return
         }
 
@@ -484,9 +484,9 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         func completionCallback(promise: EventLoopPromise<Void>?, sentBytes: Int) -> ((NWError?) -> Void) {
             return { error in
                 if let error = error {
-                    promise?.fail(error: error)
+                    promise?.fail(error)
                 } else {
-                    promise?.succeed(result: ())
+                    promise?.succeed(())
                 }
 
                 if self.backpressureManager.writabilityChanges(whenBytesSent: sentBytes) {
@@ -541,14 +541,14 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         // Step 3 is to cancel a pending connect promise, if any.
         if let pendingConnect = self.connectPromise {
             self.connectPromise = nil
-            pendingConnect.fail(error: error)
+            pendingConnect.fail(error)
         }
     }
 
     public func doHalfClose0(error: Error, promise: EventLoopPromise<Void>?) {
         guard let conn = self.nwConnection else {
             // We don't have a connection to half close, so fail the promise.
-            promise?.fail(error: ChannelError.ioOnClosedChannel)
+            promise?.fail(ChannelError.ioOnClosedChannel)
             return
         }
 
@@ -557,7 +557,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
             try self.state.closeOutput()
         } catch ChannelError.outputClosed {
             // Here we *only* fail the promise, no need to blow up the connection.
-            promise?.fail(error: ChannelError.outputClosed)
+            promise?.fail(ChannelError.outputClosed)
             return
         } catch {
             // For any other error, this is fatal.
@@ -568,9 +568,9 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         func completionCallback(for promise: EventLoopPromise<Void>?) -> ((NWError?) -> Void) {
             return { error in
                 if let error = error {
-                    promise?.fail(error: error)
+                    promise?.fail(error)
                 } else {
-                    promise?.succeed(result: ())
+                    promise?.succeed(())
                 }
             }
         }
@@ -590,7 +590,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         case let x as NIOTSNetworkEvents.ConnectToNWEndpoint:
             self.connect0(to: x.endpoint, promise: promise)
         default:
-            promise?.fail(error: ChannelError.operationUnsupported)
+            promise?.fail(ChannelError.operationUnsupported)
         }
     }
 
@@ -743,7 +743,7 @@ extension NIOTSConnectionChannel {
     /// state.
     private func dropOutstandingWrites(error: Error) {
         while self.pendingWrites.count > 0 {
-            self.pendingWrites.removeFirst().promise?.fail(error: error)
+            self.pendingWrites.removeFirst().promise?.fail(error)
         }
     }
 

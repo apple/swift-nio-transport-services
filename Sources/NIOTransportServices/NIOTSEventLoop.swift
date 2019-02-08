@@ -99,15 +99,15 @@ internal class NIOTSEventLoop: QoSEventLoop {
         self.taskQueue.async(qos: qos, execute: task)
     }
 
-    public func scheduleTask<T>(in time: TimeAmount, _ task: @escaping () throws -> T) -> Scheduled<T> {
-        return self.scheduleTask(in: time, qos: self.defaultQoS, task)
+    public func scheduleTask<T>(deadline: NIODeadline, _ task: @escaping () throws -> T) -> Scheduled<T> {
+        return self.scheduleTask(deadline: deadline, qos: self.defaultQoS, task)
     }
 
-    public func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T> {
+    public func scheduleTask<T>(deadline: NIODeadline, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T> {
         let p: EventLoopPromise<T> = self.makePromise()
 
         guard self.state != .closed else {
-            p.fail(error: EventLoopError.shutdown)
+            p.fail(EventLoopError.shutdown)
             return Scheduled(promise: p, cancellationTask: { } )
         }
 
@@ -115,15 +115,23 @@ internal class NIOTSEventLoop: QoSEventLoop {
         // We set the QoS on this work item and explicitly enforce it when the block runs.
         let workItem = DispatchWorkItem(qos: qos, flags: .enforceQoS) {
             do {
-                p.succeed(result: try task())
+                p.succeed(try task())
             } catch {
-                p.fail(error: error)
+                p.fail(error)
             }
         }
-        
-        self.taskQueue.asyncAfter(deadline: DispatchTime(uptimeNanoseconds: DispatchTime.now().uptimeNanoseconds + UInt64(time.nanoseconds)), execute: workItem)
+
+        self.taskQueue.asyncAfter(deadline: DispatchTime(uptimeNanoseconds: deadline.uptimeNanoseconds), execute: workItem)
 
         return Scheduled(promise: p, cancellationTask: { workItem.cancel() })
+    }
+
+    public func scheduleTask<T>(in time: TimeAmount, _ task: @escaping () throws -> T) -> Scheduled<T> {
+        return self.scheduleTask(in: time, qos: self.defaultQoS, task)
+    }
+
+    public func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T> {
+        return self.scheduleTask(deadline: NIODeadline.now() + time, qos: qos, task)
     }
 
     public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping (Error?) -> Void) {
@@ -156,7 +164,7 @@ extension NIOTSEventLoop {
         let p: EventLoopPromise<Void> = self.makePromise()
         self.taskQueue.async {
             guard self.open else {
-                p.fail(error: EventLoopError.shutdown)
+                p.fail(EventLoopError.shutdown)
                 return
             }
 
@@ -179,8 +187,8 @@ extension NIOTSEventLoop {
             // We must not transition into the closed state until *after* the caller has been notified that the
             // event loop is closed. Otherwise, this future is in real trouble, as if it needs to dispatch onto the
             // event loop it will be forbidden from doing so.
-            let completionFuture = EventLoopFuture<Void>.andAll(futures, eventLoop: self)
-            completionFuture.cascade(promise: p)
+            let completionFuture = EventLoopFuture<Void>.andAllComplete(futures, on: self)
+            completionFuture.cascade(to: p)
             completionFuture.whenComplete { (_: Result<Void, Error>) in
                 self.state = .closed
             }

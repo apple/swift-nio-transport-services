@@ -145,9 +145,9 @@ extension StateManagedChannel {
         do {
             try self.state.register(eventLoop: self.tsEventLoop, channel: self)
             self.pipeline.fireChannelRegistered()
-            promise?.succeed(result: ())
+            promise?.succeed(())
         } catch {
-            promise?.fail(error: error)
+            promise?.fail(error)
             self.close0(error: error, mode: .all, promise: nil)
         }
     }
@@ -157,9 +157,9 @@ extension StateManagedChannel {
             try self.state.register(eventLoop: self.tsEventLoop, channel: self)
             self.pipeline.fireChannelRegistered()
             try self.state.beginActivating()
-			promise?.succeed(result: ())
+            promise?.succeed(())
         } catch {
-            promise?.fail(error: error)
+            promise?.fail(error)
             self.close0(error: error, mode: .all, promise: nil)
             return
         }
@@ -192,7 +192,7 @@ extension StateManagedChannel {
             do {
                 oldState = try self.state.becomeInactive()
             } catch let thrownError {
-                promise?.fail(error: thrownError)
+                promise?.fail(thrownError)
                 return
             }
 
@@ -215,17 +215,17 @@ extension StateManagedChannel {
             }
 
             // Next we fire the promise passed to this method.
-            promise?.succeed(result: ())
+            promise?.succeed(())
 
             // Now we schedule our final cleanup. We need to keep the channel pipeline alive for at least one more event
             // loop tick, as more work might be using it.
             self.eventLoop.execute {
                 self.removeHandlers(channel: self)
-                self.closePromise.succeed(result: ())
+                self.closePromise.succeed(())
             }
 
         case .input:
-            promise?.fail(error: ChannelError.operationUnsupported)
+            promise?.fail(ChannelError.operationUnsupported)
 
         case .output:
             self.doHalfClose0(error: error, promise: promise)
@@ -243,7 +243,7 @@ extension StateManagedChannel {
         }
 
         self.isActive0.store(true)
-        promise?.succeed(result: ())
+        promise?.succeed(())
         self.pipeline.fireChannelActive()
         self.readIfNeeded0()
     }
@@ -252,14 +252,14 @@ extension StateManagedChannel {
     /// not supported by a single channel type.
     private func activateWithType(type: ActivationType, to endpoint: NWEndpoint, promise: EventLoopPromise<Void>?) {
         guard type == self.supportedActivationType else {
-            promise?.fail(error: ChannelError.operationUnsupported)
+            promise?.fail(ChannelError.operationUnsupported)
             return
         }
 
         do {
             try self.state.beginActivating()
         } catch {
-            promise?.fail(error: error)
+            promise?.fail(error)
             return
         }
 

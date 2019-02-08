@@ -103,7 +103,7 @@ public final class NIOTSConnectionBootstrap {
     /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
     public func connect(host: String, port: Int) -> EventLoopFuture<Channel> {
         guard let actualPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
-            return self.group.next().makeFailedFuture(error: NIOTSErrors.InvalidPort(port: port))
+            return self.group.next().makeFailedFuture(NIOTSErrors.InvalidPort(port: port))
         }
         return self.connect(endpoint: NWEndpoint.hostPort(host: .init(host), port: actualPort))
     }
@@ -129,7 +129,7 @@ public final class NIOTSConnectionBootstrap {
             let address = try SocketAddress(unixDomainSocketPath: unixDomainSocketPath)
             return connect(to: address)
         } catch {
-            return group.next().makeFailedFuture(error: error)
+            return group.next().makeFailedFuture(error)
         }
     }
 
@@ -146,7 +146,7 @@ public final class NIOTSConnectionBootstrap {
                                                    qos: self.qos,
                                                    tcpOptions: self.tcpOptions,
                                                    tlsOptions: self.tlsOptions)
-        let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(result: ()) }
+        let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
         let channelOptions = self.channelOptions
 
         return conn.eventLoop.submit {
@@ -158,7 +158,7 @@ public final class NIOTSConnectionBootstrap {
                 let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
                 connectAction(conn, connectPromise)
                 let cancelTask = conn.eventLoop.scheduleTask(in: self.connectTimeout) {
-                    connectPromise.fail(error: ChannelError.connectTimeout(self.connectTimeout))
+                    connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
                     conn.close(promise: nil)
                 }
 
@@ -206,13 +206,13 @@ internal struct ChannelOptionStorage {
         func applyNext() {
             guard let (key, (value, applier)) = it.next() else {
                 // If we reached the end, everything is applied.
-                applyPromise.succeed(result: ())
+                applyPromise.succeed(())
                 return
             }
 
             applier(channel)(key, value).map {
                 applyNext()
-                }.cascadeFailure(promise: applyPromise)
+                }.cascadeFailure(to: applyPromise)
         }
         applyNext()
 
