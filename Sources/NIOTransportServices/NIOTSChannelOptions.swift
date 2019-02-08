@@ -32,8 +32,23 @@ public enum NIOTSWaitForActivityOption: ChannelOption {
 }
 
 
+/// `NIOTSEnablePeerToPeerOption` controls whether the `Channel` will advertise services using peer-to-peer
+/// connectivity. Setting this to true is the equivalent of setting `NWParameters.enablePeerToPeer` to
+/// `true`. By default this option is set to `false`.
+///
+/// This option must be set on the bootstrap: setting it after the channel is initialized will have no effect.
+public enum NIOTSEnablePeerToPeerOption: ChannelOption {
+    public typealias AssociatedValueType = ()
+    public typealias OptionType = Bool
+
+    case const(())
+}
+
+
 /// Options that can be set explicitly and only on bootstraps provided by `NIOTransportServices`.
 public struct NIOTSChannelOptions {
     /// - seealso: `NIOTSWaitForActivityOption`.
     public static let waitForActivity = NIOTSWaitForActivityOption.const(())
+
+    public static let enablePeerToPeer = NIOTSEnablePeerToPeerOption.const(())
 }
