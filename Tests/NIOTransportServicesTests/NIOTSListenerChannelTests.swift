@@ -199,4 +199,23 @@ class NIOTSListenerChannelTests: XCTestCase {
             XCTFail("Unexpected error: \(error)")
         }
     }
+
+    func testCanObserveValueOfEnablePeerToPeer() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .serverChannelInitializer { channel in
+                return channel.getOption(option: NIOTSChannelOptions.enablePeerToPeer).map { value in
+                    XCTAssertFalse(value)
+                }.then {
+                    channel.setOption(option: NIOTSChannelOptions.enablePeerToPeer, value: true)
+                }.then {
+                    channel.getOption(option: NIOTSChannelOptions.enablePeerToPeer)
+                }.map { value in
+                    XCTAssertTrue(value)
+                }
+            }
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+    }
 }

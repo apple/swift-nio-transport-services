@@ -201,6 +201,9 @@ internal final class NIOTSConnectionChannel {
     /// The value of SO_REUSEPORT.
     private var reusePort = false
 
+    /// Whether to use peer-to-peer connectivity when connecting to Bonjour services.
+    private var enablePeerToPeer = false
+
     /// Create a `NIOTSConnectionChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSConnectionChannel` objects cannot be created on arbitrary loops types.
@@ -318,6 +321,8 @@ extension NIOTSConnectionChannel: Channel {
                 // We're in waiting now, so we should drop the connection.
                 self.close0(error: err, mode: .all, promise: nil)
             }
+        case is NIOTSEnablePeerToPeerOption:
+            self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.OptionType
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -361,6 +366,8 @@ extension NIOTSConnectionChannel: Channel {
             return self.backpressureManager.waterMarks as! T.OptionType
         case _ as NIOTSWaitForActivityOption:
             return self.options.waitForActivity as! T.OptionType
+        case is NIOTSEnablePeerToPeerOption:
+            return self.enablePeerToPeer as! T.OptionType
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -440,6 +447,8 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
         // either.
         parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort
+
+        parameters.includePeerToPeer = self.enablePeerToPeer
 
         let connection = NWConnection(to: target, using: parameters)
         connection.stateUpdateHandler = self.stateUpdateHandler(newState:)

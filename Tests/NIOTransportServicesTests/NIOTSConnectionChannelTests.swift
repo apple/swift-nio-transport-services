@@ -579,6 +579,30 @@ class NIOTSConnectionChannelTests: XCTestCase {
         XCTAssertNoThrow(try conn.close().wait())
     }
 
+    func testCanObserveValueOfEnablePeerToPeer() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connectFuture = NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                return channel.getOption(option: NIOTSChannelOptions.enablePeerToPeer).map { value in
+                    XCTAssertFalse(value)
+                }.then {
+                    channel.setOption(option: NIOTSChannelOptions.enablePeerToPeer, value: true)
+                }.then {
+                    channel.getOption(option: NIOTSChannelOptions.enablePeerToPeer)
+                }.map { value in
+                    XCTAssertTrue(value)
+                }
+            }.connect(to: listener.localAddress!)
+
+        let conn = try connectFuture.wait()
+        XCTAssertNoThrow(try conn.close().wait())
+    }
+
     func testCanSafelyInvokeActiveFromMultipleThreads() throws {
         // This test exists to trigger TSAN violations if we screw things up.
         let listener = try NIOTSListenerBootstrap(group: self.group)
