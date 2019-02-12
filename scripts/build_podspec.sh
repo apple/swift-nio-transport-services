@@ -67,10 +67,10 @@ Pod::Spec.new do |s|
   s.tvos.deployment_target = '12.0'
 
   s.source_files = 'Sources/NIOTransportServices/**/*.swift'
-  s.dependency 'SwiftNIO', '~> 1.8'
-  s.dependency 'SwiftNIOFoundationCompat', '~> 1.8'
-  s.dependency 'SwiftNIOConcurrencyHelpers', '~> 1.8'
-  s.dependency 'SwiftNIOTLS', '~> 1.8'
+  s.dependency 'SwiftNIO', '~> 1.11'
+  s.dependency 'SwiftNIOFoundationCompat', '~> 1.11'
+  s.dependency 'SwiftNIOConcurrencyHelpers', '~> 1.11'
+  s.dependency 'SwiftNIOTLS', '~> 1.11'
 end
 EOF
 
