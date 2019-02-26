@@ -24,11 +24,10 @@ import NIO
 /// transitioning into the `failed` state, causing immediate connection failure.
 ///
 /// This option is only valid with `NIOTSConnectionBootstrap`.
-public enum NIOTSWaitForActivityOption: ChannelOption {
-    public typealias AssociatedValueType = ()
-    public typealias OptionType = Bool
+public struct NIOTSWaitForActivityOption: ChannelOption, Equatable {
+    public typealias Value = Bool
 
-    case const(())
+    public init() {}
 }
 
 
@@ -37,18 +36,17 @@ public enum NIOTSWaitForActivityOption: ChannelOption {
 /// `true`. By default this option is set to `false`.
 ///
 /// This option must be set on the bootstrap: setting it after the channel is initialized will have no effect.
-public enum NIOTSEnablePeerToPeerOption: ChannelOption {
-    public typealias AssociatedValueType = ()
-    public typealias OptionType = Bool
+public struct NIOTSEnablePeerToPeerOption: ChannelOption, Equatable {
+    public typealias Value = Bool
 
-    case const(())
+    public init() {}
 }
 
 
 /// Options that can be set explicitly and only on bootstraps provided by `NIOTransportServices`.
 public struct NIOTSChannelOptions {
     /// - seealso: `NIOTSWaitForActivityOption`.
-    public static let waitForActivity = NIOTSWaitForActivityOption.const(())
+    public static let waitForActivity = NIOTSWaitForActivityOption()
 
-    public static let enablePeerToPeer = NIOTSEnablePeerToPeerOption.const(())
+    public static let enablePeerToPeer = NIOTSEnablePeerToPeerOption()
 }

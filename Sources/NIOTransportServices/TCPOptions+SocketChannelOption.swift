@@ -20,7 +20,7 @@ import Network
 internal extension NWProtocolTCP.Options {
     /// Apply a given channel `SocketOption` to this protocol options state.
     func applyChannelOption(option: SocketOption, value: SocketOptionValue) throws {
-        switch option.value {
+        switch (option.level, option.name) {
         case (IPPROTO_TCP, TCP_NODELAY):
             self.noDelay = value != 0
         case (IPPROTO_TCP, TCP_NOPUSH):
@@ -46,13 +46,13 @@ internal extension NWProtocolTCP.Options {
         case (SOL_SOCKET, SO_KEEPALIVE):
             self.enableKeepalive = value != 0
         default:
-            throw NIOTSErrors.UnsupportedSocketOption(optionValue: option.value)
+            throw NIOTSErrors.UnsupportedSocketOption(optionValue: option)
         }
     }
 
     /// Obtain the given `SocketOption` value for this protocol options state.
     func valueFor(socketOption option: SocketOption) throws -> SocketOptionValue {
-        switch option.value {
+        switch (option.level, option.name) {
         case (IPPROTO_TCP, TCP_NODELAY):
             return self.noDelay ? 1 : 0
         case (IPPROTO_TCP, TCP_NOPUSH):
@@ -78,7 +78,7 @@ internal extension NWProtocolTCP.Options {
         case (SOL_SOCKET, SO_KEEPALIVE):
             return self.enableKeepalive ? 1 : 0
         default:
-            throw NIOTSErrors.UnsupportedSocketOption(optionValue: option.value)
+            throw NIOTSErrors.UnsupportedSocketOption(optionValue: option)
         }
     }
 }

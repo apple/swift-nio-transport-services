@@ -21,11 +21,11 @@ import Network
 
 private extension Channel {
     private func getSocketOption(_ option: SocketOption) -> EventLoopFuture<SocketOptionValue> {
-        return self.getOption(option: ChannelOptions.socket(option.value.0, option.value.1))
+        return self.getOption(option)
     }
 
     private func setSocketOption(_ option: SocketOption, to value: SocketOptionValue) -> EventLoopFuture<Void> {
-        return self.setOption(option: ChannelOptions.socket(option.value.0, option.value.1), value: value)
+        return self.setOption(option, value: value)
     }
 
     /// Asserts that a given socket option has a default value, that its value can be changed to a new value, and that it can then be

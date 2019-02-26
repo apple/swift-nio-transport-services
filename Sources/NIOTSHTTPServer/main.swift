@@ -22,7 +22,7 @@ final class HTTP1ServerHandler: ChannelInboundHandler {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
 
-    func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let part = self.unwrapInboundIn(data)
 
         guard case .head = part else {
@@ -31,16 +31,16 @@ final class HTTP1ServerHandler: ChannelInboundHandler {
 
         let responseHeaders = HTTPHeaders([("server", "nio-transport-services"), ("content-length", "0")])
         let responseHead = HTTPResponseHead(version: .init(major: 1, minor: 1), status: .ok, headers: responseHeaders)
-        ctx.write(self.wrapOutboundOut(.head(responseHead)), promise: nil)
-        ctx.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
+        context.write(self.wrapOutboundOut(.head(responseHead)), promise: nil)
+        context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
     }
 }
 
 let group = NIOTSEventLoopGroup()
 let channel = try! NIOTSListenerBootstrap(group: group)
     .childChannelInitializer { channel in
-        channel.pipeline.configureHTTPServerPipeline(withPipeliningAssistance: true, withErrorHandling: true).then {
-            channel.pipeline.add(handler: HTTP1ServerHandler())
+        channel.pipeline.configureHTTPServerPipeline(withPipeliningAssistance: true, withErrorHandling: true).flatMap {
+            channel.pipeline.addHandler(HTTP1ServerHandler())
         }
     }.bind(host: "127.0.0.1", port: 8888).wait()
 

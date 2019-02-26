@@ -130,12 +130,11 @@ extension NIOTSListenerChannel: Channel {
         return true
     }
 
-
-    public var _unsafe: ChannelCore {
+    public var _channelCore: ChannelCore {
         return self
     }
 
-    public func setOption<T>(option: T, value: T.OptionType) -> EventLoopFuture<Void> where T : ChannelOption {
+    public func setOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> EventLoopFuture<Void> {
         if eventLoop.inEventLoop {
             let promise: EventLoopPromise<Void> = eventLoop.makePromise()
             executeAndComplete(promise) { try setOption0(option: option, value: value) }
@@ -145,7 +144,7 @@ extension NIOTSListenerChannel: Channel {
         }
     }
 
-    private func setOption0<T: ChannelOption>(option: T, value: T.OptionType) throws {
+    private func setOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws {
         self.eventLoop.assertInEventLoop()
 
         guard !self.closed else {
@@ -156,12 +155,12 @@ extension NIOTSListenerChannel: Channel {
         switch option {
         case is AutoReadOption:
             // AutoRead is currently mandatory for TS listeners.
-            if value as! AutoReadOption.OptionType == false {
+            if value as! AutoReadOption.Value == false {
                 throw ChannelError.operationUnsupported
             }
         case let optionValue as SocketOption:
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
-            switch optionValue.value {
+            switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
                 self.reuseAddress = (value as! SocketOptionValue) != Int32(0)
             case (SOL_SOCKET, SO_REUSEPORT):
@@ -170,15 +169,15 @@ extension NIOTSListenerChannel: Channel {
                 try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
         case is NIOTSEnablePeerToPeerOption:
-            self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.OptionType
+            self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.Value
         default:
             fatalError("option \(option) not supported")
         }
     }
 
-    public func getOption<T>(option: T) -> EventLoopFuture<T.OptionType> where T : ChannelOption {
+    public func getOption<Option: ChannelOption>(_ option: Option) -> EventLoopFuture<Option.Value> {
         if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<T.OptionType> = eventLoop.makePromise()
+            let promise: EventLoopPromise<Option.Value> = eventLoop.makePromise()
             executeAndComplete(promise) { try getOption0(option: option) }
             return promise.futureResult
         } else {
@@ -186,7 +185,7 @@ extension NIOTSListenerChannel: Channel {
         }
     }
 
-    func getOption0<T: ChannelOption>(option: T) throws -> T.OptionType {
+    func getOption0<Option: ChannelOption>(option: Option) throws -> Option.Value {
         self.eventLoop.assertInEventLoop()
 
         guard !self.closed else {
@@ -195,19 +194,19 @@ extension NIOTSListenerChannel: Channel {
 
         switch option {
         case is AutoReadOption:
-            return autoRead as! T.OptionType
+            return autoRead as! Option.Value
         case let optionValue as SocketOption:
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
-            switch optionValue.value {
+            switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
-                return Int32(self.reuseAddress ? 1 : 0) as! T.OptionType
+                return Int32(self.reuseAddress ? 1 : 0) as! Option.Value
             case (SOL_SOCKET, SO_REUSEPORT):
-                return Int32(self.reusePort ? 1 : 0) as! T.OptionType
+                return Int32(self.reusePort ? 1 : 0) as! Option.Value
             default:
-                return try self.tcpOptions.valueFor(socketOption: optionValue) as! T.OptionType
+                return try self.tcpOptions.valueFor(socketOption: optionValue) as! Option.Value
             }
         case is NIOTSEnablePeerToPeerOption:
-            return self.enablePeerToPeer as! T.OptionType
+            return self.enablePeerToPeer as! Option.Value
         default:
             fatalError("option \(option) not supported")
         }

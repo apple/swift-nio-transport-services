@@ -270,11 +270,11 @@ extension NIOTSConnectionChannel: Channel {
         return self.backpressureManager.writable.load()
     }
 
-    public var _unsafe: ChannelCore {
+    public var _channelCore: ChannelCore {
         return self
     }
 
-    public func setOption<T>(option: T, value: T.OptionType) -> EventLoopFuture<Void> where T : ChannelOption {
+    public func setOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> EventLoopFuture<Void> {
         if eventLoop.inEventLoop {
             let promise: EventLoopPromise<Void> = eventLoop.makePromise()
             executeAndComplete(promise) { try setOption0(option: option, value: value) }
@@ -284,7 +284,7 @@ extension NIOTSConnectionChannel: Channel {
         }
     }
 
-    private func setOption0<T: ChannelOption>(option: T, value: T.OptionType) throws {
+    private func setOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws {
         self.eventLoop.assertInEventLoop()
 
         guard !self.closed else {
@@ -301,7 +301,7 @@ extension NIOTSConnectionChannel: Channel {
             let optionValue = option as! SocketOption
 
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
-            switch optionValue.value {
+            switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
                 self.reuseAddress = (value as! SocketOptionValue) != Int32(0)
             case (SOL_SOCKET, SO_REUSEPORT):
@@ -322,15 +322,15 @@ extension NIOTSConnectionChannel: Channel {
                 self.close0(error: err, mode: .all, promise: nil)
             }
         case is NIOTSEnablePeerToPeerOption:
-            self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.OptionType
+            self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.Value
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
     }
 
-    public func getOption<T>(option: T) -> EventLoopFuture<T.OptionType> where T : ChannelOption {
+    public func getOption<Option: ChannelOption>(_ option: Option) -> EventLoopFuture<Option.Value> {
         if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<T.OptionType> = eventLoop.makePromise()
+            let promise: EventLoopPromise<Option.Value> = eventLoop.makePromise()
             executeAndComplete(promise) { try getOption0(option: option) }
             return promise.futureResult
         } else {
@@ -338,7 +338,7 @@ extension NIOTSConnectionChannel: Channel {
         }
     }
 
-    func getOption0<T: ChannelOption>(option: T) throws -> T.OptionType {
+    func getOption0<Option: ChannelOption>(option: Option) throws -> Option.Value {
         self.eventLoop.assertInEventLoop()
 
         guard !self.closed else {
@@ -347,27 +347,27 @@ extension NIOTSConnectionChannel: Channel {
 
         switch option {
         case _ as AutoReadOption:
-            return self.options.autoRead as! T.OptionType
+            return self.options.autoRead as! Option.Value
         case _ as AllowRemoteHalfClosureOption:
-            return self.options.supportRemoteHalfClosure as! T.OptionType
+            return self.options.supportRemoteHalfClosure as! Option.Value
         case _ as SocketOption:
             let optionValue = option as! SocketOption
 
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
-            switch optionValue.value {
+            switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
-                return Int32(self.reuseAddress ? 1 : 0) as! T.OptionType
+                return Int32(self.reuseAddress ? 1 : 0) as! Option.Value
             case (SOL_SOCKET, SO_REUSEPORT):
-                return Int32(self.reusePort ? 1 : 0) as! T.OptionType
+                return Int32(self.reusePort ? 1 : 0) as! Option.Value
             default:
-                return try self.tcpOptions.valueFor(socketOption: optionValue) as! T.OptionType
+                return try self.tcpOptions.valueFor(socketOption: optionValue) as! Option.Value
             }
         case _ as WriteBufferWaterMarkOption:
-            return self.backpressureManager.waterMarks as! T.OptionType
+            return self.backpressureManager.waterMarks as! Option.Value
         case _ as NIOTSWaitForActivityOption:
-            return self.options.waitForActivity as! T.OptionType
+            return self.options.waitForActivity as! Option.Value
         case is NIOTSEnablePeerToPeerOption:
-            return self.enablePeerToPeer as! T.OptionType
+            return self.enablePeerToPeer as! Option.Value
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -683,7 +683,7 @@ extension NIOTSConnectionChannel {
             // It would be nice if we didn't have to do this copy, but I'm not sure how to avoid it with the current Data
             // APIs.
             var buffer = self.allocator.buffer(capacity: content.count)
-            buffer.write(bytes: content)
+            buffer.writeBytes(content)
             self.pipeline.fireChannelRead(NIOAny(buffer))
             self.pipeline.fireChannelReadComplete()
         }

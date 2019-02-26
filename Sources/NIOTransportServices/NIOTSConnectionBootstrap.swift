@@ -52,7 +52,7 @@ public final class NIOTSConnectionBootstrap {
     /// - parameters:
     ///     - option: The option to be applied.
     ///     - value: The value for the option.
-    public func channelOption<T: ChannelOption>(_ option: T, value: T.OptionType) -> Self {
+    public func channelOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> Self {
         channelOptions.put(key: option, value: value)
         return self
     }
@@ -178,10 +178,10 @@ internal struct ChannelOptionStorage {
     private var storage: [(Any, (Any, (Channel) -> (Any, Any) -> EventLoopFuture<Void>))] = []
 
     mutating func put<K: ChannelOption>(key: K,
-                                        value newValue: K.OptionType) {
+                                        value newValue: K.Value) {
         func applier(_ t: Channel) -> (Any, Any) -> EventLoopFuture<Void> {
             return { (x, y) in
-                return t.setOption(option: x as! K, value: y as! K.OptionType)
+                return t.setOption(x as! K, value: y as! K.Value)
             }
         }
         var hasSet = false
