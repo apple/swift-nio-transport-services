@@ -153,7 +153,7 @@ public final class NIOTSListenerBootstrap {
                 let address = try SocketAddress.makeAddressResolvingHost(host, port: port)
                 channel.bind(to: address, promise: p)
             } catch {
-                p.fail(error: error)
+                p.fail(error)
             }
             return p.futureResult
         }
@@ -180,7 +180,7 @@ public final class NIOTSListenerBootstrap {
                 let address = try SocketAddress(unixDomainSocketPath: unixDomainSocketPath)
                 channel.bind(to: address, promise: p)
             } catch {
-                p.fail(error: error)
+                p.fail(error)
             }
             return p.futureResult
         }
@@ -199,7 +199,7 @@ public final class NIOTSListenerBootstrap {
     private func bind0(_ binder: @escaping (Channel) -> EventLoopFuture<Void>) -> EventLoopFuture<Channel> {
         let eventLoop = self.group.next() as! NIOTSEventLoop
         let childEventLoopGroup = self.childGroup as! NIOTSEventLoopGroup
-        let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(result: ()) }
+        let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(()) }
         let childChannelInit = self.childChannelInit
         let serverChannelOptions = self.serverChannelOptions
         let childChannelOptions = self.childChannelOptions
@@ -227,7 +227,7 @@ public final class NIOTSListenerBootstrap {
                 serverChannel as Channel
             }.flatMapError { error in
                 serverChannel.close0(error: error, mode: .all, promise: nil)
-                return eventLoop.makeFailedFuture(error: error)
+                return eventLoop.makeFailedFuture(error)
             }
         }.flatMap {
             $0
@@ -265,7 +265,7 @@ private class AcceptHandler: ChannelInboundHandler {
         let conn = self.unwrapInboundIn(data)
         let childLoop = self.childGroup.next() as! NIOTSEventLoop
         let ctxEventLoop = ctx.eventLoop
-        let childInitializer = self.childChannelInitializer ?? { _ in childLoop.makeSucceededFuture(result: ()) }
+        let childInitializer = self.childChannelInitializer ?? { _ in childLoop.makeSucceededFuture(()) }
         let newChannel = NIOTSConnectionChannel(wrapping: conn,
                                                 on: childLoop,
                                                 parent: ctx.channel,
@@ -292,7 +292,7 @@ private class AcceptHandler: ChannelInboundHandler {
                     }
                 }
                 ctx.fireChannelRead(self.wrapInboundOut(newChannel))
-                return ctx.eventLoop.makeSucceededFuture(result: ())
+                return ctx.eventLoop.makeSucceededFuture(())
             }.whenFailure { error in
                 ctx.eventLoop.assertInEventLoop()
                 _ = newChannel.close()

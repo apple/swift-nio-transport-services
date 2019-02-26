@@ -84,6 +84,6 @@ class NIOTSEventLoopTest: XCTestCase {
             XCTAssertFalse(firstLoop.inEventLoop)
             XCTAssertTrue(secondLoop.inEventLoop)
         }
-        try EventLoopFuture<Void>.andAll([firstTask.futureResult, secondTask.futureResult], eventLoop: firstLoop).wait()
+        try EventLoopFuture<Void>.andAllComplete([firstTask.futureResult, secondTask.futureResult], on: firstLoop).wait()
     }
 }

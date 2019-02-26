@@ -80,7 +80,7 @@ final class DisableWaitingAfterConnect: ChannelOutboundHandler {
             ctx.connect(to: address)
         }
         if let promise = promise {
-            f.cascade(promise: promise)
+            f.cascade(to: promise)
         }
     }
 }
@@ -97,7 +97,7 @@ final class PromiseOnActiveHandler: ChannelInboundHandler {
     }
 
     func channelActive(ctx: ChannelHandlerContext) {
-        self.promise.succeed(result: ())
+        self.promise.succeed(())
     }
 }
 
@@ -508,7 +508,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         let connectFuture = NIOTSConnectionBootstrap(group: self.group)
-            .channelInitializer { channel in channel.eventLoop.makeFailedFuture(error: MyError()) }
+            .channelInitializer { channel in channel.eventLoop.makeFailedFuture(MyError()) }
             .connect(to: listener.localAddress!)
 
         do {

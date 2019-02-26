@@ -57,7 +57,7 @@ final class ReadExpecter: ChannelInboundHandler {
 
     func handlerRemoved(ctx: ChannelHandlerContext) {
         if let promise = self.readPromise {
-            promise.fail(error: DidNotReadError())
+            promise.fail(DidNotReadError())
         }
     }
 
@@ -74,7 +74,7 @@ final class ReadExpecter: ChannelInboundHandler {
 
     private func maybeFulfillPromise() {
         if let promise = self.readPromise, self.cumulationBuffer! == self.expectedRead {
-            promise.succeed(result: ())
+            promise.succeed(())
             self.readPromise = nil
         }
     }
@@ -109,7 +109,7 @@ final class HalfCloseHandler: ChannelInboundHandler {
             XCTAssertFalse(self.alreadyHalfClosed)
             XCTAssertFalse(self.closed)
             self.alreadyHalfClosed = true
-            self.halfClosedPromise.succeed(result: ())
+            self.halfClosedPromise.succeed(())
 
             ctx.close(mode: .output, promise: nil)
         default:
@@ -212,7 +212,7 @@ class NIOTSEndToEndTests: XCTestCase {
             }
         }
 
-        let allDoneFuture = EventLoopFuture<Void>.andAll(completeFutures, eventLoop: self.group.next())
+        let allDoneFuture = EventLoopFuture<Void>.andAllComplete(completeFutures, on: self.group.next())
         XCTAssertNoThrow(try allDoneFuture.wait())
     }
 
@@ -232,7 +232,7 @@ class NIOTSEndToEndTests: XCTestCase {
             }
         }
 
-        let allClosed = EventLoopFuture<Void>.andAll(closeFutures, eventLoop: self.group.next())
+        let allClosed = EventLoopFuture<Void>.andAllComplete(closeFutures, on: self.group.next())
         XCTAssertNoThrow(try allClosed.wait())
     }
 
@@ -248,7 +248,7 @@ class NIOTSEndToEndTests: XCTestCase {
                     closeFutures.append(channel.closeFuture)
                 }
                 closeFutureGroup.leave()
-                return channel.eventLoop.makeSucceededFuture(result: ())
+                return channel.eventLoop.makeSucceededFuture(())
             }
             .bind(host: "localhost", port: 0).wait()
         defer {
@@ -273,7 +273,7 @@ class NIOTSEndToEndTests: XCTestCase {
 
         closeFutureGroup.wait()
         let allClosed = closeFutureSyncQueue.sync {
-            return EventLoopFuture<Void>.andAll(closeFutures, eventLoop: self.group.next())
+            return EventLoopFuture<Void>.andAllComplete(closeFutures, on: self.group.next())
         }
         XCTAssertNoThrow(try allClosed.wait())
     }
@@ -282,7 +282,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let serverSideConnectionPromise: EventLoopPromise<Channel> = self.group.next().makePromise()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
-                serverSideConnectionPromise.succeed(result: channel)
+                serverSideConnectionPromise.succeed(channel)
                 return channel.pipeline.add(handler: EchoHandler())
             }
             .bind(host: "localhost", port: 0).wait()

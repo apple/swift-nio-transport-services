@@ -308,7 +308,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
     }
 
     public func write0(_ data: NIOAny, promise: EventLoopPromise<Void>?) {
-        promise?.fail(error: ChannelError.operationUnsupported)
+        promise?.fail(ChannelError.operationUnsupported)
     }
 
     public func flush0() {
@@ -332,12 +332,12 @@ extension NIOTSListenerChannel: StateManagedChannel {
         // Step 2: fail any pending bind promise.
         if let pendingBind = self.bindPromise {
             self.bindPromise = nil
-            pendingBind.fail(error: error)
+            pendingBind.fail(error)
         }
     }
 
     public func doHalfClose0(error: Error, promise: EventLoopPromise<Void>?) {
-        promise?.fail(error: ChannelError.operationUnsupported)
+        promise?.fail(ChannelError.operationUnsupported)
     }
 
     public func triggerUserOutboundEvent0(_ event: Any, promise: EventLoopPromise<Void>?) {
@@ -345,7 +345,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
         case let x as NIOTSNetworkEvents.BindToNWEndpoint:
             self.bind0(to: x.endpoint, promise: promise)
         default:
-            promise?.fail(error: ChannelError.operationUnsupported)
+            promise?.fail(ChannelError.operationUnsupported)
         }
     }
 
