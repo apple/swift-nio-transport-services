@@ -142,8 +142,8 @@ class NIOTSSocketOptionTests: XCTestCase {
         do {
             try self.options.applyChannelOption(option: option, value: 0)
         } catch let err as NIOTSErrors.UnsupportedSocketOption {
-            XCTAssertEqual(err.optionValue.0, Int32.max)
-            XCTAssertEqual(err.optionValue.1, Int32.max)
+            XCTAssertEqual(err.optionValue.level, Int32.max)
+            XCTAssertEqual(err.optionValue.name, Int32.max)
         } catch {
             XCTFail("Unexpected error \(error)")
         }
@@ -155,8 +155,8 @@ class NIOTSSocketOptionTests: XCTestCase {
         do {
             _ = try self.options.valueFor(socketOption: option)
         } catch let err as NIOTSErrors.UnsupportedSocketOption {
-            XCTAssertEqual(err.optionValue.0, Int32.max)
-            XCTAssertEqual(err.optionValue.1, Int32.max)
+            XCTAssertEqual(err.optionValue.level, Int32.max)
+            XCTAssertEqual(err.optionValue.name, Int32.max)
         } catch {
             XCTFail("Unexpected error \(error)")
         }

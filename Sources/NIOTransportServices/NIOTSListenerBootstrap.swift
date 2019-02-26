@@ -83,7 +83,7 @@ public final class NIOTSListenerBootstrap {
     /// - parameters:
     ///     - option: The option to be applied.
     ///     - value: The value for the option.
-    public func serverChannelOption<T: ChannelOption>(_ option: T, value: T.OptionType) -> Self {
+    public func serverChannelOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> Self {
         self.serverChannelOptions.put(key: option, value: value)
         return self
     }
@@ -93,7 +93,7 @@ public final class NIOTSListenerBootstrap {
     /// - parameters:
     ///     - option: The option to be applied.
     ///     - value: The value for the option.
-    public func childChannelOption<T: ChannelOption>(_ option: T, value: T.OptionType) -> Self {
+    public func childChannelOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> Self {
         self.childChannelOptions.put(key: option, value: value)
         return self
     }
@@ -213,7 +213,7 @@ public final class NIOTSListenerBootstrap {
             return serverChannelOptions.applyAll(channel: serverChannel).flatMap {
                 serverChannelInit(serverChannel)
             }.flatMap {
-                serverChannel.pipeline.add(handler: AcceptHandler(childChannelInitializer: childChannelInit,
+                serverChannel.pipeline.addHandler(AcceptHandler(childChannelInitializer: childChannelInit,
                                                                   childGroup: childEventLoopGroup,
                                                                   childChannelOptions: childChannelOptions,
                                                                   childChannelQoS: self.childQoS,
@@ -261,14 +261,14 @@ private class AcceptHandler: ChannelInboundHandler {
         self.originalTLSOptions = tlsOptions
     }
 
-    func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let conn = self.unwrapInboundIn(data)
         let childLoop = self.childGroup.next() as! NIOTSEventLoop
-        let ctxEventLoop = ctx.eventLoop
+        let ctxEventLoop = context.eventLoop
         let childInitializer = self.childChannelInitializer ?? { _ in childLoop.makeSucceededFuture(()) }
         let newChannel = NIOTSConnectionChannel(wrapping: conn,
                                                 on: childLoop,
-                                                parent: ctx.channel,
+                                                parent: context.channel,
                                                 qos: self.childChannelQoS,
                                                 tcpOptions: self.originalTCPOptions,
                                                 tlsOptions: self.originalTLSOptions)
@@ -286,17 +286,17 @@ private class AcceptHandler: ChannelInboundHandler {
             ctxEventLoop.assertInEventLoop()
             future.flatMap { (_) -> EventLoopFuture<Void> in
                 ctxEventLoop.assertInEventLoop()
-                guard ctx.channel.isActive else {
+                guard context.channel.isActive else {
                     return newChannel.close().flatMapThrowing {
                         throw ChannelError.ioOnClosedChannel
                     }
                 }
-                ctx.fireChannelRead(self.wrapInboundOut(newChannel))
-                return ctx.eventLoop.makeSucceededFuture(())
+                context.fireChannelRead(self.wrapInboundOut(newChannel))
+                return context.eventLoop.makeSucceededFuture(())
             }.whenFailure { error in
-                ctx.eventLoop.assertInEventLoop()
+                context.eventLoop.assertInEventLoop()
                 _ = newChannel.close()
-                ctx.fireErrorCaught(error)
+                context.fireErrorCaught(error)
             }
         }
 
@@ -305,7 +305,7 @@ private class AcceptHandler: ChannelInboundHandler {
         } else {
             fireThroughPipeline(childLoop.submit {
                 return setupChildChannel()
-            }.flatMap { $0 }.hopTo(eventLoop: ctxEventLoop))
+                }.flatMap { $0 }.hop(to: ctxEventLoop))
         }
     }
 }

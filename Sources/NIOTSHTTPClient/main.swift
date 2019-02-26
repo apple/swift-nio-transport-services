@@ -22,17 +22,17 @@ final class HTTP1ClientHandler: ChannelInboundHandler {
     typealias OutboundOut = HTTPClientRequestPart
     typealias InboundIn = HTTPClientResponsePart
 
-    func channelActive(ctx: ChannelHandlerContext) {
+    func channelActive(context: ChannelHandlerContext) {
         var head = HTTPRequestHead(version: .init(major: 1, minor: 1), method: .GET, uri: "/get")
         head.headers.add(name: "Host", value: "httpbin.org")
         head.headers.add(name: "User-Agent", value: "SwiftNIO")
-        ctx.write(self.wrapOutboundOut(.head(head)), promise: nil)
-        ctx.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
+        context.write(self.wrapOutboundOut(.head(head)), promise: nil)
+        context.writeAndFlush(self.wrapOutboundOut(.end(nil)), promise: nil)
 
-        print("Connected to \(ctx.channel.remoteAddress!) from \(ctx.channel.localAddress!)")
+        print("Connected to \(context.channel.remoteAddress!) from \(context.channel.localAddress!)")
     }
 
-    func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let part = self.unwrapInboundIn(data)
 
         switch part {
@@ -43,7 +43,7 @@ final class HTTP1ClientHandler: ChannelInboundHandler {
         case .end:
             // Print a newline.
             print("")
-            ctx.close(promise: nil)
+            context.close(promise: nil)
         }
     }
 
@@ -62,8 +62,8 @@ let channel = try! NIOTSConnectionBootstrap(group: group)
     .channelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
     .tlsOptions(NWProtocolTLS.Options())
     .channelInitializer { channel in
-        channel.pipeline.addHTTPClientHandlers().then {
-            channel.pipeline.add(handler: HTTP1ClientHandler())
+        channel.pipeline.addHTTPClientHandlers().flatMap {
+            channel.pipeline.addHandler(HTTP1ClientHandler())
         }
     }.connect(host: "httpbin.org", port: 443).wait()
 

@@ -24,12 +24,12 @@ final class EchoHandler: ChannelInboundHandler {
     typealias InboundIn = Any
     typealias OutboundOut = Any
 
-    func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
-        ctx.write(data, promise: nil)
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        context.write(data, promise: nil)
     }
 
-    func channelReadComplete(ctx: ChannelHandlerContext) {
-        ctx.flush()
+    func channelReadComplete(context: ChannelHandlerContext) {
+        context.flush()
     }
 }
 
@@ -51,22 +51,22 @@ final class ReadExpecter: ChannelInboundHandler {
         self.expectedRead = expecting
     }
 
-    func handlerAdded(ctx: ChannelHandlerContext) {
-        self.readPromise = ctx.eventLoop.makePromise()
+    func handlerAdded(context: ChannelHandlerContext) {
+        self.readPromise = context.eventLoop.makePromise()
     }
 
-    func handlerRemoved(ctx: ChannelHandlerContext) {
+    func handlerRemoved(context: ChannelHandlerContext) {
         if let promise = self.readPromise {
             promise.fail(DidNotReadError())
         }
     }
 
-    func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         var bytes = self.unwrapInboundIn(data)
         if self.cumulationBuffer == nil {
             self.cumulationBuffer = bytes
         } else {
-            self.cumulationBuffer!.write(buffer: &bytes)
+            self.cumulationBuffer!.writeBuffer(&bytes)
         }
 
         self.maybeFulfillPromise()
@@ -85,8 +85,8 @@ final class CloseOnActiveHandler: ChannelInboundHandler {
     typealias InboundIn = Never
     typealias OutboundOut = Never
 
-    func channelActive(ctx: ChannelHandlerContext) {
-        ctx.close(promise: nil)
+    func channelActive(context: ChannelHandlerContext) {
+        context.close(promise: nil)
     }
 }
 
@@ -103,7 +103,7 @@ final class HalfCloseHandler: ChannelInboundHandler {
         self.halfClosedPromise = halfClosedPromise
     }
 
-    func userInboundEventTriggered(ctx: ChannelHandlerContext, event: Any) {
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
         switch event {
         case ChannelEvent.inputClosed:
             XCTAssertFalse(self.alreadyHalfClosed)
@@ -111,15 +111,15 @@ final class HalfCloseHandler: ChannelInboundHandler {
             self.alreadyHalfClosed = true
             self.halfClosedPromise.succeed(())
 
-            ctx.close(mode: .output, promise: nil)
+            context.close(mode: .output, promise: nil)
         default:
             break
         }
 
-        ctx.fireUserInboundEventTriggered(event)
+        context.fireUserInboundEventTriggered(event)
     }
 
-    func channelInactive(ctx: ChannelHandlerContext) {
+    func channelInactive(context: ChannelHandlerContext) {
         XCTAssertTrue(self.alreadyHalfClosed)
         XCTAssertFalse(self.closed)
         self.closed = true
@@ -130,16 +130,16 @@ final class HalfCloseHandler: ChannelInboundHandler {
 final class FailOnHalfCloseHandler: ChannelInboundHandler {
     typealias InboundIn = Any
 
-    func userInboundEventTriggered(ctx: ChannelHandlerContext, event: Any) {
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
         switch event {
         case ChannelEvent.inputClosed:
             XCTFail("Must not receive half-closure")
-            ctx.close(promise: nil)
+            context.close(promise: nil)
         default:
             break
         }
 
-        ctx.fireUserInboundEventTriggered(event)
+        context.fireUserInboundEventTriggered(event)
     }
 }
 
@@ -148,7 +148,7 @@ extension Channel {
     /// Expect that the given bytes will be received.
     func expectRead(_ bytes: ByteBuffer) -> EventLoopFuture<Void> {
         let expecter = ReadExpecter(expecting: bytes)
-        return self.pipeline.add(handler: expecter).flatMap {
+        return self.pipeline.addHandler(expecter).flatMap {
             return expecter.readFuture!
         }
     }
@@ -157,7 +157,7 @@ extension Channel {
 extension ByteBufferAllocator {
     func bufferFor(string: String) -> ByteBuffer {
         var buffer = self.buffer(capacity: string.count)
-        buffer.write(string: string)
+        buffer.writeString(string)
         return buffer
     }
 }
@@ -176,7 +176,7 @@ class NIOTSEndToEndTests: XCTestCase {
 
     func testSimpleListener() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.add(handler: EchoHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
             .bind(host: "localhost", port: 0).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -195,7 +195,7 @@ class NIOTSEndToEndTests: XCTestCase {
 
     func testMultipleConnectionsOneListener() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.add(handler: EchoHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
             .bind(host: "localhost", port: 0).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -218,7 +218,7 @@ class NIOTSEndToEndTests: XCTestCase {
 
     func testBasicConnectionTeardown() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.add(handler: CloseOnActiveHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(CloseOnActiveHandler())}
             .bind(host: "localhost", port: 0).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -256,7 +256,7 @@ class NIOTSEndToEndTests: XCTestCase {
         }
 
         let bootstrap = NIOTSConnectionBootstrap(group: self.group).channelInitializer { channel in
-            channel.pipeline.add(handler: CloseOnActiveHandler())
+            channel.pipeline.addHandler(CloseOnActiveHandler())
         }
 
         for _ in (0..<10) {
@@ -283,7 +283,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
                 serverSideConnectionPromise.succeed(channel)
-                return channel.pipeline.add(handler: EchoHandler())
+                return channel.pipeline.addHandler(EchoHandler())
             }
             .bind(host: "localhost", port: 0).wait()
         defer {
@@ -306,8 +306,8 @@ class NIOTSEndToEndTests: XCTestCase {
         let halfClosedPromise: EventLoopPromise<Void> = self.group.next().makePromise()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
-                channel.pipeline.add(handler: EchoHandler()).flatMap { _ in
-                    channel.pipeline.add(handler: HalfCloseHandler(halfClosedPromise))
+                channel.pipeline.addHandler(EchoHandler()).flatMap { _ in
+                    channel.pipeline.addHandler(HalfCloseHandler(halfClosedPromise))
                 }
             }
             .childChannelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
@@ -336,8 +336,8 @@ class NIOTSEndToEndTests: XCTestCase {
     func testDisabledHalfClosureCausesFullClosure() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
-                channel.pipeline.add(handler: EchoHandler()).flatMap { _ in
-                    channel.pipeline.add(handler: FailOnHalfCloseHandler())
+                channel.pipeline.addHandler(EchoHandler()).flatMap { _ in
+                    channel.pipeline.addHandler(FailOnHalfCloseHandler())
                 }
             }
             .bind(host: "localhost", port: 0).wait()
@@ -416,7 +416,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let udsPath = "/tmp/\(UUID().uuidString)_testBasicUnixSockets.sock"
 
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.add(handler: EchoHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
             .bind(unixDomainSocketPath: udsPath).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -446,7 +446,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let serviceEndpoint = NWEndpoint.service(name: name, type: "_niots._tcp", domain: "local", interface: nil)
 
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.add(handler: EchoHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
             .bind(endpoint: serviceEndpoint).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
