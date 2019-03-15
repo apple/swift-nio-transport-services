@@ -16,7 +16,6 @@
 import NIO
 import Dispatch
 import Network
-import _NIO1APIShims
 
 public final class NIOTSListenerBootstrap {
     private let group: EventLoopGroup
