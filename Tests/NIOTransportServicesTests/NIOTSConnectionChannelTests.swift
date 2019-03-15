@@ -18,7 +18,6 @@ import Network
 import NIO
 import NIOTransportServices
 import Foundation
-import _NIO1APIShims
 
 
 final class ConnectRecordingHandler: ChannelOutboundHandler {

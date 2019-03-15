@@ -26,16 +26,16 @@ let package = Package(
         .executable(name: "NIOTSHTTPServer", targets: ["NIOTSHTTPServer"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", .branch("master")),
+        .package(url: "https://github.com/apple/swift-nio.git", .branch("2.0.0-convergence.1")),
     ],
     targets: [
         .target(name: "NIOTransportServices",
-            dependencies: ["NIO", "NIOFoundationCompat", "NIOConcurrencyHelpers", "NIOTLS", "_NIO1APIShims"]),
+            dependencies: ["NIO", "NIOFoundationCompat", "NIOConcurrencyHelpers", "NIOTLS"]),
         .target(name: "NIOTSHTTPClient",
-            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1", "_NIO1APIShims"]),
+            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1"]),
         .target(name: "NIOTSHTTPServer",
-            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1", "_NIO1APIShims"]),
+            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1"]),
         .testTarget(name: "NIOTransportServicesTests",
-            dependencies: ["NIO", "NIOTransportServices", "_NIO1APIShims"]),
+            dependencies: ["NIO", "NIOTransportServices"]),
     ]
 )
