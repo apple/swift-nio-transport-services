@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import Darwin
 import Foundation
 import NIO
@@ -121,3 +123,4 @@ internal extension SocketAddress {
         }
     }
 }
+#endif

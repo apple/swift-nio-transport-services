@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import Foundation
 import NIO
 import Dispatch
@@ -215,3 +217,4 @@ extension NIOTSEventLoop {
         assert(oldChannel != nil)
     }
 }
+#endif

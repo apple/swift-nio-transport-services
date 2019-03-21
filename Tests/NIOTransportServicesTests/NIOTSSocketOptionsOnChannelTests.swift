@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import XCTest
 import NIO
 import Network
@@ -121,4 +123,4 @@ class NIOTSSocketOptionsOnChannelTests: XCTestCase {
         try self.assertChannelOptionAfterCreation(option: SocketOption(level: SOL_SOCKET, name: SO_KEEPALIVE), initialValue: 0, testAlternativeValue: 1)
     }
 }
-
+#endif

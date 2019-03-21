@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import Foundation
 import NIO
 import NIOConcurrencyHelpers
@@ -807,3 +809,4 @@ fileprivate extension ChannelState where ActiveSubstate == NIOTSConnectionChanne
         }
     }
 }
+#endif

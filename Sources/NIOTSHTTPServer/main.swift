@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import NIO
 import NIOTransportServices
 import NIOHTTP1
@@ -48,3 +50,4 @@ print("Server listening on \(channel.localAddress!)")
 
 // Wait for the request to complete
 try! channel.closeFuture.wait()
+#endif

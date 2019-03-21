@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import XCTest
 import NIO
 import NIOTransportServices
@@ -87,3 +89,4 @@ class NIOTSEventLoopTest: XCTestCase {
         try EventLoopFuture<Void>.andAllComplete([firstTask.futureResult, secondTask.futureResult], on: firstLoop).wait()
     }
 }
+#endif

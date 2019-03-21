@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import Foundation
 import NIO
 import NIOFoundationCompat
@@ -266,3 +268,4 @@ extension StateManagedChannel {
         self.beginActivating0(to: endpoint, promise: promise)
     }
 }
+#endif

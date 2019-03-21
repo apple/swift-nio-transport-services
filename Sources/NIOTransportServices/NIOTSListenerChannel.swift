@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import Foundation
 import NIO
 import NIOFoundationCompat
@@ -421,3 +423,4 @@ extension NIOTSListenerChannel {
         self.becomeActive0(promise: promise)
     }
 }
+#endif
