@@ -13,11 +13,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
-import Foundation
-import NIO
+
 import Dispatch
+import Foundation
 import Network
 
+import NIO
+import NIOConcurrencyHelpers
 
 /// An `EventLoop` that interacts with `DispatchQoS` to help schedule upcoming work.
 ///
@@ -113,17 +115,20 @@ internal class NIOTSEventLoop: QoSEventLoop {
 
         // Dispatch support for cancellation exists at the work-item level, so we explicitly create one here.
         // We set the QoS on this work item and explicitly enforce it when the block runs.
-        let workItem = DispatchWorkItem(qos: qos, flags: .enforceQoS) {
+        let timerSource = DispatchSource.makeTimerSource(queue: self.taskQueue)
+        timerSource.schedule(deadline: DispatchTime(uptimeNanoseconds: deadline.uptimeNanoseconds))
+        timerSource.setEventHandler(qos: qos, flags: .enforceQoS) {
             do {
                 p.succeed(try task())
             } catch {
                 p.fail(error)
             }
         }
+        timerSource.resume()
 
-        self.taskQueue.asyncAfter(deadline: DispatchTime(uptimeNanoseconds: deadline.uptimeNanoseconds), execute: workItem)
-
-        return Scheduled(promise: p, cancellationTask: { workItem.cancel() })
+        return Scheduled(promise: p, cancellationTask: {
+            timerSource.cancel()
+        })
     }
 
     public func scheduleTask<T>(in time: TimeAmount, _ task: @escaping () throws -> T) -> Scheduled<T> {
