@@ -17,6 +17,7 @@
 #if canImport(Network)
 import XCTest
 import NIO
+import NIOConcurrencyHelpers
 import NIOTransportServices
 
 class NIOTSEventLoopTest: XCTestCase {
@@ -87,6 +88,45 @@ class NIOTSEventLoopTest: XCTestCase {
             XCTAssertTrue(secondLoop.inEventLoop)
         }
         try EventLoopFuture<Void>.andAllComplete([firstTask.futureResult, secondTask.futureResult], on: firstLoop).wait()
+    }
+
+    func testWeDontHoldELOrELGReferencesImmeditelyFollowingAConnect() {
+        weak var weakEL: EventLoop? = nil
+        weak var weakELG: EventLoopGroup? = nil
+        func make() throws {
+            let group = NIOTSEventLoopGroup(loopCount: 1)
+            defer {
+                XCTAssertNoThrow(try group.syncShutdownGracefully())
+            }
+            weakELG = group
+            weakEL = group.next()
+
+            let counter = Atomic<Int>(value: 0)
+            let acceptedChan = group.next().makePromise(of: Channel.self)
+            let server = try NIOTSListenerBootstrap(group: group)
+                .childChannelInitializer { channel in
+                    XCTAssertEqual(0, counter.add(1))
+                    acceptedChan.succeed(channel)
+                    return channel.eventLoop.makeSucceededFuture(())
+                }
+                .bind(host: "127.0.0.1", port: 0).wait()
+            // leave this "localhost" so we need to resolve it (involving happy eyeballs)
+            let client = try NIOTSConnectionBootstrap(group: group).connect(host: "localhost",
+                                                                            port: server.localAddress!.port!).wait()
+            XCTAssertNoThrow(try client.close().wait())
+            XCTAssertNoThrow(try acceptedChan.futureResult.wait().close().flatMapErrorThrowing { error in
+                if let error = error as? ChannelError, error == .alreadyClosed {
+                    // this is okay because we previously closed the other end
+                } else {
+                    throw error
+                }
+            })
+            XCTAssertNoThrow(try server.close().wait())
+        }
+        XCTAssertNoThrow(try make())
+        usleep(100_000) // to give the other thread chance to deallocate everything
+        XCTAssertNil(weakELG)
+        XCTAssertNil(weakEL)
     }
 }
 #endif

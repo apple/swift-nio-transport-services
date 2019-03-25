@@ -471,5 +471,26 @@ class NIOTSEndToEndTests: XCTestCase {
         connection.writeAndFlush(buffer, promise: nil)
         XCTAssertNoThrow(try completeFuture.wait())
     }
+
+    func testBasicConnectionTimeout() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .serverChannelOption(ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR), value: 0)
+            .serverChannelOption(ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT), value: 0)
+            .childChannelInitializer { channel in channel.pipeline.addHandler(CloseOnActiveHandler())}
+            .bind(host: "localhost", port: 0).wait()
+        let address = listener.localAddress!
+
+        // let's close the server socket, we disable SO_REUSEPORT/SO_REUSEADDR so that nobody can bind this for a
+        // while.
+        XCTAssertNoThrow(try listener.close().wait())
+
+        // this should now definitely time out.
+        XCTAssertThrowsError(try NIOTSConnectionBootstrap(group: self.group)
+            .connectTimeout(.milliseconds(10))
+            .connect(to: address)
+            .wait()) { error in
+                print(error)
+        }
+    }
 }
 #endif
