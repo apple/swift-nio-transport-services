@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import Network
 import NIO
 
@@ -66,3 +68,4 @@ public enum NIOTSNetworkEvents {
         public let endpoint: NWEndpoint
     }
 }
+#endif

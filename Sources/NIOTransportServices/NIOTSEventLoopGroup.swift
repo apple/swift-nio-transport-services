@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import Foundation
 import NIO
 import NIOConcurrencyHelpers
@@ -82,3 +84,4 @@ public final class NIOTSEventLoopGroup: EventLoopGroup {
         return EventLoopIterator(self.eventLoops)
     }
 }
+#endif

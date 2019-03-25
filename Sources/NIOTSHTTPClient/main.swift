@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import NIO
 import NIOTransportServices
 import NIOHTTP1
@@ -69,3 +71,4 @@ let channel = try! NIOTSConnectionBootstrap(group: group)
 
 // Wait for the request to complete
 try! channel.closeFuture.wait()
+#endif

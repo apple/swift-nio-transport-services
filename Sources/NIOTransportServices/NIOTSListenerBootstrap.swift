@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import NIO
 import Dispatch
 import Network
@@ -308,3 +310,4 @@ private class AcceptHandler: ChannelInboundHandler {
         }
     }
 }
+#endif

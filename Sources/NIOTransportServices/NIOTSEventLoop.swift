@@ -14,6 +14,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if canImport(Network)
 import Dispatch
 import Foundation
 import Network
@@ -220,3 +221,4 @@ extension NIOTSEventLoop {
         assert(oldChannel != nil)
     }
 }
+#endif

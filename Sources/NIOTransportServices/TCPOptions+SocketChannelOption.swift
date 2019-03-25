@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import Foundation
 import NIO
 import Network
@@ -82,3 +84,4 @@ internal extension NWProtocolTCP.Options {
         }
     }
 }
+#endif

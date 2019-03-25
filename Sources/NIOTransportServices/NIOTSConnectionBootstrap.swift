@@ -13,10 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import NIO
 import Dispatch
 import Network
-
 
 public final class NIOTSConnectionBootstrap {
     private let group: NIOTSEventLoopGroup
@@ -219,3 +220,4 @@ internal struct ChannelOptionStorage {
         return applyPromise.futureResult
     }
 }
+#endif

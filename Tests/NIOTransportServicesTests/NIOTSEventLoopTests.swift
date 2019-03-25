@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import XCTest
 import NIO
 import NIOConcurrencyHelpers
@@ -127,3 +129,4 @@ class NIOTSEventLoopTest: XCTestCase {
         XCTAssertNil(weakEL)
     }
 }
+#endif

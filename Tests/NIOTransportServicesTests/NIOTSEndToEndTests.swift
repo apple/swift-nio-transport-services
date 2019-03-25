@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+
+#if canImport(Network)
 import XCTest
 import NIO
 import NIOTransportServices
@@ -491,3 +493,4 @@ class NIOTSEndToEndTests: XCTestCase {
         }
     }
 }
+#endif
