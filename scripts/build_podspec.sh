@@ -60,17 +60,17 @@ Pod::Spec.new do |s|
   s.documentation_url = 'https://github.com/apple/swift-nio-transport-services'
   s.module_name = 'NIOTransportServices'
 
-  s.swift_version = '4.1'
-  s.cocoapods_version = '>=1.1.0'
+  s.swift_version = '5.0'
+  s.cocoapods_version = '>=1.6.0'
   s.ios.deployment_target = '12.0'
   s.osx.deployment_target = '10.14'
   s.tvos.deployment_target = '12.0'
 
   s.source_files = 'Sources/NIOTransportServices/**/*.swift'
-  s.dependency 'SwiftNIO', '~> 1.8'
-  s.dependency 'SwiftNIOFoundationCompat', '~> 1.8'
-  s.dependency 'SwiftNIOConcurrencyHelpers', '~> 1.8'
-  s.dependency 'SwiftNIOTLS', '~> 1.8'
+  s.dependency 'SwiftNIO', '~> 2.0'
+  s.dependency 'SwiftNIOFoundationCompat', '~> 2.0'
+  s.dependency 'SwiftNIOConcurrencyHelpers', '~> 2.0'
+  s.dependency 'SwiftNIOTLS', '~> 2.0'
 end
 EOF
 
