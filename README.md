@@ -18,8 +18,8 @@ Network.framework is Apple's reference implementation of the [proposed post-sock
 
 Today, the easiest way to use SwiftNIO Transport Services in an iOS project is through CocoaPods:
 
-    pod 'SwiftNIO'
-    pod 'SwiftNIOTransportServices'
+    pod 'SwiftNIO', '~> 2.0.0'
+    pod 'SwiftNIOTransportServices', '~> 1.0.0'
 
 You can also use the Swift Package Manager:
 
@@ -34,7 +34,20 @@ Do note however that Network.framework requires macOS 10.14+, iOS 12+, or tvOS 1
 
 ## Versioning
 
-This repository will remain in development throughout the beta period of macOS Mojave and iOS 12. Once those operating systems have gone GM, we will finalize the API and cut a stable release.
+Just like the rest of the SwiftNIO family, `swift-nio-transport-services` follows [SemVer 2.0.0](https://semver.org/#semantic-versioning-200) with a separate document
+declaring [SwiftNIO's Public API](https://github.com/apple/swift-nio/blob/master/docs/public-api.md).
+
+### `swift-nio-transport-services ` 1.x
+
+`swift-nio-transport-services ` versions 1.x is part of the SwiftNIO 2 family of repositories and does not have any dependencies besides [`swift-nio`](https://github.com/apple/swift-nio), Swift 5, and an Apple OS supporting `Network.framework`. As the latest version, it lives on the [`master`](https://github.com/apple/swift-nio-transport-services) branch.
+
+To depend on `swift-nio-transport-services `, put the following in the `dependencies` of your `Package.swift`:
+
+    .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.0.0"),
+
+### `swift-nio-transport-services ` 0.x
+
+The legacy `swift-nio-transport-services` 0.x is part of the SwiftNIO 1 family of repositories and works with Swift 4.1 and newer. The source code can be found on the [`swift-nio-transport-services-swift-4-maintenance`](https://github.com/apple/swift-nio-transport-services/tree/swift-nio-transport-services-swift-4-maintenance) branch.
 
 ## Developing NIO Transport Services
 
