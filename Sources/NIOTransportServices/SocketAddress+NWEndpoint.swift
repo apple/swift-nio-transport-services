@@ -97,11 +97,11 @@ extension SocketAddress {
         case .unix(let path):
             self = try .init(unixDomainSocketPath: path)
         case .service:
-            preconditionFailure("Cannot represent service addresses in SocketAddress")
+            throw NIOTSErrors.UnableToResolveEndpoint()
         case .hostPort(_, _):
-            preconditionFailure("Cannot represent unknown host in SocketAddress")
+            throw NIOTSErrors.UnableToResolveEndpoint()
         @unknown default:
-            preconditionFailure("cannot create SocketAddress from unknown representation")
+            throw NIOTSErrors.UnableToResolveEndpoint()
         }
     }
 }
