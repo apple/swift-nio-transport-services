@@ -18,7 +18,7 @@ import Foundation
 import NIO
 import Network
 
-internal extension IPv4Address {
+extension IPv4Address {
     /// Create an `IPv4Address` object from a `sockaddr_in`.
     internal init(fromSockAddr sockAddr: sockaddr_in) {
         var localAddr = sockAddr
@@ -30,7 +30,7 @@ internal extension IPv4Address {
     }
 }
 
-internal extension IPv6Address {
+extension IPv6Address {
     internal init(fromSockAddr sockAddr: sockaddr_in6) {
         var localAddr = sockAddr
 
@@ -43,8 +43,7 @@ internal extension IPv6Address {
         }
     }
 }
-
-internal extension NWEndpoint {
+extension NWEndpoint {
     /// Create an `NWEndpoint` value from a NIO `SocketAddress`.
     internal init(fromSocketAddress socketAddress: SocketAddress) {
         switch socketAddress {
@@ -69,7 +68,7 @@ internal extension NWEndpoint {
 
 // TODO: We'll want to get rid of this when we support returning NWEndpoint directly from
 // the various address-handling functions.
-internal extension SocketAddress {
+extension SocketAddress {
     internal init(fromNWEndpoint endpoint: NWEndpoint) throws {
         switch endpoint {
         case .hostPort(.ipv4(let host), let port):
@@ -98,11 +97,15 @@ internal extension SocketAddress {
             preconditionFailure("Cannot represent service addresses in SocketAddress")
         case .hostPort(.name, _):
             preconditionFailure("Cannot represent host by name only as SocketAddress")
+#if swift(>=4.1.50)
+        @unknown default:
+            preconditionFailure("Cannot represent <unknown> as SocketAddress")
+#endif
         }
     }
 }
 
-internal extension SocketAddress {
+extension SocketAddress {
     /// Change the port on this `SocketAddress` to a new value.
     mutating func newPort(_ port: UInt16) {
         switch self {

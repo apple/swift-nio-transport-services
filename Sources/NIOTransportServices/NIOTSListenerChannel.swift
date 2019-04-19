@@ -276,6 +276,10 @@ extension NIOTSListenerChannel: StateManagedChannel {
             parameters.requiredLocalEndpoint = target
         case .service(_, _, _, let interface):
             parameters.requiredInterface = interface
+        #if swift(>=4.1.50)
+        @unknown default:
+            ()
+        #endif
         }
 
         // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
