@@ -24,8 +24,8 @@ public final class NIOTSListenerBootstrap {
     private let childGroup: EventLoopGroup
     private var serverChannelInit: ((Channel) -> EventLoopFuture<Void>)?
     private var childChannelInit: ((Channel) -> EventLoopFuture<Void>)?
-    private var serverChannelOptions = ChannelOptionStorage()
-    private var childChannelOptions = ChannelOptionStorage()
+    private var serverChannelOptions = ChannelOptionsStorage()
+    private var childChannelOptions = ChannelOptionsStorage()
     private var serverQoS: DispatchQoS?
     private var childQoS: DispatchQoS?
     private var tcpOptions: NWProtocolTCP.Options = .init()
@@ -85,7 +85,7 @@ public final class NIOTSListenerBootstrap {
     ///     - option: The option to be applied.
     ///     - value: The value for the option.
     public func serverChannelOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> Self {
-        self.serverChannelOptions.put(key: option, value: value)
+        self.serverChannelOptions.append(key: option, value: value)
         return self
     }
 
@@ -95,7 +95,7 @@ public final class NIOTSListenerBootstrap {
     ///     - option: The option to be applied.
     ///     - value: The value for the option.
     public func childChannelOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> Self {
-        self.childChannelOptions.put(key: option, value: value)
+        self.childChannelOptions.append(key: option, value: value)
         return self
     }
 
@@ -211,7 +211,7 @@ public final class NIOTSListenerBootstrap {
                                                  tlsOptions: self.tlsOptions)
 
         return eventLoop.submit {
-            return serverChannelOptions.applyAll(channel: serverChannel).flatMap {
+            return serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
                 serverChannelInit(serverChannel)
             }.flatMap {
                 serverChannel.pipeline.addHandler(AcceptHandler(childChannelInitializer: childChannelInit,
@@ -243,14 +243,14 @@ private class AcceptHandler: ChannelInboundHandler {
 
     private let childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?
     private let childGroup: NIOTSEventLoopGroup
-    private let childChannelOptions: ChannelOptionStorage
+    private let childChannelOptions: ChannelOptionsStorage
     private let childChannelQoS: DispatchQoS?
     private let originalTCPOptions: NWProtocolTCP.Options
     private let originalTLSOptions: NWProtocolTLS.Options?
 
     init(childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?,
          childGroup: NIOTSEventLoopGroup,
-         childChannelOptions: ChannelOptionStorage,
+         childChannelOptions: ChannelOptionsStorage,
          childChannelQoS: DispatchQoS?,
          tcpOptions: NWProtocolTCP.Options,
          tlsOptions: NWProtocolTLS.Options?) {
@@ -276,7 +276,7 @@ private class AcceptHandler: ChannelInboundHandler {
 
         @inline(__always)
         func setupChildChannel() -> EventLoopFuture<Void> {
-            return self.childChannelOptions.applyAll(channel: newChannel).flatMap { () -> EventLoopFuture<Void> in
+            return self.childChannelOptions.applyAllChannelOptions(to: newChannel).flatMap { () -> EventLoopFuture<Void> in
                 childLoop.assertInEventLoop()
                 return childInitializer(newChannel)
             }
