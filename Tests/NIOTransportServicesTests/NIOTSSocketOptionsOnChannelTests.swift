@@ -120,5 +120,27 @@ class NIOTSSocketOptionsOnChannelTests: XCTestCase {
     func testSO_KEEPALIVE() throws {
         try self.assertChannelOptionAfterCreation(option: SocketOption(level: SOL_SOCKET, name: SO_KEEPALIVE), initialValue: 0, testAlternativeValue: 1)
     }
+
+    func testMultipleSocketOptions() throws {
+        let listener = try NIOTSListenerBootstrap(group: group)
+            .serverChannelOption(ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR), value: 1)
+            .serverChannelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+            .bind(host: "127.0.0.1", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+        let connector = try NIOTSConnectionBootstrap(group: group)
+            .channelOption(ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR), value: 1)
+            .channelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+            .connect(to: listener.localAddress!).wait()
+        defer {
+            XCTAssertNoThrow(try connector.close().wait())
+        }
+
+        XCTAssertNoThrow(XCTAssertEqual(1, try listener.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR)).wait()))
+        XCTAssertNoThrow(XCTAssertEqual(1, try listener.getOption(option: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY)).wait()))
+        XCTAssertNoThrow(XCTAssertEqual(1, try connector.getOption(option: ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR)).wait()))
+        XCTAssertNoThrow(XCTAssertEqual(1, try connector.getOption(option: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY)).wait()))
+    }
 }
 
