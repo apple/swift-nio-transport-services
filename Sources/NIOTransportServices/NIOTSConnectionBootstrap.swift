@@ -23,7 +23,7 @@ public final class NIOTSConnectionBootstrap {
     private let group: NIOTSEventLoopGroup
     private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)?
     private var connectTimeout: TimeAmount = TimeAmount.seconds(10)
-    private var channelOptions = ChannelOptionStorage()
+    private var channelOptions = ChannelOptionsStorage()
     private var qos: DispatchQoS?
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
@@ -54,7 +54,7 @@ public final class NIOTSConnectionBootstrap {
     ///     - option: The option to be applied.
     ///     - value: The value for the option.
     public func channelOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> Self {
-        channelOptions.put(key: option, value: value)
+        channelOptions.append(key: option, value: value)
         return self
     }
 
@@ -151,7 +151,7 @@ public final class NIOTSConnectionBootstrap {
         let channelOptions = self.channelOptions
 
         return conn.eventLoop.submit {
-            return channelOptions.applyAll(channel: conn).flatMap {
+            return channelOptions.applyAllChannelOptions(to: conn).flatMap {
                 initializer(conn)
             }.flatMap {
                 conn.register()
@@ -175,34 +175,48 @@ public final class NIOTSConnectionBootstrap {
     }
 }
 
-internal struct ChannelOptionStorage {
-    private var storage: [(Any, (Any, (Channel) -> (Any, Any) -> EventLoopFuture<Void>))] = []
+// This is a backport of ChannelOptions.Storage from SwiftNIO because the initializer wasn't public, so we couldn't actually build it.
+// When https://github.com/apple/swift-nio/pull/988 is in a shipped release, we can remove this and simply bump our lowest supported version of SwiftNIO.
+internal struct ChannelOptionsStorage {
+    internal var _storage: [(Any, (Any, (Channel) -> (Any, Any) -> EventLoopFuture<Void>))] = []
 
-    mutating func put<K: ChannelOption>(key: K,
-                                        value newValue: K.Value) {
+    internal init() { }
+
+    /// Add `Options`, a `ChannelOption` to the `ChannelOptionsStorage`.
+    ///
+    /// - parameters:
+    ///    - key: the key for the option
+    ///    - value: the value for the option
+    internal mutating func append<Option: ChannelOption>(key newKey: Option, value newValue: Option.Value) {
         func applier(_ t: Channel) -> (Any, Any) -> EventLoopFuture<Void> {
-            return { (x, y) in
-                return t.setOption(x as! K, value: y as! K.Value)
+            return { (option, value) in
+                return t.setOption(option as! Option, value: value as! Option.Value)
             }
         }
         var hasSet = false
-        self.storage = self.storage.map { typeAndValue in
-            let (type, value) = typeAndValue
-            if type is K {
+        self._storage = self._storage.map { currentKeyAndValue in
+            let (currentKey, _) = currentKeyAndValue
+            if let currentKey = currentKey as? Option, currentKey == newKey {
                 hasSet = true
-                return (key, (newValue, applier))
+                return (currentKey, (newValue, applier))
             } else {
-                return (type, value)
+                return currentKeyAndValue
             }
         }
         if !hasSet {
-            self.storage.append((key, (newValue, applier)))
+            self._storage.append((newKey, (newValue, applier)))
         }
     }
 
-    func applyAll(channel: Channel) -> EventLoopFuture<Void> {
-        let applyPromise: EventLoopPromise<Void> = channel.eventLoop.makePromise()
-        var it = self.storage.makeIterator()
+    /// Apply all stored `ChannelOption`s to `Channel`.
+    ///
+    /// - parameters:
+    ///    - channel: The `Channel` to apply the `ChannelOption`s to
+    /// - returns:
+    ///    - An `EventLoopFuture` that is fulfilled when all `ChannelOption`s have been applied to the `Channel`.
+    public func applyAllChannelOptions(to channel: Channel) -> EventLoopFuture<Void> {
+        let applyPromise = channel.eventLoop.makePromise(of: Void.self)
+        var it = self._storage.makeIterator()
 
         func applyNext() {
             guard let (key, (value, applier)) = it.next() else {
