@@ -20,6 +20,7 @@ import NIOTransportServices
 import NIOHTTP1
 import Network
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 final class HTTP1ClientHandler: ChannelInboundHandler {
     typealias OutboundOut = HTTPClientRequestPart
     typealias InboundIn = HTTPClientResponsePart
@@ -58,17 +59,19 @@ final class HTTP1ClientHandler: ChannelInboundHandler {
     }
 }
 
-let group = NIOTSEventLoopGroup()
-let channel = try! NIOTSConnectionBootstrap(group: group)
-    .connectTimeout(.hours(1))
-    .channelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
-    .tlsOptions(NWProtocolTLS.Options())
-    .channelInitializer { channel in
-        channel.pipeline.addHTTPClientHandlers().flatMap {
-            channel.pipeline.addHandler(HTTP1ClientHandler())
-        }
-    }.connect(host: "httpbin.org", port: 443).wait()
+if #available(OSX 10.14, *) {
+    let group = NIOTSEventLoopGroup()
+    let channel = try! NIOTSConnectionBootstrap(group: group)
+        .connectTimeout(.hours(1))
+        .channelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+        .tlsOptions(NWProtocolTLS.Options())
+        .channelInitializer { channel in
+            channel.pipeline.addHTTPClientHandlers().flatMap {
+                channel.pipeline.addHandler(HTTP1ClientHandler())
+            }
+        }.connect(host: "httpbin.org", port: 443).wait()
 
-// Wait for the request to complete
-try! channel.closeFuture.wait()
+    // Wait for the request to complete
+    try! channel.closeFuture.wait()
+}
 #endif

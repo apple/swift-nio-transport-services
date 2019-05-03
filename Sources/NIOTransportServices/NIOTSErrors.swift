@@ -13,13 +13,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+#if canImport(Network)
 import NIO
 
 /// A tag protocol that can be used to cover all errors thrown by `NIOTransportServices`.
 ///
 /// Users are strongly encouraged not to conform their own types to this protocol.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 public protocol NIOTSError: Error, Equatable { }
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 public enum NIOTSErrors {
     /// `InvalidChannelStateTransition` is thrown when a channel has been asked to do something
     /// that is incompatible with its current channel state: e.g. attempting to register an
@@ -55,3 +58,4 @@ public enum NIOTSErrors {
     /// insufficient information is available to create it.
     public struct UnableToResolveEndpoint: NIOTSError { }
 }
+#endif

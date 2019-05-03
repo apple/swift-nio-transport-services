@@ -47,6 +47,7 @@ import Network
 /// platforms, the `NIOTSEventLoopGroup` should be preferred over the
 /// `MultiThreadedEventLoopGroup`. In particular, on iOS, the `NIOTSEventLoopGroup` is the
 /// preferred networking backend.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 public final class NIOTSEventLoopGroup: EventLoopGroup {
     private let index = Atomic<Int>(value: 0)
     private let eventLoops: [NIOTSEventLoop]

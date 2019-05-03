@@ -20,6 +20,7 @@ import NIOTransportServices
 import NIOHTTP1
 import Network
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 final class HTTP1ServerHandler: ChannelInboundHandler {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
@@ -38,16 +39,18 @@ final class HTTP1ServerHandler: ChannelInboundHandler {
     }
 }
 
-let group = NIOTSEventLoopGroup()
-let channel = try! NIOTSListenerBootstrap(group: group)
-    .childChannelInitializer { channel in
-        channel.pipeline.configureHTTPServerPipeline(withPipeliningAssistance: true, withErrorHandling: true).flatMap {
-            channel.pipeline.addHandler(HTTP1ServerHandler())
-        }
-    }.bind(host: "127.0.0.1", port: 8888).wait()
+if #available(OSX 10.14, *) {
+    let group = NIOTSEventLoopGroup()
+    let channel = try! NIOTSListenerBootstrap(group: group)
+        .childChannelInitializer { channel in
+            channel.pipeline.configureHTTPServerPipeline(withPipeliningAssistance: true, withErrorHandling: true).flatMap {
+                channel.pipeline.addHandler(HTTP1ServerHandler())
+            }
+        }.bind(host: "127.0.0.1", port: 8888).wait()
 
-print("Server listening on \(channel.localAddress!)")
+    print("Server listening on \(channel.localAddress!)")
 
-// Wait for the request to complete
-try! channel.closeFuture.wait()
+    // Wait for the request to complete
+    try! channel.closeFuture.wait()
+}
 #endif

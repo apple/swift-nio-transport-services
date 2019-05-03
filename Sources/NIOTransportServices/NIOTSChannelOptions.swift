@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
+#if canImport(Network)
 import NIO
 
 
@@ -24,6 +25,7 @@ import NIO
 /// transitioning into the `failed` state, causing immediate connection failure.
 ///
 /// This option is only valid with `NIOTSConnectionBootstrap`.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 public struct NIOTSWaitForActivityOption: ChannelOption, Equatable {
     public typealias Value = Bool
 
@@ -36,6 +38,7 @@ public struct NIOTSWaitForActivityOption: ChannelOption, Equatable {
 /// `true`. By default this option is set to `false`.
 ///
 /// This option must be set on the bootstrap: setting it after the channel is initialized will have no effect.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 public struct NIOTSEnablePeerToPeerOption: ChannelOption, Equatable {
     public typealias Value = Bool
 
@@ -44,9 +47,11 @@ public struct NIOTSEnablePeerToPeerOption: ChannelOption, Equatable {
 
 
 /// Options that can be set explicitly and only on bootstraps provided by `NIOTransportServices`.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 public struct NIOTSChannelOptions {
     /// - seealso: `NIOTSWaitForActivityOption`.
     public static let waitForActivity = NIOTSWaitForActivityOption()
 
     public static let enablePeerToPeer = NIOTSEnablePeerToPeerOption()
 }
+#endif

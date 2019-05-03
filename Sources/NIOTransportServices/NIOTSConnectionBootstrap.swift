@@ -19,6 +19,7 @@ import NIO
 import Dispatch
 import Network
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 public final class NIOTSConnectionBootstrap {
     private let group: NIOTSEventLoopGroup
     private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)?
@@ -177,6 +178,7 @@ public final class NIOTSConnectionBootstrap {
 
 // This is a backport of ChannelOptions.Storage from SwiftNIO because the initializer wasn't public, so we couldn't actually build it.
 // When https://github.com/apple/swift-nio/pull/988 is in a shipped release, we can remove this and simply bump our lowest supported version of SwiftNIO.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 internal struct ChannelOptionsStorage {
     internal var _storage: [(Any, (Any, (Channel) -> (Any, Any) -> EventLoopFuture<Void>))] = []
 

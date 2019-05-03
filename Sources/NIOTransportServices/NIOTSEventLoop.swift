@@ -27,6 +27,7 @@ import NIOConcurrencyHelpers
 /// `EventLoop`s that implement `QoSEventLoop` can interact with `Dispatch` to propagate information
 /// about the QoS required for a specific task block. This allows tasks to be dispatched onto an
 /// event loop with a different priority than the majority of tasks on that loop.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 public protocol QoSEventLoop: EventLoop {
     /// Submit a given task to be executed by the `EventLoop` at a given `qos`.
     func execute(qos: DispatchQoS, _ task: @escaping () -> Void) -> Void
@@ -44,6 +45,7 @@ public protocol QoSEventLoop: EventLoop {
 /// new registrations, but it will continue to accept new scheduled work items. When a loop is closed, it
 /// will accept neither new registrations nor new scheduled work items, but it will continue to process
 /// the queue until it has drained.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 fileprivate enum LifecycleState {
     case active
     case closing
@@ -51,6 +53,7 @@ fileprivate enum LifecycleState {
 }
 
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 internal class NIOTSEventLoop: QoSEventLoop {
     private let loop: DispatchQueue
     private let taskQueue: DispatchQueue
@@ -85,7 +88,7 @@ internal class NIOTSEventLoop: QoSEventLoop {
     }
 
     public init(qos: DispatchQoS) {
-		self.loop = DispatchQueue(label: "nio.transportservices.eventloop.loop", qos: qos, autoreleaseFrequency: .workItem)
+    self.loop = DispatchQueue(label: "nio.transportservices.eventloop.loop", qos: qos, autoreleaseFrequency: .workItem)
         self.taskQueue = DispatchQueue(label: "nio.transportservices.eventloop.taskqueue", target: self.loop)
         self.loopID = UUID()
         self.inQueueKey = DispatchSpecificKey()
@@ -153,6 +156,7 @@ internal class NIOTSEventLoop: QoSEventLoop {
     }
 }
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 extension NIOTSEventLoop {
     /// Create a `DispatchQueue` to use for events on a given `Channel`.
     ///
@@ -165,6 +169,7 @@ extension NIOTSEventLoop {
     }
 }
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 extension NIOTSEventLoop {
     internal func closeGently() -> EventLoopFuture<Void> {
         let p: EventLoopPromise<Void> = self.makePromise()
@@ -203,6 +208,7 @@ extension NIOTSEventLoop {
     }
 }
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 extension NIOTSEventLoop {
     /// Record a given channel with this event loop.
     internal func register(_ channel: Channel) throws {
