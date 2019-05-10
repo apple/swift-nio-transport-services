@@ -88,7 +88,7 @@ internal class NIOTSEventLoop: QoSEventLoop {
     }
 
     public init(qos: DispatchQoS) {
-    self.loop = DispatchQueue(label: "nio.transportservices.eventloop.loop", qos: qos, autoreleaseFrequency: .workItem)
+        self.loop = DispatchQueue(label: "nio.transportservices.eventloop.loop", qos: qos, autoreleaseFrequency: .workItem)
         self.taskQueue = DispatchQueue(label: "nio.transportservices.eventloop.taskqueue", target: self.loop)
         self.loopID = UUID()
         self.inQueueKey = DispatchSpecificKey()
