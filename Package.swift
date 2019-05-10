@@ -17,9 +17,6 @@ import PackageDescription
 
 let package = Package(
     name: "swift-nio-transport-services",
-    platforms: [
-       .macOS(.v10_14), .iOS(.v12), .tvOS(.v12),
-    ],
     products: [
         .library(name: "NIOTransportServices", targets: ["NIOTransportServices"]),
         .executable(name: "NIOTSHTTPClient", targets: ["NIOTSHTTPClient"]),

@@ -22,6 +22,7 @@ import NIOConcurrencyHelpers
 import Dispatch
 import Network
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 internal final class NIOTSListenerChannel {
     /// The `ByteBufferAllocator` for this `Channel`.
     public let allocator = ByteBufferAllocator()
@@ -102,6 +103,7 @@ internal final class NIOTSListenerChannel {
 
 
 // MARK:- NIOTSListenerChannel implementation of Channel
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 extension NIOTSListenerChannel: Channel {
     /// The `ChannelPipeline` for this `Channel`.
     public var pipeline: ChannelPipeline {
@@ -217,6 +219,7 @@ extension NIOTSListenerChannel: Channel {
 
 
 // MARK:- NIOTSListenerChannel implementation of StateManagedChannel.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 extension NIOTSListenerChannel: StateManagedChannel {
     typealias ActiveSubstate = ListenerActiveSubstate
 
@@ -329,7 +332,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
         if let listener = self.nwListener {
             listener.cancel()
         }
-        
+
         // Step 2: fail any pending bind promise.
         if let pendingBind = self.bindPromise {
             self.bindPromise = nil
@@ -376,6 +379,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
 
 
 // MARK:- Implementations of the callbacks passed to NWListener.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 extension NIOTSListenerChannel {
     /// Called by the underlying `NWListener` when its internal state has changed.
     private func stateUpdateHandler(newState: NWListener.State) {
@@ -391,7 +395,7 @@ extension NIOTSListenerChannel {
             // This is the network telling us we're closed. We don't need to actually do anything here
             // other than check our state is ok.
             assert(self.closed)
-			self.nwListener = nil
+            self.nwListener = nil
         case .failed(let err):
             // The connection has failed for some reason.
             self.close0(error: err, mode: .all, promise: nil)
@@ -415,6 +419,7 @@ extension NIOTSListenerChannel {
 
 
 // MARK:- Implementations of state management for the channel.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 extension NIOTSListenerChannel {
     /// Make the channel active.
     private func bindComplete0() {
