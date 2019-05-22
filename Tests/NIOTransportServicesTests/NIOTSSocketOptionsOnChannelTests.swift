@@ -49,7 +49,7 @@ private extension Channel {
     }
 }
 
-
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 class NIOTSSocketOptionsOnChannelTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
 

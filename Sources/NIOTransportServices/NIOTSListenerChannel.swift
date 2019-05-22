@@ -83,18 +83,39 @@ internal final class NIOTSListenerChannel {
     /// Whether to enable peer-to-peer connectivity when using Bonjour services.
     private var enablePeerToPeer = false
 
+    /// The event loop group to use for child channels.
+    private let childLoopGroup: NIOTSEventLoopGroup
+
+    /// The QoS to use for child channels.
+    private let childChannelQoS: DispatchQoS?
+
+    /// The TCP options to use for child channels.
+    private let childTCPOptions: NWProtocolTCP.Options
+
+    /// The TLS options to use for child channels.
+    private let childTLSOptions: NWProtocolTLS.Options?
+
+
     /// Create a `NIOTSListenerChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSListenerChannel` objects cannot be created on arbitrary loops types.
     internal init(eventLoop: NIOTSEventLoop,
                   qos: DispatchQoS? = nil,
                   tcpOptions: NWProtocolTCP.Options,
-                  tlsOptions: NWProtocolTLS.Options?) {
+                  tlsOptions: NWProtocolTLS.Options?,
+                  childLoopGroup: NIOTSEventLoopGroup,
+                  childChannelQoS: DispatchQoS?,
+                  childTCPOptions: NWProtocolTCP.Options,
+                  childTLSOptions: NWProtocolTLS.Options?) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
         self.connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
         self.tcpOptions = tcpOptions
         self.tlsOptions = tlsOptions
+        self.childLoopGroup = childLoopGroup
+        self.childChannelQoS = childChannelQoS
+        self.childTCPOptions = childTCPOptions
+        self.childTLSOptions = childTLSOptions
 
         // Must come last, as it requires self to be completely initialized.
         self._pipeline = ChannelPipeline(channel: self)
@@ -412,7 +433,14 @@ extension NIOTSListenerChannel {
             return
         }
 
-        self.pipeline.fireChannelRead(NIOAny(connection))
+        let newChannel = NIOTSConnectionChannel(wrapping: connection,
+                                                on: self.childLoopGroup.next() as! NIOTSEventLoop,
+                                                parent: self,
+                                                qos: self.childChannelQoS,
+                                                tcpOptions: self.childTCPOptions,
+                                                tlsOptions: self.childTLSOptions)
+
+        self.pipeline.fireChannelRead(NIOAny(newChannel))
         self.pipeline.fireChannelReadComplete()
     }
 }

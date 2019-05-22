@@ -21,6 +21,7 @@ import NIO
 import NIOTransportServices
 
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 final class BindRecordingHandler: ChannelOutboundHandler {
     typealias OutboundIn = Any
     typealias OutboundOut = Any
@@ -45,6 +46,7 @@ final class BindRecordingHandler: ChannelOutboundHandler {
 }
 
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 class NIOTSListenerChannelTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
 
@@ -219,6 +221,43 @@ class NIOTSListenerChannelTests: XCTestCase {
         do {
             XCTAssertNoThrow(try listener.close().wait())
         }
+    }
+
+    func testChannelEmitsChannels() throws {
+        class ChannelReceiver: ChannelInboundHandler {
+            typealias InboundIn = Channel
+            typealias InboundOut = Channel
+
+            private let promise: EventLoopPromise<Channel>
+
+            init(_ promise: EventLoopPromise<Channel>) {
+                self.promise = promise
+            }
+
+            func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+                let channel = self.unwrapInboundIn(data)
+                self.promise.succeed(channel)
+            }
+        }
+
+        let channelPromise = self.group.next().makePromise(of: Channel.self)
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .serverChannelInitializer { channel in
+                channel.pipeline.addHandler(ChannelReceiver(channelPromise))
+            }
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connection = try NIOTSConnectionBootstrap(group: self.group).connect(to: listener.localAddress!).wait()
+        defer {
+            XCTAssertNoThrow(try connection.close().wait())
+        }
+
+        let promisedChannel = try channelPromise.futureResult.wait()
+        XCTAssertEqual(promisedChannel.remoteAddress, connection.localAddress)
+        XCTAssertEqual(promisedChannel.localAddress, connection.remoteAddress)
     }
 }
 #endif
