@@ -164,7 +164,7 @@ extension ByteBufferAllocator {
     }
 }
 
-
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 class NIOTSEndToEndTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
 

@@ -22,7 +22,7 @@ import Network
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 public final class NIOTSListenerBootstrap {
     private let group: EventLoopGroup
-    private let childGroup: EventLoopGroup
+    private let childGroup: NIOTSEventLoopGroup
     private var serverChannelInit: ((Channel) -> EventLoopFuture<Void>)?
     private var childChannelInit: ((Channel) -> EventLoopFuture<Void>)?
     private var serverChannelOptions = ChannelOptionsStorage()
@@ -200,7 +200,6 @@ public final class NIOTSListenerBootstrap {
 
     private func bind0(_ binder: @escaping (Channel) -> EventLoopFuture<Void>) -> EventLoopFuture<Channel> {
         let eventLoop = self.group.next() as! NIOTSEventLoop
-        let childEventLoopGroup = self.childGroup as! NIOTSEventLoopGroup
         let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(()) }
         let childChannelInit = self.childChannelInit
         let serverChannelOptions = self.serverChannelOptions
@@ -209,18 +208,18 @@ public final class NIOTSListenerBootstrap {
         let serverChannel = NIOTSListenerChannel(eventLoop: eventLoop,
                                                  qos: self.serverQoS,
                                                  tcpOptions: self.tcpOptions,
-                                                 tlsOptions: self.tlsOptions)
+                                                 tlsOptions: self.tlsOptions,
+                                                 childLoopGroup: self.childGroup,
+                                                 childChannelQoS: self.childQoS,
+                                                 childTCPOptions: self.tcpOptions,
+                                                 childTLSOptions: self.tlsOptions)
 
         return eventLoop.submit {
             return serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
                 serverChannelInit(serverChannel)
             }.flatMap {
                 serverChannel.pipeline.addHandler(AcceptHandler(childChannelInitializer: childChannelInit,
-                                                                  childGroup: childEventLoopGroup,
-                                                                  childChannelOptions: childChannelOptions,
-                                                                  childChannelQoS: self.childQoS,
-                                                                  tcpOptions: self.tcpOptions,
-                                                                  tlsOptions: self.tlsOptions))
+                                                                  childChannelOptions: childChannelOptions))
             }.flatMap {
                 serverChannel.register()
             }.flatMap {
@@ -240,41 +239,24 @@ public final class NIOTSListenerBootstrap {
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 private class AcceptHandler: ChannelInboundHandler {
-    typealias InboundIn = NWConnection
+    typealias InboundIn = NIOTSConnectionChannel
     typealias InboundOut = NIOTSConnectionChannel
 
     private let childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?
-    private let childGroup: NIOTSEventLoopGroup
     private let childChannelOptions: ChannelOptionsStorage
-    private let childChannelQoS: DispatchQoS?
-    private let originalTCPOptions: NWProtocolTCP.Options
-    private let originalTLSOptions: NWProtocolTLS.Options?
 
     init(childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?,
-         childGroup: NIOTSEventLoopGroup,
-         childChannelOptions: ChannelOptionsStorage,
-         childChannelQoS: DispatchQoS?,
-         tcpOptions: NWProtocolTCP.Options,
-         tlsOptions: NWProtocolTLS.Options?) {
+         childChannelOptions: ChannelOptionsStorage) {
         self.childChannelInitializer = childChannelInitializer
-        self.childGroup = childGroup
         self.childChannelOptions = childChannelOptions
-        self.childChannelQoS = childChannelQoS
-        self.originalTCPOptions = tcpOptions
-        self.originalTLSOptions = tlsOptions
     }
 
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
-        let conn = self.unwrapInboundIn(data)
-        let childLoop = self.childGroup.next() as! NIOTSEventLoop
+        let newChannel = self.unwrapInboundIn(data)
+        let childLoop = newChannel.eventLoop
         let ctxEventLoop = context.eventLoop
         let childInitializer = self.childChannelInitializer ?? { _ in childLoop.makeSucceededFuture(()) }
-        let newChannel = NIOTSConnectionChannel(wrapping: conn,
-                                                on: childLoop,
-                                                parent: context.channel,
-                                                qos: self.childChannelQoS,
-                                                tcpOptions: self.originalTCPOptions,
-                                                tlsOptions: self.originalTLSOptions)
+
 
         @inline(__always)
         func setupChildChannel() -> EventLoopFuture<Void> {
