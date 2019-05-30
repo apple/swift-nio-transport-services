@@ -38,6 +38,9 @@ public final class NIOTSListenerBootstrap {
     ///     - group: The `EventLoopGroup` to use for the `ServerSocketChannel`.
     public convenience init(group: NIOTSEventLoopGroup) {
         self.init(group: group, childGroup: group)
+
+        self.serverChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+        self.childChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
     }
 
     /// Create a `NIOTSListenerBootstrap`.
@@ -49,6 +52,9 @@ public final class NIOTSListenerBootstrap {
     public init(group: NIOTSEventLoopGroup, childGroup: NIOTSEventLoopGroup) {
         self.group = group
         self.childGroup = childGroup
+        
+        self.serverChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+        self.childChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
     }
 
     /// Initialize the `NIOTSListenerChannel` with `initializer`. The most common task in initializer is to add

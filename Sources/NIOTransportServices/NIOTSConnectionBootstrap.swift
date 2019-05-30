@@ -35,6 +35,8 @@ public final class NIOTSConnectionBootstrap {
     ///     - group: The `NIOTSEventLoopGroup` to use.
     public init(group: NIOTSEventLoopGroup) {
         self.group = group
+
+        self.channelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
     }
 
     /// Initialize the connected `NIOTSConnectionChannel` with `initializer`. The most common task in initializer is to add

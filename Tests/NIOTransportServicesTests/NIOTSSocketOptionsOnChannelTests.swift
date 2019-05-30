@@ -76,7 +76,7 @@ class NIOTSSocketOptionsOnChannelTests: XCTestCase {
     }
 
     func testNODELAY() throws {
-        try self.assertChannelOptionAfterCreation(option: SocketOption(level: IPPROTO_TCP, name: TCP_NODELAY), initialValue: 0, testAlternativeValue: 1)
+        try self.assertChannelOptionAfterCreation(option: SocketOption(level: IPPROTO_TCP, name: TCP_NODELAY), initialValue: 1, testAlternativeValue: 0)
     }
 
     func testNOPUSH() throws {
