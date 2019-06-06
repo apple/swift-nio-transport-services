@@ -19,7 +19,7 @@ import NIO
 import Dispatch
 import Network
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSListenerBootstrap {
     private let group: EventLoopGroup
     private let childGroup: NIOTSEventLoopGroup
@@ -237,7 +237,7 @@ public final class NIOTSListenerBootstrap {
 }
 
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 private class AcceptHandler: ChannelInboundHandler {
     typealias InboundIn = NIOTSConnectionChannel
     typealias InboundOut = NIOTSConnectionChannel

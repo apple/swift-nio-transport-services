@@ -20,7 +20,7 @@ import NIOTransportServices
 import NIOHTTP1
 import Network
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 final class HTTP1ClientHandler: ChannelInboundHandler {
     typealias OutboundOut = HTTPClientRequestPart
     typealias InboundIn = HTTPClientResponsePart

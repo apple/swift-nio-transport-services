@@ -20,7 +20,7 @@ import Foundation
 import NIO
 import Network
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension IPv4Address {
     /// Create an `IPv4Address` object from a `sockaddr_in`.
     internal init(fromSockAddr sockAddr: sockaddr_in) {
@@ -33,7 +33,7 @@ extension IPv4Address {
     }
 }
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension IPv6Address {
     internal init(fromSockAddr sockAddr: sockaddr_in6) {
         var localAddr = sockAddr
@@ -48,7 +48,7 @@ extension IPv6Address {
     }
 }
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NWEndpoint {
     /// Create an `NWEndpoint` value from a NIO `SocketAddress`.
     internal init(fromSocketAddress socketAddress: SocketAddress) {
@@ -74,7 +74,7 @@ extension NWEndpoint {
 
 // TODO: We'll want to get rid of this when we support returning NWEndpoint directly from
 // the various address-handling functions.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension SocketAddress {
     internal init(fromNWEndpoint endpoint: NWEndpoint) throws {
         switch endpoint {
@@ -110,7 +110,7 @@ extension SocketAddress {
     }
 }
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal extension SocketAddress {
     /// Change the port on this `SocketAddress` to a new value.
     mutating func newPort(_ port: UInt16) {

@@ -25,7 +25,7 @@ import Network
 import Security
 
 /// Execute the given function and synchronously complete the given `EventLoopPromise` (if not `nil`).
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 func executeAndComplete<T>(_ promise: EventLoopPromise<T>?, _ body: () throws -> T) {
     do {
         let result = try body()
@@ -36,7 +36,7 @@ func executeAndComplete<T>(_ promise: EventLoopPromise<T>?, _ body: () throws ->
 }
 
 /// Merge two possible promises together such that firing the result will fire both.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 private func mergePromises(_ first: EventLoopPromise<Void>?, _ second: EventLoopPromise<Void>?) -> EventLoopPromise<Void>? {
     if let first = first {
         if let second = second {
@@ -50,7 +50,7 @@ private func mergePromises(_ first: EventLoopPromise<Void>?, _ second: EventLoop
 
 
 /// Channel options for the connection channel.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 private struct ConnectionChannelOptions {
     /// Whether autoRead is enabled for this channel.
     internal var autoRead: Bool = true
@@ -68,7 +68,7 @@ private typealias PendingWrite = (data: ByteBuffer, promise: EventLoopPromise<Vo
 
 
 /// A structure that manages backpressure signaling on this channel.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 private struct BackpressureManager {
     /// Whether the channel is writable, given the current watermark state.
     ///
@@ -144,7 +144,7 @@ private struct BackpressureManager {
 }
 
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal final class NIOTSConnectionChannel {
     /// The `ByteBufferAllocator` for this `Channel`.
     public let allocator = ByteBufferAllocator()
@@ -248,7 +248,7 @@ internal final class NIOTSConnectionChannel {
 
 
 // MARK:- NIOTSConnectionChannel implementation of Channel
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel: Channel {
     /// The `ChannelPipeline` for this `Channel`.
     public var pipeline: ChannelPipeline {
@@ -384,7 +384,7 @@ extension NIOTSConnectionChannel: Channel {
 
 
 // MARK:- NIOTSConnectionChannel implementation of StateManagedChannel.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel: StateManagedChannel {
     typealias ActiveSubstate = TCPSubstate
 
@@ -632,7 +632,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
 
 
 // MARK:- Implementations of the callbacks passed to NWConnection.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel {
     /// Called by the underlying `NWConnection` when its internal state has changed.
     private func stateUpdateHandler(newState: NWConnection.State) {
@@ -732,7 +732,7 @@ extension NIOTSConnectionChannel {
 
 
 // MARK:- Implementations of state management for the channel.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel {
     /// Whether the inbound side of the connection is still open.
     private var inboundStreamOpen: Bool {
@@ -789,7 +789,7 @@ extension NIOTSConnectionChannel {
 
 
 // MARK:- Managing TCP substate.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 fileprivate extension ChannelState where ActiveSubstate == NIOTSConnectionChannel.TCPSubstate {
     /// Close the input side of the TCP state machine.
     mutating func closeInput() throws {
