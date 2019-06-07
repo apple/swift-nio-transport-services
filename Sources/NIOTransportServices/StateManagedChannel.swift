@@ -27,7 +27,7 @@ import Network
 /// active state. This can be used to provide more fine-grained tracking of states
 /// within the active state of a channel. Example uses include for tracking TCP half-closure
 /// state in a TCP stream channel.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal protocol ActiveChannelSubstate {
     /// Create the substate in its default initial state.
     init()
@@ -35,7 +35,7 @@ internal protocol ActiveChannelSubstate {
 
 
 /// A state machine enum that tracks the state of the connection channel.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal enum ChannelState<ActiveSubstate: ActiveChannelSubstate> {
     case idle
     case registered
@@ -85,7 +85,7 @@ internal enum ChannelState<ActiveSubstate: ActiveChannelSubstate> {
 
 
 /// The kinds of activation that a channel may support.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal enum ActivationType {
     case connect
     case bind
@@ -98,7 +98,7 @@ internal enum ActivationType {
 /// This protocol provides default hooks for managing state appropriately for a
 /// given channel. It also provides some default implementations of `Channel` methods
 /// for simple behaviours.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal protocol StateManagedChannel: Channel, ChannelCore {
     associatedtype ActiveSubstate: ActiveChannelSubstate
 
@@ -125,7 +125,7 @@ internal protocol StateManagedChannel: Channel, ChannelCore {
     func readIfNeeded0() -> Void
 }
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension StateManagedChannel {
     public var eventLoop: EventLoop {
         return self.tsEventLoop
