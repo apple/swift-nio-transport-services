@@ -301,6 +301,8 @@ extension NIOTSListenerChannel: StateManagedChannel {
             parameters.requiredLocalEndpoint = target
         case .service(_, _, _, let interface):
             parameters.requiredInterface = interface
+        case .url:
+            break
         @unknown default:
             ()
         }

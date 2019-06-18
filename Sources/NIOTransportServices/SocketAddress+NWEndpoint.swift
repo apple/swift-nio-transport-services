@@ -100,9 +100,7 @@ extension SocketAddress {
             self = .init(addr, host: host.debugDescription)
         case .unix(let path):
             self = try .init(unixDomainSocketPath: path)
-        case .service:
-            throw NIOTSErrors.UnableToResolveEndpoint()
-        case .hostPort(_, _):
+        case .service, .hostPort, .url:
             throw NIOTSErrors.UnableToResolveEndpoint()
         @unknown default:
             throw NIOTSErrors.UnableToResolveEndpoint()
