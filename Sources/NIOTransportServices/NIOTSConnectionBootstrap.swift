@@ -21,7 +21,7 @@ import Network
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSConnectionBootstrap {
-    private let group: NIOTSEventLoopGroup
+    private let group: EventLoopGroup
     private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)?
     private var connectTimeout: TimeAmount = TimeAmount.seconds(10)
     private var channelOptions = ChannelOptionsStorage()
@@ -29,11 +29,11 @@ public final class NIOTSConnectionBootstrap {
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
 
-    /// Create a `NIOTSConnectionBootstrap` on the `NIOTSEventLoopGroup` `group`.
+    /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
     /// - parameters:
-    ///     - group: The `NIOTSEventLoopGroup` to use.
-    public init(group: NIOTSEventLoopGroup) {
+    ///     - group: The `EventLoopGroup` to use.
+    public init(group: EventLoopGroup) {
         self.group = group
 
         self.channelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)

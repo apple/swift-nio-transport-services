@@ -22,7 +22,7 @@ import Network
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSListenerBootstrap {
     private let group: EventLoopGroup
-    private let childGroup: NIOTSEventLoopGroup
+    private let childGroup: EventLoopGroup
     private var serverChannelInit: ((Channel) -> EventLoopFuture<Void>)?
     private var childChannelInit: ((Channel) -> EventLoopFuture<Void>)?
     private var serverChannelOptions = ChannelOptionsStorage()
@@ -36,7 +36,7 @@ public final class NIOTSListenerBootstrap {
     ///
     /// - parameters:
     ///     - group: The `EventLoopGroup` to use for the `ServerSocketChannel`.
-    public convenience init(group: NIOTSEventLoopGroup) {
+    public convenience init(group: EventLoopGroup) {
         self.init(group: group, childGroup: group)
 
         self.serverChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
@@ -46,13 +46,13 @@ public final class NIOTSListenerBootstrap {
     /// Create a `NIOTSListenerBootstrap`.
     ///
     /// - parameters:
-    ///     - group: The `NIOTSEventLoopGroup` to use for the `bind` of the `NIOTSListenerChannel`
+    ///     - group: The `EventLoopGroup` to use for the `bind` of the `NIOTSListenerChannel`
     ///         and to accept new `NIOTSConnectionChannel`s with.
-    ///     - childGroup: The `NIOTSEventLoopGroup` to run the accepted `NIOTSConnectionChannel`s on.
-    public init(group: NIOTSEventLoopGroup, childGroup: NIOTSEventLoopGroup) {
+    ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSConnectionChannel`s on.
+    public init(group: EventLoopGroup, childGroup: EventLoopGroup) {
         self.group = group
         self.childGroup = childGroup
-        
+
         self.serverChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
         self.childChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
     }

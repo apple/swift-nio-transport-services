@@ -84,7 +84,7 @@ internal final class NIOTSListenerChannel {
     private var enablePeerToPeer = false
 
     /// The event loop group to use for child channels.
-    private let childLoopGroup: NIOTSEventLoopGroup
+    private let childLoopGroup: EventLoopGroup
 
     /// The QoS to use for child channels.
     private let childChannelQoS: DispatchQoS?
@@ -103,7 +103,7 @@ internal final class NIOTSListenerChannel {
                   qos: DispatchQoS? = nil,
                   tcpOptions: NWProtocolTCP.Options,
                   tlsOptions: NWProtocolTLS.Options?,
-                  childLoopGroup: NIOTSEventLoopGroup,
+                  childLoopGroup: EventLoopGroup,
                   childChannelQoS: DispatchQoS?,
                   childTCPOptions: NWProtocolTCP.Options,
                   childTLSOptions: NWProtocolTLS.Options?) {
