@@ -31,12 +31,28 @@ public final class NIOTSConnectionBootstrap {
 
     /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
+    /// This initializer only exists to be more in-line with the NIO core bootstraps, in that they
+    /// may be constructed with an `EventLoopGroup` and by extenstion an `EventLoop`. As such an
+    /// existing `NIOTSEventLoop` may be used to initialize this bootstrap. Where possible the
+    /// initializers accepting `NIOTSEventLoopGroup` should be used instead to avoid the wrong
+    /// type being used.
+    ///
+    /// Note that the "real" solution is described in https://github.com/apple/swift-nio/issues/674.
+    ///
     /// - parameters:
     ///     - group: The `EventLoopGroup` to use.
     public init(group: EventLoopGroup) {
         self.group = group
 
         self.channelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+    }
+
+    /// Create a `NIOTSConnectionBootstrap` on the `NIOTSEventLoopGroup` `group`.
+    ///
+    /// - parameters:
+    ///     - group: The `NIOTSEventLoopGroup` to use.
+    public convenience init(group: NIOTSEventLoopGroup) {
+      self.init(group: group as EventLoopGroup)
     }
 
     /// Initialize the connected `NIOTSConnectionChannel` with `initializer`. The most common task in initializer is to add
