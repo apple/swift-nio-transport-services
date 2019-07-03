@@ -100,9 +100,12 @@ extension SocketAddress {
             self = .init(addr, host: host.debugDescription)
         case .unix(let path):
             self = try .init(unixDomainSocketPath: path)
-        case .service, .hostPort, .url:
+        case .service, .hostPort:
             throw NIOTSErrors.UnableToResolveEndpoint()
-        @unknown default:
+        default:
+            // We can't use `@unknown default` and explicitly list cases we know about since they
+            // would require availability checks within the switch statement (`.url` was added in
+            // macOS 10.15).
             throw NIOTSErrors.UnableToResolveEndpoint()
         }
     }
