@@ -21,7 +21,7 @@ import Network
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSConnectionBootstrap {
-    private let group: NIOTSEventLoopGroup
+    private let group: EventLoopGroup
     private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)?
     private var connectTimeout: TimeAmount = TimeAmount.seconds(10)
     private var channelOptions = ChannelOptionsStorage()
@@ -29,14 +29,30 @@ public final class NIOTSConnectionBootstrap {
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
 
+    /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
+    ///
+    /// This initializer only exists to be more in-line with the NIO core bootstraps, in that they
+    /// may be constructed with an `EventLoopGroup` and by extenstion an `EventLoop`. As such an
+    /// existing `NIOTSEventLoop` may be used to initialize this bootstrap. Where possible the
+    /// initializers accepting `NIOTSEventLoopGroup` should be used instead to avoid the wrong
+    /// type being used.
+    ///
+    /// Note that the "real" solution is described in https://github.com/apple/swift-nio/issues/674.
+    ///
+    /// - parameters:
+    ///     - group: The `EventLoopGroup` to use.
+    public init(group: EventLoopGroup) {
+        self.group = group
+
+        self.channelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+    }
+
     /// Create a `NIOTSConnectionBootstrap` on the `NIOTSEventLoopGroup` `group`.
     ///
     /// - parameters:
     ///     - group: The `NIOTSEventLoopGroup` to use.
-    public init(group: NIOTSEventLoopGroup) {
-        self.group = group
-
-        self.channelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+    public convenience init(group: NIOTSEventLoopGroup) {
+      self.init(group: group as EventLoopGroup)
     }
 
     /// Initialize the connected `NIOTSConnectionChannel` with `initializer`. The most common task in initializer is to add
