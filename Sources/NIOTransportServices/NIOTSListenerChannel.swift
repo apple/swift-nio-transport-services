@@ -301,9 +301,10 @@ extension NIOTSListenerChannel: StateManagedChannel {
             parameters.requiredLocalEndpoint = target
         case .service(_, _, _, let interface):
             parameters.requiredInterface = interface
-        case .url:
-            break
-        @unknown default:
+        default:
+            // We can't use `@unknown default` and explicitly list cases we know about since they
+            // would require availability checks within the switch statement (`.url` was added in
+            // macOS 10.15).
             ()
         }
 
