@@ -625,7 +625,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
     /// A function that will trigger a socket read if necessary.
     internal func readIfNeeded0() {
         if self.options.autoRead {
-            self.read0()
+            self.pipeline.read()
         }
     }
 }
