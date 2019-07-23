@@ -22,6 +22,20 @@ import Foundation
 import Network
 
 
+func assertNoThrowWithValue<T>(_ body: @autoclosure () throws -> T, defaultValue: T? = nil, message: String? = nil, file: StaticString = #file, line: UInt = #line) throws -> T {
+    do {
+        return try body()
+    } catch {
+        XCTFail("\(message.map { $0 + ": " } ?? "")unexpected error \(error) thrown", file: file, line: line)
+        if let defaultValue = defaultValue {
+            return defaultValue
+        } else {
+            throw error
+        }
+    }
+}
+
+
 final class EchoHandler: ChannelInboundHandler {
     typealias InboundIn = Any
     typealias OutboundOut = Any
