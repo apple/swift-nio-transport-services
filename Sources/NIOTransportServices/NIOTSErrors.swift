@@ -57,5 +57,15 @@ public enum NIOTSErrors {
     /// `UnableToResolveEndpoint` is thrown when an attempt is made to resolve a local endpoint, but
     /// insufficient information is available to create it.
     public struct UnableToResolveEndpoint: NIOTSError { }
+
+    /// `BindTimeout` is thrown when a timeout set for a `NWListenerBootstrap.bind` call has been exceeded
+    /// without successfully binding the address.
+    public struct BindTimeout: NIOTSError {
+        public var timeout: TimeAmount
+
+        public init(timeout: TimeAmount) {
+            self.timeout = timeout
+        }
+    }
 }
 #endif

@@ -259,5 +259,21 @@ class NIOTSListenerChannelTests: XCTestCase {
         XCTAssertEqual(promisedChannel.remoteAddress, connection.localAddress)
         XCTAssertEqual(promisedChannel.localAddress, connection.remoteAddress)
     }
+
+    func testBindTimeout() throws {
+        // Testing the bind timeout is damn fiddly, because I don't know a reliable way to force it
+        // to happen. The best approach I can think of is to set the timeout to "now".
+        // If you see this test fail, verify that it isn't a simple timing issue first.
+        let listener = NIOTSListenerBootstrap(group: self.group)
+            .bindTimeout(.nanoseconds(0))
+
+        do {
+            let channel = try listener.bind(host: "localhost", port: 0).wait()
+            XCTAssertNoThrow(try channel.close().wait())
+            XCTFail("Did not throw")
+        } catch {
+            XCTAssertEqual(error as? NIOTSErrors.BindTimeout, NIOTSErrors.BindTimeout(timeout: .nanoseconds(0)), "unexpected error: \(error)")
+        }
+    }
 }
 #endif
