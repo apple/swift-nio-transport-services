@@ -263,8 +263,9 @@ public final class NIOTSListenerBootstrap {
             return serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
                 serverChannelInit(serverChannel)
             }.flatMap {
-                serverChannel.pipeline.addHandler(AcceptHandler(childChannelInitializer: childChannelInit,
-                                                                  childChannelOptions: childChannelOptions))
+                eventLoop.assertInEventLoop()
+                return serverChannel.pipeline.addHandler(AcceptHandler(childChannelInitializer: childChannelInit,
+                                                                       childChannelOptions: childChannelOptions))
             }.flatMap {
                 serverChannel.register()
             }.flatMap {
@@ -348,7 +349,7 @@ private class AcceptHandler: ChannelInboundHandler {
         } else {
             fireThroughPipeline(childLoop.submit {
                 return setupChildChannel()
-                }.flatMap { $0 }.hop(to: ctxEventLoop))
+            }.flatMap { $0 }.hop(to: ctxEventLoop))
         }
     }
 }

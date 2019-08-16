@@ -173,7 +173,8 @@ public final class NIOTSConnectionBootstrap {
             return channelOptions.applyAllChannelOptions(to: conn).flatMap {
                 initializer(conn)
             }.flatMap {
-                conn.register()
+                conn.eventLoop.assertInEventLoop()
+                return conn.register()
             }.flatMap {
                 let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
                 connectAction(conn, connectPromise)
