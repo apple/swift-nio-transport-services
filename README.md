@@ -18,9 +18,11 @@ Network.framework is Apple's reference implementation of the [proposed post-sock
 
 NIO Transport Services primarily uses SwiftPM as its build tool, so we recommend using that as well. If you want to depend on NIO Transport Services in your own project, it's as simple as adding a dependencies clause to your Package.swift:
 
-    dependencies: [
-        .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.1.1")
-    ]
+```
+dependencies: [
+    .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.1.1")
+]
+```
 
 and then adding the NIOTransportServices module to your target dependencies.
 
@@ -31,8 +33,15 @@ You can also use SwiftNIO Transport Services in an iOS project is through CocoaP
     pod 'SwiftNIO', '~> 2.0.0'
     pod 'SwiftNIOTransportServices', '~> 1.0.0'
 
-Do note however that Network.framework requires macOS 10.14+, iOS 12+, or tvOS 12+.
+If you want to develop SwiftNIO with Xcode 10, you have to generate an Xcode project:
 
+```
+swift package generate-xcodeproj
+```
+
+and add the project as a sub-project by dragging it into your iOS project and adding the framework (`NIOTransportServices.framework`) in 'Build Phases' -> 'Link Binary Libraries'.
+
+Do note however that Network.framework requires macOS 10.14+, iOS 12+, or tvOS 12+.
 
 ## Versioning
 
