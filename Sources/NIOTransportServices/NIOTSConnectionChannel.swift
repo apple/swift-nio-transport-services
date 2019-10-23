@@ -87,7 +87,7 @@ private struct BackpressureManager {
     private var outstandingBytes: Int = 0
 
     /// The watermarks currently configured by the user.
-    private(set) var waterMarks: WriteBufferWaterMark = WriteBufferWaterMark(low: 32 * 1024, high: 64 * 1024)
+    private(set) var waterMarks = ChannelOptions.Types.WriteBufferWaterMark(low: 32 * 1024, high: 64 * 1024)
 
     /// Adds `newBytes` to the queue of outstanding bytes, and returns whether this
     /// has caused a writability change.
@@ -127,7 +127,7 @@ private struct BackpressureManager {
     /// - parameters:
     ///     - waterMarks: The new waterMarks to use.
     /// - returns: Whether the state changed.
-    mutating func writabilityChanges(whenUpdatingWaterMarks waterMarks: WriteBufferWaterMark) -> Bool {
+    mutating func writabilityChanges(whenUpdatingWaterMarks waterMarks: ChannelOptions.Types.WriteBufferWaterMark) -> Bool {
         let writable = self.writable.load()
         self.waterMarks = waterMarks
 
@@ -300,13 +300,13 @@ extension NIOTSConnectionChannel: Channel {
         }
 
         switch option {
-        case _ as AutoReadOption:
+        case _ as ChannelOptions.Types.AutoReadOption:
             self.options.autoRead = value as! Bool
             self.readIfNeeded0()
-        case _ as AllowRemoteHalfClosureOption:
+        case _ as ChannelOptions.Types.AllowRemoteHalfClosureOption:
             self.options.supportRemoteHalfClosure = value as! Bool
-        case _ as SocketOption:
-            let optionValue = option as! SocketOption
+        case _ as ChannelOptions.Types.SocketOption:
+            let optionValue = option as! ChannelOptions.Types.SocketOption
 
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
@@ -317,11 +317,11 @@ extension NIOTSConnectionChannel: Channel {
             default:
                 try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
-        case _ as WriteBufferWaterMarkOption:
-            if self.backpressureManager.writabilityChanges(whenUpdatingWaterMarks: value as! WriteBufferWaterMark) {
+        case _ as ChannelOptions.Types.WriteBufferWaterMarkOption:
+            if self.backpressureManager.writabilityChanges(whenUpdatingWaterMarks: value as! ChannelOptions.Types.WriteBufferWaterMark) {
                 self.pipeline.fireChannelWritabilityChanged()
             }
-        case _ as NIOTSWaitForActivityOption:
+        case _ as NIOTSChannelOptions.Types.NIOTSWaitForActivityOption:
             let newValue = value as! Bool
             self.options.waitForActivity = newValue
 
@@ -329,8 +329,8 @@ extension NIOTSConnectionChannel: Channel {
                 // We're in waiting now, so we should drop the connection.
                 self.close0(error: err, mode: .all, promise: nil)
             }
-        case is NIOTSEnablePeerToPeerOption:
-            self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
+            self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -354,12 +354,12 @@ extension NIOTSConnectionChannel: Channel {
         }
 
         switch option {
-        case _ as AutoReadOption:
+        case _ as ChannelOptions.Types.AutoReadOption:
             return self.options.autoRead as! Option.Value
-        case _ as AllowRemoteHalfClosureOption:
+        case _ as ChannelOptions.Types.AllowRemoteHalfClosureOption:
             return self.options.supportRemoteHalfClosure as! Option.Value
-        case _ as SocketOption:
-            let optionValue = option as! SocketOption
+        case _ as ChannelOptions.Types.SocketOption:
+            let optionValue = option as! ChannelOptions.Types.SocketOption
 
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
@@ -370,11 +370,11 @@ extension NIOTSConnectionChannel: Channel {
             default:
                 return try self.tcpOptions.valueFor(socketOption: optionValue) as! Option.Value
             }
-        case _ as WriteBufferWaterMarkOption:
+        case _ as ChannelOptions.Types.WriteBufferWaterMarkOption:
             return self.backpressureManager.waterMarks as! Option.Value
-        case _ as NIOTSWaitForActivityOption:
+        case _ as NIOTSChannelOptions.Types.NIOTSWaitForActivityOption:
             return self.options.waitForActivity as! Option.Value
-        case is NIOTSEnablePeerToPeerOption:
+        case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
             return self.enablePeerToPeer as! Option.Value
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
