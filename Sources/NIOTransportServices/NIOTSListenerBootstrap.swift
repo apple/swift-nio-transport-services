@@ -347,9 +347,9 @@ private class AcceptHandler: ChannelInboundHandler {
         if childLoop === ctxEventLoop {
             fireThroughPipeline(setupChildChannel())
         } else {
-            fireThroughPipeline(childLoop.submit {
+            fireThroughPipeline(childLoop.flatSubmit {
                 return setupChildChannel()
-            }.flatMap { $0 }.hop(to: ctxEventLoop))
+            }.hop(to: ctxEventLoop))
         }
     }
 }
