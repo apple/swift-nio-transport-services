@@ -169,7 +169,7 @@ public final class NIOTSConnectionBootstrap {
         let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
         let channelOptions = self.channelOptions
 
-        return conn.eventLoop.submit {
+        return conn.eventLoop.flatSubmit {
             return channelOptions.applyAllChannelOptions(to: conn).flatMap {
                 initializer(conn)
             }.flatMap {
@@ -191,7 +191,7 @@ public final class NIOTSConnectionBootstrap {
                 conn.close(promise: nil)
                 throw $0
             }
-        }.flatMap { $0 }
+        }
     }
 }
 
