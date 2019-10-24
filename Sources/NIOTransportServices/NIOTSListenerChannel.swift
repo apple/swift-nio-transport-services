@@ -178,12 +178,12 @@ extension NIOTSListenerChannel: Channel {
 
         // TODO: Many more channel options, both from NIO and Network.framework.
         switch option {
-        case is AutoReadOption:
+        case is ChannelOptions.Types.AutoReadOption:
             // AutoRead is currently mandatory for TS listeners.
-            if value as! AutoReadOption.Value == false {
+            if value as! ChannelOptions.Types.AutoReadOption.Value == false {
                 throw ChannelError.operationUnsupported
             }
-        case let optionValue as SocketOption:
+        case let optionValue as ChannelOptions.Types.SocketOption:
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
@@ -193,8 +193,8 @@ extension NIOTSListenerChannel: Channel {
             default:
                 try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
-        case is NIOTSEnablePeerToPeerOption:
-            self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
+            self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         default:
             fatalError("option \(option) not supported")
         }
@@ -218,9 +218,9 @@ extension NIOTSListenerChannel: Channel {
         }
 
         switch option {
-        case is AutoReadOption:
+        case is ChannelOptions.Types.AutoReadOption:
             return autoRead as! Option.Value
-        case let optionValue as SocketOption:
+        case let optionValue as ChannelOptions.Types.SocketOption:
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
@@ -230,7 +230,7 @@ extension NIOTSListenerChannel: Channel {
             default:
                 return try self.tcpOptions.valueFor(socketOption: optionValue) as! Option.Value
             }
-        case is NIOTSEnablePeerToPeerOption:
+        case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
             return self.enablePeerToPeer as! Option.Value
         default:
             fatalError("option \(option) not supported")
