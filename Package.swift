@@ -23,7 +23,7 @@ let package = Package(
         .executable(name: "NIOTSHTTPServer", targets: ["NIOTSHTTPServer"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/Yasumoto/swift-nio.git", .branch("yasumoto-client-bootstrap-protocol")),
+        .package(url: "https://github.com/Yasumoto/swift-nio.git", .revision("0d856abd8911c540e889f98475583a9db5d1e5c8")),
     ],
     targets: [
         .target(name: "NIOTransportServices",
