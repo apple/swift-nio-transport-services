@@ -20,7 +20,7 @@ import Dispatch
 import Network
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public final class NIOTSConnectionBootstrap {
+public final class NIOTSConnectionBootstrap: ClientTransportBootstrap {
     private let group: EventLoopGroup
     private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)?
     private var connectTimeout: TimeAmount = TimeAmount.seconds(10)
