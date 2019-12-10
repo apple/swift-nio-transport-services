@@ -81,7 +81,7 @@ private struct BackpressureManager {
     /// because in most cases these loads/stores will be free, as the user will never actually check the
     /// channel writability from another thread, meaning this cache line is uncontended. CAS is never free:
     /// it always has some substantial runtime cost over loads/stores.
-    let writable = Atomic<Bool>(value: true)
+    let writable = NIOAtomic<Bool>.makeAtomic(value: true)
 
     /// The number of bytes outstanding on the network.
     private var outstandingBytes: Int = 0
@@ -184,7 +184,7 @@ internal final class NIOTSConnectionChannel {
     internal var state: ChannelState<ActiveSubstate> = .idle
 
     /// The active state, used for safely reporting the channel state across threads.
-    internal var isActive0: Atomic<Bool> = Atomic(value: false)
+    internal var isActive0: NIOAtomic<Bool> = .makeAtomic(value: false)
 
     /// The kinds of channel activation this channel supports
     internal let supportedActivationType: ActivationType = .connect
