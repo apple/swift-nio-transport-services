@@ -49,7 +49,7 @@ import Network
 /// preferred networking backend.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSEventLoopGroup: EventLoopGroup {
-    private let index = Atomic<Int>(value: 0)
+    private let index = NIOAtomic<Int>.makeAtomic(value: 0)
     private let eventLoops: [NIOTSEventLoop]
 
     public init(loopCount: Int = 1, defaultQoS: DispatchQoS = .default) {

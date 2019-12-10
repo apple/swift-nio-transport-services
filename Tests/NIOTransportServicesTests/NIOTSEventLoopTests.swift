@@ -103,7 +103,7 @@ class NIOTSEventLoopTest: XCTestCase {
             weakELG = group
             weakEL = group.next()
 
-            let counter = Atomic<Int>(value: 0)
+            let counter = NIOAtomic<Int>.makeAtomic(value: 0)
             let acceptedChan = group.next().makePromise(of: Channel.self)
             let server = try NIOTSListenerBootstrap(group: group)
                 .childChannelInitializer { channel in
