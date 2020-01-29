@@ -24,17 +24,6 @@ import Dispatch
 import Network
 import Security
 
-/// Execute the given function and synchronously complete the given `EventLoopPromise` (if not `nil`).
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-func executeAndComplete<T>(_ promise: EventLoopPromise<T>?, _ body: () throws -> T) {
-    do {
-        let result = try body()
-        promise?.succeed(result)
-    } catch let e {
-        promise?.fail(e)
-    }
-}
-
 /// Merge two possible promises together such that firing the result will fire both.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 private func mergePromises(_ first: EventLoopPromise<Void>?, _ second: EventLoopPromise<Void>?) -> EventLoopPromise<Void>? {
@@ -48,104 +37,15 @@ private func mergePromises(_ first: EventLoopPromise<Void>?, _ second: EventLoop
     }
 }
 
-
 /// Channel options for the connection channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 private struct ConnectionChannelOptions {
     /// Whether autoRead is enabled for this channel.
     internal var autoRead: Bool = true
-
-    /// Whether we support remote half closure. If not true, remote half closure will
-    /// cause connection drops.
-    internal var supportRemoteHalfClosure: Bool = false
-
-    /// Whether this channel should wait for the connection to become active.
-    internal var waitForActivity: Bool = true
 }
 
-
-typealias PendingWrite = (data: ByteBuffer, promise: EventLoopPromise<Void>?)
-
-
-/// A structure that manages backpressure signaling on this channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-struct BackpressureManager {
-    /// Whether the channel is writable, given the current watermark state.
-    ///
-    /// This is an atomic only because the channel writability flag needs to be safe to access from multiple
-    /// threads. All activity in this structure itself is expected to be thread-safe.
-    ///
-    /// All code that operates on this atomic uses load/store, not compareAndSwap. This is because we know
-    /// that this atomic is only ever written from one thread: the event loop thread. All unsynchronized
-    /// access is only reading. As a result, we don't have racing writes, and don't need CAS. This is good,
-    /// because in most cases these loads/stores will be free, as the user will never actually check the
-    /// channel writability from another thread, meaning this cache line is uncontended. CAS is never free:
-    /// it always has some substantial runtime cost over loads/stores.
-    let writable = Atomic<Bool>(value: true)
-
-    /// The number of bytes outstanding on the network.
-    private var outstandingBytes: Int = 0
-
-    /// The watermarks currently configured by the user.
-    private(set) var waterMarks: WriteBufferWaterMark = WriteBufferWaterMark(low: 32 * 1024, high: 64 * 1024)
-
-    /// Adds `newBytes` to the queue of outstanding bytes, and returns whether this
-    /// has caused a writability change.
-    ///
-    /// - parameters:
-    ///     - newBytes: the number of bytes queued to send, but not yet sent.
-    /// - returns: Whether the state changed.
-    mutating func writabilityChanges(whenQueueingBytes newBytes: Int) -> Bool {
-        self.outstandingBytes += newBytes
-        if self.outstandingBytes > self.waterMarks.high && self.writable.load() {
-            self.writable.store(false)
-            return true
-        }
-
-        return false
-    }
-
-    /// Removes `sentBytes` from the queue of outstanding bytes, and returns whether this
-    /// has caused a writability change.
-    ///
-    /// - parameters:
-    ///     - newBytes: the number of bytes sent to the network.
-    /// - returns: Whether the state changed.
-    mutating func writabilityChanges(whenBytesSent sentBytes: Int) -> Bool {
-        self.outstandingBytes -= sentBytes
-        if self.outstandingBytes < self.waterMarks.low && !self.writable.load() {
-            self.writable.store(true)
-            return true
-        }
-
-        return false
-    }
-
-    /// Updates the watermarks to `waterMarks`, and returns whether this change has changed the
-    /// writability state of the channel.
-    ///
-    /// - parameters:
-    ///     - waterMarks: The new waterMarks to use.
-    /// - returns: Whether the state changed.
-    mutating func writabilityChanges(whenUpdatingWaterMarks waterMarks: WriteBufferWaterMark) -> Bool {
-        let writable = self.writable.load()
-        self.waterMarks = waterMarks
-
-        if writable && self.outstandingBytes > self.waterMarks.high {
-            self.writable.store(false)
-            return true
-        } else if !writable && self.outstandingBytes < self.waterMarks.low {
-            self.writable.store(true)
-            return true
-        }
-
-        return false
-    }
-}
-
-
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-internal final class NIOTSConnectionChannel {
+internal final class NIOTSDatagramChannel {
     /// The `ByteBufferAllocator` for this `Channel`.
     public let allocator = ByteBufferAllocator()
 
@@ -174,20 +74,17 @@ internal final class NIOTSConnectionChannel {
     /// An `EventLoopPromise` that will be succeeded or failed when a connection attempt succeeds or fails.
     private var connectPromise: EventLoopPromise<Void>?
 
-    /// The TCP options for this connection.
-    private var tcpOptions: NWProtocolTCP.Options
+    /// The UDP options for this connection.
+    private var udpOptions: NWProtocolUDP.Options
 
     /// The TLS options for this connection, if any.
-    private var tlsOptions: NWProtocolTLS.Options?
+    private var dtlsOptions: NWProtocolTLS.Options?
 
     /// The state of this connection channel.
     internal var state: ChannelState<ActiveSubstate> = .idle
 
     /// The active state, used for safely reporting the channel state across threads.
     internal var isActive0: Atomic<Bool> = Atomic(value: false)
-
-    /// The kinds of channel activation this channel supports
-    internal let supportedActivationType: ActivationType = .connect
 
     /// Whether a call to NWConnection.receive has been made, but the completion
     /// handler has not yet been invoked.
@@ -211,45 +108,45 @@ internal final class NIOTSConnectionChannel {
     /// Whether to use peer-to-peer connectivity when connecting to Bonjour services.
     private var enablePeerToPeer = false
 
-    /// Create a `NIOTSConnectionChannel` on a given `NIOTSEventLoop`.
+    /// Create a `NIOTSDatagramConnectionChannel` on a given `NIOTSEventLoop`.
     ///
-    /// Note that `NIOTSConnectionChannel` objects cannot be created on arbitrary loops types.
+    /// Note that `NIOTSDatagramConnectionChannel` objects cannot be created on arbitrary loops types.
     internal init(eventLoop: NIOTSEventLoop,
                   parent: Channel? = nil,
                   qos: DispatchQoS? = nil,
-                  tcpOptions: NWProtocolTCP.Options,
-                  tlsOptions: NWProtocolTLS.Options?) {
+                  udpOptions: NWProtocolUDP.Options,
+                  dtlsOptions: NWProtocolTLS.Options?) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
         self.parent = parent
         self.connectionQueue = eventLoop.channelQueue(label: "nio.nioTransportServices.connectionchannel", qos: qos)
-        self.tcpOptions = tcpOptions
-        self.tlsOptions = tlsOptions
+        self.udpOptions = udpOptions
+        self.dtlsOptions = dtlsOptions
 
         // Must come last, as it requires self to be completely initialized.
         self._pipeline = ChannelPipeline(channel: self)
     }
 
-    /// Create a `NIOTSConnectionChannel` with an already-established `NWConnection`.
+    /// Create a `NIOTSDatagramConnectionChannel` with an already-established `NWConnection`.
     internal convenience init(wrapping connection: NWConnection,
                               on eventLoop: NIOTSEventLoop,
                               parent: Channel,
                               qos: DispatchQoS? = nil,
-                              tcpOptions: NWProtocolTCP.Options,
-                              tlsOptions: NWProtocolTLS.Options?) {
+                              udpOptions: NWProtocolUDP.Options,
+                              dtlsOptions: NWProtocolTLS.Options?) {
         self.init(eventLoop: eventLoop,
                   parent: parent,
                   qos: qos,
-                  tcpOptions: tcpOptions,
-                  tlsOptions: tlsOptions)
+                  udpOptions: udpOptions,
+                  dtlsOptions: dtlsOptions)
         self.nwConnection = connection
     }
 }
 
 
-// MARK:- NIOTSConnectionChannel implementation of Channel
+// MARK:- NIOTSDatagramConnectionChannel implementation of Channel
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSConnectionChannel: Channel {
+extension NIOTSDatagramChannel: Channel, ChannelCore {
     /// The `ChannelPipeline` for this `Channel`.
     public var pipeline: ChannelPipeline {
         return self._pipeline
@@ -303,8 +200,6 @@ extension NIOTSConnectionChannel: Channel {
         case _ as AutoReadOption:
             self.options.autoRead = value as! Bool
             self.readIfNeeded0()
-        case _ as AllowRemoteHalfClosureOption:
-            self.options.supportRemoteHalfClosure = value as! Bool
         case _ as SocketOption:
             let optionValue = option as! SocketOption
 
@@ -315,19 +210,11 @@ extension NIOTSConnectionChannel: Channel {
             case (SOL_SOCKET, SO_REUSEPORT):
                 self.reusePort = (value as! SocketOptionValue) != Int32(0)
             default:
-                try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
+                try self.udpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
         case _ as WriteBufferWaterMarkOption:
             if self.backpressureManager.writabilityChanges(whenUpdatingWaterMarks: value as! WriteBufferWaterMark) {
                 self.pipeline.fireChannelWritabilityChanged()
-            }
-        case _ as NIOTSWaitForActivityOption:
-            let newValue = value as! Bool
-            self.options.waitForActivity = newValue
-
-            if let state = self.nwConnection?.state, case .waiting(let err) = state {
-                // We're in waiting now, so we should drop the connection.
-                self.close0(error: err, mode: .all, promise: nil)
             }
         case is NIOTSEnablePeerToPeerOption:
             self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.Value
@@ -356,8 +243,6 @@ extension NIOTSConnectionChannel: Channel {
         switch option {
         case _ as AutoReadOption:
             return self.options.autoRead as! Option.Value
-        case _ as AllowRemoteHalfClosureOption:
-            return self.options.supportRemoteHalfClosure as! Option.Value
         case _ as SocketOption:
             let optionValue = option as! SocketOption
 
@@ -368,12 +253,10 @@ extension NIOTSConnectionChannel: Channel {
             case (SOL_SOCKET, SO_REUSEPORT):
                 return Int32(self.reusePort ? 1 : 0) as! Option.Value
             default:
-                return try self.tcpOptions.valueFor(socketOption: optionValue) as! Option.Value
+                return try self.udpOptions.valueFor(socketOption: optionValue) as! Option.Value
             }
         case _ as WriteBufferWaterMarkOption:
             return self.backpressureManager.waterMarks as! Option.Value
-        case _ as NIOTSWaitForActivityOption:
-            return self.options.waitForActivity as! Option.Value
         case is NIOTSEnablePeerToPeerOption:
             return self.enablePeerToPeer as! Option.Value
         default:
@@ -383,27 +266,168 @@ extension NIOTSConnectionChannel: Channel {
 }
 
 
-// MARK:- NIOTSConnectionChannel implementation of StateManagedChannel.
+// MARK:- NIOTSDatagramConnectionChannel implementation of StateManagedChannel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSConnectionChannel: StateManagedChannel {
-    typealias ActiveSubstate = TCPSubstate
+extension NIOTSDatagramChannel {
+    typealias ActiveSubstate = UDPSubstate
+    
+    public var eventLoop: EventLoop {
+        return self.tsEventLoop
+    }
 
-    /// A TCP connection may be fully open or partially open. In the fully open state, both
+    /// Whether this channel is currently active.
+    public var isActive: Bool {
+        return self.isActive0.load()
+    }
+
+    /// Whether this channel is currently closed. This is not necessary for the public
+    /// API, it's just a convenient helper.
+    internal var closed: Bool {
+        switch self.state {
+        case .inactive:
+            return true
+        case .idle, .registered, .activating, .active:
+            return false
+        }
+    }
+
+    public func register0(promise: EventLoopPromise<Void>?) {
+        // TODO: does this need to do anything more than this?
+        do {
+            try self.state.register(eventLoop: self.tsEventLoop, channel: self)
+            self.pipeline.fireChannelRegistered()
+            promise?.succeed(())
+        } catch {
+            promise?.fail(error)
+            self.close0(error: error, mode: .all, promise: nil)
+        }
+    }
+
+    public func registerAlreadyConfigured0(promise: EventLoopPromise<Void>?) {
+        do {
+            try self.state.register(eventLoop: self.tsEventLoop, channel: self)
+            self.pipeline.fireChannelRegistered()
+            try self.state.beginActivating()
+            promise?.succeed(())
+        } catch {
+            promise?.fail(error)
+            self.close0(error: error, mode: .all, promise: nil)
+            return
+        }
+
+        // Ok, we are registered and ready to begin activating. Tell the channel: it must
+        // call becomeActive0 directly.
+        self.alreadyConfigured0(promise: promise)
+    }
+
+    public func connect0(to address: SocketAddress, promise: EventLoopPromise<Void>?) {
+        self.activateWithType(type: .connect, to: NWEndpoint(fromSocketAddress: address), promise: promise)
+    }
+
+    public func connect0(to endpoint: NWEndpoint, promise: EventLoopPromise<Void>?) {
+        self.activateWithType(type: .connect, to: endpoint, promise: promise)
+    }
+
+    public func bind0(to address: SocketAddress, promise: EventLoopPromise<Void>?) {
+        self.activateWithType(type: .bind, to: NWEndpoint(fromSocketAddress: address), promise: promise)
+    }
+
+    public func bind0(to endpoint: NWEndpoint, promise: EventLoopPromise<Void>?) {
+        self.activateWithType(type: .bind, to: endpoint, promise: promise)
+    }
+    
+    public func bindAndConnect0(to endpoint: NWEndpoint, promise: EventLoopPromise<Void>?) {
+        do {
+            try self.state.beginActivating()
+        } catch {
+            promise?.fail(error)
+            return
+        }
+
+        self.beginActivating0(to: endpoint, promise: promise)
+    }
+
+    public func close0(error: Error, mode: CloseMode, promise: EventLoopPromise<Void>?) {
+        switch mode {
+        case .all:
+            let oldState: ChannelState<ActiveSubstate>
+            do {
+                oldState = try self.state.becomeInactive()
+            } catch let thrownError {
+                promise?.fail(thrownError)
+                return
+            }
+
+            self.isActive0.store(false)
+
+            self.doClose0(error: error)
+
+            switch oldState {
+            case .active:
+                self.pipeline.fireChannelInactive()
+                fallthrough
+            case .registered, .activating:
+                self.tsEventLoop.deregister(self)
+                self.pipeline.fireChannelUnregistered()
+            case .idle:
+                // If this was already idle we don't have anything to do.
+                break
+            case .inactive:
+                preconditionFailure("Should be prevented by state machine")
+            }
+
+            // Next we fire the promise passed to this method.
+            promise?.succeed(())
+
+            // Now we schedule our final cleanup. We need to keep the channel pipeline alive for at least one more event
+            // loop tick, as more work might be using it.
+            self.eventLoop.execute {
+                self.removeHandlers(channel: self)
+                self.closePromise.succeed(())
+            }
+        case .input, .output:
+            promise?.fail(ChannelError.operationUnsupported)
+        }
+    }
+
+    public func becomeActive0(promise: EventLoopPromise<Void>?) {
+        // Here we crash if we cannot transition our state. That's because my understanding is that we
+        // should not be able to hit this.
+        do {
+            try self.state.becomeActive()
+        } catch {
+            self.close0(error: error, mode: .all, promise: promise)
+            return
+        }
+
+        self.isActive0.store(true)
+        promise?.succeed(())
+        self.pipeline.fireChannelActive()
+        self.readIfNeeded0()
+    }
+
+    /// A helper to handle the fact that activation is mostly common across connect and bind, and that both are
+    /// not supported by a single channel type.
+    private func activateWithType(type: ActivationType, to endpoint: NWEndpoint, promise: EventLoopPromise<Void>?) {
+        do {
+            try self.state.beginActivating()
+        } catch {
+            promise?.fail(error)
+            return
+        }
+
+        self.beginActivating0(to: endpoint, promise: promise)
+    }
+
+    /// A UDP connection may be fully open or partially open. In the fully open state, both
     /// peers may send data. In the partially open states, only one of the two peers may send
     /// data.
     ///
-    /// We keep track of this to manage the half-closure state of the TCP connection.
-    enum TCPSubstate: ActiveChannelSubstate {
+    /// We keep track of this to manage the half-closure state of the UDP connection.
+    enum UDPSubstate: ActiveChannelSubstate {
         /// Both peers may send.
         case open
-
-        /// This end of the connection has sent a FIN. We may only receive data.
-        case halfClosedLocal
-
-        /// The remote peer has sent a FIN. We may still send data, but cannot expect to
-        /// receive more.
-        case halfClosedRemote
-
+        
         /// The channel is "active", but there can be no forward momentum here. The only valid
         /// thing to do in this state is drop the channel.
         case closed
@@ -451,7 +475,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         assert(self.connectPromise == nil)
         self.connectPromise = promise
 
-        let parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
+        let parameters = NWParameters(dtls: self.dtlsOptions, udp: self.udpOptions)
 
         // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
         // either.
@@ -522,6 +546,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
             }
         }
     }
+    
 
     /// Perform a read from the network.
     ///
@@ -563,50 +588,10 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         }
     }
 
-    public func doHalfClose0(error: Error, promise: EventLoopPromise<Void>?) {
-        guard let conn = self.nwConnection else {
-            // We don't have a connection to half close, so fail the promise.
-            promise?.fail(ChannelError.ioOnClosedChannel)
-            return
-        }
-
-
-        do {
-            try self.state.closeOutput()
-        } catch ChannelError.outputClosed {
-            // Here we *only* fail the promise, no need to blow up the connection.
-            promise?.fail(ChannelError.outputClosed)
-            return
-        } catch {
-            // For any other error, this is fatal.
-            self.close0(error: error, mode: .all, promise: promise)
-            return
-        }
-
-        func completionCallback(for promise: EventLoopPromise<Void>?) -> ((NWError?) -> Void) {
-            return { error in
-                if let error = error {
-                    promise?.fail(error)
-                } else {
-                    promise?.succeed(())
-                }
-            }
-        }
-
-        // It should not be possible to have a pending connect promise while we're doing half-closure.
-        assert(self.connectPromise == nil)
-
-        // Step 1 is to tell the network stack we're done.
-        conn.send(content: nil, contentContext: .finalMessage, completion: .contentProcessed(completionCallback(for: promise)))
-
-        // Step 2 is to fail all outstanding writes.
-        self.dropOutstandingWrites(error: error)
-    }
-
     public func triggerUserOutboundEvent0(_ event: Any, promise: EventLoopPromise<Void>?) {
         switch event {
-        case let x as NIOTSNetworkEvents.ConnectToNWEndpoint:
-            self.connect0(to: x.endpoint, promise: promise)
+        case let x as NIOTSNetworkEvents.ConnectToUDPNWEndpoint:
+            self.bindAndConnect0(to: x.endpoint, promise: promise)
         default:
             promise?.fail(ChannelError.operationUnsupported)
         }
@@ -633,20 +618,13 @@ extension NIOTSConnectionChannel: StateManagedChannel {
 
 // MARK:- Implementations of the callbacks passed to NWConnection.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSConnectionChannel {
+extension NIOTSDatagramChannel {
     /// Called by the underlying `NWConnection` when its internal state has changed.
     private func stateUpdateHandler(newState: NWConnection.State) {
         switch newState {
         case .setup:
             preconditionFailure("Should not be told about this state.")
         case .waiting(let err):
-            if case .activating = self.state, self.options.waitForActivity {
-                // This means the connection cannot currently be completed. We should notify the pipeline
-                // here, or support this with a channel option or something, but for now for the sake of
-                // demos we will just allow ourselves into this stage.
-                break
-            }
-
             // In this state we've transitioned into waiting, presumably from active or closing. In this
             // version of NIO this is an error, but we should aim to support this at some stage.
             self.close0(error: err, mode: .all, promise: nil)
@@ -733,11 +711,11 @@ extension NIOTSConnectionChannel {
 
 // MARK:- Implementations of state management for the channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSConnectionChannel {
+extension NIOTSDatagramChannel {
     /// Whether the inbound side of the connection is still open.
     private var inboundStreamOpen: Bool {
         switch self.state {
-        case .active(.open), .active(.halfClosedLocal):
+        case .active(.open):
             return true
         case .idle, .registered, .activating, .active, .inactive:
             return false
@@ -772,51 +750,7 @@ extension NIOTSConnectionChannel {
     /// If the user has indicated they support half-closure, we will emit the standard half-closure
     /// event. If they have not, we upgrade this to regular closure.
     private func didReadEOF() {
-        if self.options.supportRemoteHalfClosure {
-            // This is a half-closure, but the connection is still valid.
-            do {
-                try self.state.closeInput()
-            } catch {
-                return self.close0(error: error, mode: .all, promise: nil)
-            }
-
-            self.pipeline.fireUserInboundEventTriggered(ChannelEvent.inputClosed)
-        } else {
-            self.close0(error: ChannelError.eof, mode: .all, promise: nil)
-        }
-    }
-}
-
-
-// MARK:- Managing TCP substate.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-fileprivate extension ChannelState where ActiveSubstate == NIOTSConnectionChannel.TCPSubstate {
-    /// Close the input side of the TCP state machine.
-    mutating func closeInput() throws {
-        switch self {
-        case .active(.open):
-            self = .active(.halfClosedRemote)
-        case .active(.halfClosedLocal):
-            self = .active(.closed)
-        case .idle, .registered, .activating, .active(.halfClosedRemote), .active(.closed), .inactive:
-            throw NIOTSErrors.InvalidChannelStateTransition()
-        }
-    }
-
-    /// Close the output side of the TCP state machine.
-    mutating func closeOutput() throws {
-        switch self {
-        case .active(.open):
-            self = .active(.halfClosedLocal)
-        case .active(.halfClosedRemote):
-            self = .active(.closed)
-        case .active(.halfClosedLocal), .active(.closed):
-            // This is a special case for closing the output, as it's user-controlled. If they already
-            // closed it, we want to throw a special error to tell them.
-            throw ChannelError.outputClosed
-        case .idle, .registered, .activating, .inactive:
-            throw NIOTSErrors.InvalidChannelStateTransition()
-        }
+        self.close0(error: ChannelError.eof, mode: .all, promise: nil)
     }
 }
 #endif

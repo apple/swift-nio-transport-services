@@ -50,7 +50,7 @@ internal final class NIOTSListenerChannel {
     private let tcpOptions: NWProtocolTCP.Options
 
     /// The TLS options for this listener.
-    private let tlsOptions: NWProtocolTLS.Options?
+    private let dtlsOptions: NWProtocolTLS.Options?
 
     /// The `DispatchQueue` that socket events for this connection will be dispatched onto.
     private let connectionQueue: DispatchQueue
@@ -102,7 +102,7 @@ internal final class NIOTSListenerChannel {
     internal init(eventLoop: NIOTSEventLoop,
                   qos: DispatchQoS? = nil,
                   tcpOptions: NWProtocolTCP.Options,
-                  tlsOptions: NWProtocolTLS.Options?,
+                  dtlsOptions: NWProtocolTLS.Options?,
                   childLoopGroup: EventLoopGroup,
                   childChannelQoS: DispatchQoS?,
                   childTCPOptions: NWProtocolTCP.Options,
@@ -111,7 +111,7 @@ internal final class NIOTSListenerChannel {
         self.closePromise = eventLoop.makePromise()
         self.connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
         self.tcpOptions = tcpOptions
-        self.tlsOptions = tlsOptions
+        self.dtlsOptions = dtlsOptions
         self.childLoopGroup = childLoopGroup
         self.childChannelQoS = childChannelQoS
         self.childTCPOptions = childTCPOptions
@@ -290,7 +290,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
         assert(self.bindPromise == nil)
         self.bindPromise = promise
 
-        let parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
+        let parameters = NWParameters(tls: self.dtlsOptions, tcp: self.tcpOptions)
 
         // If we have a target that is not for a Bonjour service, we treat this as a request for
         // a specific local endpoint. That gets configured on the parameters. If this is a bonjour
