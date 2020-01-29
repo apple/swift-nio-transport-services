@@ -46,7 +46,7 @@ internal enum ChannelState<ActiveSubstate: ActiveChannelSubstate> {
     /// Unlike every other one of these methods, this one has a side-effect. This is because
     /// it's impossible to correctly be in the reigstered state without verifying that
     /// registration has occurred.
-    fileprivate mutating func register(eventLoop: NIOTSEventLoop, channel: Channel) throws {
+    mutating func register(eventLoop: NIOTSEventLoop, channel: Channel) throws {
         guard case .idle = self else {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
@@ -54,21 +54,21 @@ internal enum ChannelState<ActiveSubstate: ActiveChannelSubstate> {
         self = .registered
     }
 
-    fileprivate mutating func beginActivating() throws {
+    mutating func beginActivating() throws {
         guard case .registered = self else {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
         self = .activating
     }
 
-    fileprivate mutating func becomeActive() throws {
+    mutating func becomeActive() throws {
         guard case .activating = self else {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
         self = .active(ActiveSubstate())
     }
 
-    fileprivate mutating func becomeInactive() throws -> ChannelState {
+    mutating func becomeInactive() throws -> ChannelState {
         let oldState = self
 
         switch self {

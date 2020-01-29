@@ -30,7 +30,7 @@ public final class NIOTSListenerBootstrap {
     private var serverQoS: DispatchQoS?
     private var childQoS: DispatchQoS?
     private var tcpOptions: NWProtocolTCP.Options = .init()
-    private var tlsOptions: NWProtocolTLS.Options?
+    private var dtlsOptions: NWProtocolTLS.Options?
     private var bindTimeout: TimeAmount?
 
     /// Create a `NIOTSListenerBootstrap` for the `EventLoopGroup` `group`.
@@ -185,7 +185,7 @@ public final class NIOTSListenerBootstrap {
     /// `NIOTSChannelOptions.TLSConfiguration`. It is not possible to change the
     /// TLS configuration after `bind` is called.
     public func tlsOptions(_ options: NWProtocolTLS.Options) -> Self {
-        self.tlsOptions = options
+        self.dtlsOptions = options
         return self
     }
 
@@ -253,11 +253,11 @@ public final class NIOTSListenerBootstrap {
         let serverChannel = NIOTSListenerChannel(eventLoop: eventLoop,
                                                  qos: self.serverQoS,
                                                  tcpOptions: self.tcpOptions,
-                                                 tlsOptions: self.tlsOptions,
+                                                 dtlsOptions: self.dtlsOptions,
                                                  childLoopGroup: self.childGroup,
                                                  childChannelQoS: self.childQoS,
                                                  childTCPOptions: self.tcpOptions,
-                                                 childTLSOptions: self.tlsOptions)
+                                                 childTLSOptions: self.dtlsOptions)
 
         return eventLoop.submit {
             return serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
