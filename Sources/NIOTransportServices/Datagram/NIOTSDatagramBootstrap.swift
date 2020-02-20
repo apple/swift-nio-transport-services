@@ -25,7 +25,7 @@ public final class NIOTSDatagramBootstrap {
     private var channelOptions = ChannelOptionsStorage()
     private var qos: DispatchQoS?
     private var udpOptions: NWProtocolUDP.Options = .init()
-    private var dtlsOptions: NWProtocolTLS.Options?
+    private var tlsOptions: NWProtocolTLS.Options?
 
     /// Create a `NIOTSDatagramConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
@@ -107,7 +107,7 @@ public final class NIOTSDatagramBootstrap {
     /// `NIOTSChannelOptions.TLSConfiguration`. It is not possible to change the
     /// TLS configuration after `connect` is called.
     public func tlsOptions(_ _options: NWProtocolTLS.Options) -> Self {
-        self.dtlsOptions = _options
+        self.tlsOptions = _options
         return self
     }
 
@@ -163,7 +163,7 @@ public final class NIOTSDatagramBootstrap {
         let conn: Channel = NIOTSDatagramChannel(eventLoop: self.group.next() as! NIOTSEventLoop,
                                                    qos: self.qos,
                                                    udpOptions: self.udpOptions,
-                                                   dtlsOptions: self.dtlsOptions)
+                                                   tlsOptions: self.tlsOptions)
         let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
         let channelOptions = self.channelOptions
 

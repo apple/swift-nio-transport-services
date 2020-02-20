@@ -77,7 +77,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     private var udpOptions: NWProtocolUDP.Options
 
     /// The TLS options for this connection, if any.
-    private var dtlsOptions: NWProtocolTLS.Options?
+    private var tlsOptions: NWProtocolTLS.Options?
 
     /// The state of this connection channel.
     internal var state: ChannelState<ActiveSubstate> = .idle
@@ -108,7 +108,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     internal var _enablePeerToPeer = false
     
     var parameters: NWParameters {
-        NWParameters(dtls: self.dtlsOptions, udp: self.udpOptions)
+        NWParameters(dtls: self.tlsOptions, udp: self.udpOptions)
     }
     
     var _outstandingRead: Bool = false
@@ -130,13 +130,13 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
                   parent: Channel? = nil,
                   qos: DispatchQoS? = nil,
                   udpOptions: NWProtocolUDP.Options,
-                  dtlsOptions: NWProtocolTLS.Options?) {
+                  tlsOptions: NWProtocolTLS.Options?) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
         self.parent = parent
         self._connectionQueue = eventLoop.channelQueue(label: "nio.nioTransportServices.connectionchannel", qos: qos)
         self.udpOptions = udpOptions
-        self.dtlsOptions = dtlsOptions
+        self.tlsOptions = tlsOptions
 
         // Must come last, as it requires self to be completely initialized.
         self._pipeline = ChannelPipeline(channel: self)
@@ -148,12 +148,12 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
                               parent: Channel,
                               qos: DispatchQoS? = nil,
                               udpOptions: NWProtocolUDP.Options,
-                              dtlsOptions: NWProtocolTLS.Options?) {
+                              tlsOptions: NWProtocolTLS.Options?) {
         self.init(eventLoop: eventLoop,
                   parent: parent,
                   qos: qos,
                   udpOptions: udpOptions,
-                  dtlsOptions: dtlsOptions)
+                  tlsOptions: tlsOptions)
         self._connection = connection
     }
 }
