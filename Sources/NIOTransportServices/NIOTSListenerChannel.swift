@@ -53,7 +53,7 @@ internal final class NIOTSListenerChannel {
     private let dtlsOptions: NWProtocolTLS.Options?
 
     /// The `DispatchQueue` that socket events for this connection will be dispatched onto.
-    private let connectionQueue: DispatchQueue
+    private let _connectionQueue: DispatchQueue
 
     /// An `EventLoopPromise` that will be succeeded or failed when a bind attempt succeeds or fails.
     private var bindPromise: EventLoopPromise<Void>?
@@ -69,19 +69,19 @@ internal final class NIOTSListenerChannel {
 
     /// Whether a call to NWListener.receive has been made, but the completion
     /// handler has not yet been invoked.
-    private var outstandingRead: Bool = false
+    private var _outstandingRead: Bool = false
 
     /// Whether autoRead is enabled for this channel.
     private var autoRead: Bool = true
 
     /// The value of SO_REUSEADDR.
-    private var reuseAddress = false
+    private var _reuseAddress = false
 
     /// The value of SO_REUSEPORT.
-    private var reusePort = false
+    private var _reusePort = false
 
     /// Whether to enable peer-to-peer connectivity when using Bonjour services.
-    private var enablePeerToPeer = false
+    private var _enablePeerToPeer = false
 
     /// The event loop group to use for child channels.
     private let childLoopGroup: EventLoopGroup
@@ -109,7 +109,7 @@ internal final class NIOTSListenerChannel {
                   childTLSOptions: NWProtocolTLS.Options?) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
-        self.connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
+        self._connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
         self.tcpOptions = tcpOptions
         self.dtlsOptions = dtlsOptions
         self.childLoopGroup = childLoopGroup
@@ -136,7 +136,7 @@ extension NIOTSListenerChannel: Channel {
         if self.eventLoop.inEventLoop {
             return try? self.localAddress0()
         } else {
-            return self.connectionQueue.sync { try? self.localAddress0() }
+            return self._connectionQueue.sync { try? self.localAddress0() }
         }
     }
 
@@ -145,7 +145,7 @@ extension NIOTSListenerChannel: Channel {
         if self.eventLoop.inEventLoop {
             return try? self.remoteAddress0()
         } else {
-            return self.connectionQueue.sync { try? self.remoteAddress0() }
+            return self._connectionQueue.sync { try? self.remoteAddress0() }
         }
     }
 
@@ -187,14 +187,14 @@ extension NIOTSListenerChannel: Channel {
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
-                self.reuseAddress = (value as! SocketOptionValue) != Int32(0)
+                self._reuseAddress = (value as! SocketOptionValue) != Int32(0)
             case (SOL_SOCKET, SO_REUSEPORT):
-                self.reusePort = (value as! SocketOptionValue) != Int32(0)
+                self._reusePort = (value as! SocketOptionValue) != Int32(0)
             default:
                 try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
         case is NIOTSEnablePeerToPeerOption:
-            self.enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.Value
+            self._enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.Value
         default:
             fatalError("option \(option) not supported")
         }
@@ -224,14 +224,14 @@ extension NIOTSListenerChannel: Channel {
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
-                return Int32(self.reuseAddress ? 1 : 0) as! Option.Value
+                return Int32(self._reuseAddress ? 1 : 0) as! Option.Value
             case (SOL_SOCKET, SO_REUSEPORT):
-                return Int32(self.reusePort ? 1 : 0) as! Option.Value
+                return Int32(self._reusePort ? 1 : 0) as! Option.Value
             default:
                 return try self.tcpOptions.valueFor(socketOption: optionValue) as! Option.Value
             }
         case is NIOTSEnablePeerToPeerOption:
-            return self.enablePeerToPeer as! Option.Value
+            return self._enablePeerToPeer as! Option.Value
         default:
             fatalError("option \(option) not supported")
         }
@@ -310,9 +310,9 @@ extension NIOTSListenerChannel: StateManagedChannel {
 
         // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
         // either.
-        parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort
+        parameters.allowLocalEndpointReuse = self._reuseAddress || self._reusePort
 
-        parameters.includePeerToPeer = self.enablePeerToPeer
+        parameters.includePeerToPeer = self._enablePeerToPeer
 
         let listener: NWListener
         do {
@@ -332,7 +332,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
 
         // Ok, state is ready. Let's go!
         self.nwListener = listener
-        listener.start(queue: self.connectionQueue)
+        listener.start(queue: self._connectionQueue)
     }
 
     public func write0(_ data: NIOAny, promise: EventLoopPromise<Void>?) {
@@ -370,7 +370,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
 
     public func triggerUserOutboundEvent0(_ event: Any, promise: EventLoopPromise<Void>?) {
         switch event {
-        case let x as NIOTSNetworkEvents.BindToNWEndpoint:
+        case let x as NIOTSNetworkEvents.ConnectToNWEndpoint:
             self.bind0(to: x.endpoint, promise: promise)
         default:
             promise?.fail(ChannelError.operationUnsupported)
@@ -436,12 +436,13 @@ extension NIOTSListenerChannel {
             return
         }
 
-        let newChannel = NIOTSConnectionChannel(wrapping: connection,
-                                                on: self.childLoopGroup.next() as! NIOTSEventLoop,
-                                                parent: self,
-                                                qos: self.childChannelQoS,
-                                                tcpOptions: self.childTCPOptions,
-                                                tlsOptions: self.childTLSOptions)
+        let newChannel = NIOTSConnectionChannel(
+            wrapping: connection,
+            on: self.childLoopGroup.next() as! NIOTSEventLoop,
+            parent: self,
+            qos: self.childChannelQoS,
+            tcpOptions: self.childTCPOptions,
+            tlsOptions: self.childTLSOptions)
 
         self.pipeline.fireChannelRead(NIOAny(newChannel))
         self.pipeline.fireChannelReadComplete()

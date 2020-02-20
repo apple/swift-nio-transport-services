@@ -68,7 +68,7 @@ internal enum ChannelState<ActiveSubstate: ActiveChannelSubstate> {
         self = .active(ActiveSubstate())
     }
 
-    mutating func becomeInactive() throws -> ChannelState {
+    fileprivate mutating func becomeInactive() throws -> ChannelState {
         let oldState = self
 
         switch self {

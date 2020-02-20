@@ -100,8 +100,8 @@ public final class NIOTSConnectionBootstrap {
     /// To retrieve the TCP options from connected channels, use
     /// `NIOTSChannelOptions.TCPConfiguration`. It is not possible to change the
     /// TCP configuration after `connect` is called.
-    public func tcpOptions(_ options: NWProtocolTCP.Options) -> Self {
-        self.tcpOptions = options
+    public func tcpOptions(_ _options: NWProtocolTCP.Options) -> Self {
+        self.tcpOptions = _options
         return self
     }
 
@@ -110,8 +110,8 @@ public final class NIOTSConnectionBootstrap {
     /// To retrieve the TLS options from connected channels, use
     /// `NIOTSChannelOptions.TLSConfiguration`. It is not possible to change the
     /// TLS configuration after `connect` is called.
-    public func tlsOptions(_ options: NWProtocolTLS.Options) -> Self {
-        self.tlsOptions = options
+    public func tlsOptions(_ _options: NWProtocolTLS.Options) -> Self {
+        self.tlsOptions = _options
         return self
     }
 
@@ -162,10 +162,11 @@ public final class NIOTSConnectionBootstrap {
     }
 
     private func connect(_ connectAction: @escaping (Channel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
-        let conn: Channel = NIOTSConnectionChannel(eventLoop: self.group.next() as! NIOTSEventLoop,
-                                                   qos: self.qos,
-                                                   tcpOptions: self.tcpOptions,
-                                                   tlsOptions: self.tlsOptions)
+        let conn: Channel = NIOTSConnectionChannel(
+            eventLoop: self.group.next() as! NIOTSEventLoop,
+            qos: self.qos,
+            tcpOptions: self.tcpOptions,
+            tlsOptions: self.tlsOptions)
         let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
         let channelOptions = self.channelOptions
 
@@ -176,17 +177,17 @@ public final class NIOTSConnectionBootstrap {
                 conn.eventLoop.assertInEventLoop()
                 return conn.register()
             }.flatMap {
-                let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
-                connectAction(conn, connectPromise)
+                let _connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
+                connectAction(conn, _connectPromise)
                 let cancelTask = conn.eventLoop.scheduleTask(in: self.connectTimeout) {
-                    connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
+                    _connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
                     conn.close(promise: nil)
                 }
 
-                connectPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
+                _connectPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
                     cancelTask.cancel()
                 }
-                return connectPromise.futureResult
+                return _connectPromise.futureResult
             }.map { conn }.flatMapErrorThrowing {
                 conn.close(promise: nil)
                 throw $0

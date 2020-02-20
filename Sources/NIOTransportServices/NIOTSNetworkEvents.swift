@@ -69,10 +69,5 @@ public enum NIOTSNetworkEvents {
         /// The endpoint to which we want to bind.
         public let endpoint: NWEndpoint
     }
-    
-    public struct ConnectToUDPNWEndpoint: NIOTSNetworkEvent {
-        /// The endpoint to which we want to connect.
-        public let endpoint: NWEndpoint
-    }
 }
 #endif

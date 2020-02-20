@@ -52,6 +52,6 @@ public struct NIOTSChannelOptions {
     /// - seealso: `NIOTSWaitForActivityOption`.
     public static let waitForActivity = NIOTSWaitForActivityOption()
 
-    public static let enablePeerToPeer = NIOTSEnablePeerToPeerOption()
+    public static let _enablePeerToPeer = NIOTSEnablePeerToPeerOption()
 }
 #endif

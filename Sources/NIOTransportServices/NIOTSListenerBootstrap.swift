@@ -174,8 +174,8 @@ public final class NIOTSListenerBootstrap {
     /// To retrieve the TCP options from connected channels, use
     /// `NIOTSChannelOptions.TCPConfiguration`. It is not possible to change the
     /// TCP configuration after `bind` is called.
-    public func tcpOptions(_ options: NWProtocolTCP.Options) -> Self {
-        self.tcpOptions = options
+    public func tcpOptions(_ _options: NWProtocolTCP.Options) -> Self {
+        self.tcpOptions = _options
         return self
     }
 
@@ -184,8 +184,8 @@ public final class NIOTSListenerBootstrap {
     /// To retrieve the TLS options from connected channels, use
     /// `NIOTSChannelOptions.TLSConfiguration`. It is not possible to change the
     /// TLS configuration after `bind` is called.
-    public func tlsOptions(_ options: NWProtocolTLS.Options) -> Self {
-        self.dtlsOptions = options
+    public func tlsOptions(_ _options: NWProtocolTLS.Options) -> Self {
+        self.dtlsOptions = _options
         return self
     }
 
@@ -239,7 +239,7 @@ public final class NIOTSListenerBootstrap {
     ///     - endpoint: The `NWEndpoint` to bind this channel to.
     public func bind(endpoint: NWEndpoint) -> EventLoopFuture<Channel> {
         return self.bind0 { (channel, promise) in
-            channel.triggerUserOutboundEvent(NIOTSNetworkEvents.BindToNWEndpoint(endpoint: endpoint), promise: promise)
+            channel.triggerUserOutboundEvent(NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint), promise: promise)
         }
     }
 

@@ -2,14 +2,12 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2020 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
@@ -98,8 +96,8 @@ public final class NIOTSDatagramBootstrap {
     /// To retrieve the UDP options from connected channels, use
     /// `NIOTSChannelOptions.UDPConfiguration`. It is not possible to change the
     /// UDP configuration after `connect` is called.
-    public func udpOptions(_ options: NWProtocolUDP.Options) -> Self {
-        self.udpOptions = options
+    public func udpOptions(_ _options: NWProtocolUDP.Options) -> Self {
+        self.udpOptions = _options
         return self
     }
 
@@ -108,8 +106,8 @@ public final class NIOTSDatagramBootstrap {
     /// To retrieve the TLS options from connected channels, use
     /// `NIOTSChannelOptions.TLSConfiguration`. It is not possible to change the
     /// TLS configuration after `connect` is called.
-    public func tlsOptions(_ options: NWProtocolTLS.Options) -> Self {
-        self.dtlsOptions = options
+    public func tlsOptions(_ _options: NWProtocolTLS.Options) -> Self {
+        self.dtlsOptions = _options
         return self
     }
 
@@ -155,7 +153,7 @@ public final class NIOTSDatagramBootstrap {
     public func connect(endpoint: NWEndpoint) -> EventLoopFuture<Channel> {
         return self.connect0 { channel, promise in
             channel.triggerUserOutboundEvent(
-                NIOTSNetworkEvents.ConnectToUDPNWEndpoint(endpoint: endpoint),
+                NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint),
                 promise: promise
             )
         }
