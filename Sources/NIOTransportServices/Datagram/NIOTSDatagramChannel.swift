@@ -43,7 +43,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     }
 
     /// The kinds of channel activation this channel supports
-    internal let supportedActivationType: ActivationType = .connect
+    internal let supportedActivationType: ActivationType = .bind
     
     /// The `ByteBufferAllocator` for this `Channel`.
     public let allocator = ByteBufferAllocator()
