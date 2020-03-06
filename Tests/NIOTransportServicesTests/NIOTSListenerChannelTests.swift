@@ -237,6 +237,7 @@ class NIOTSListenerChannelTests: XCTestCase {
             func channelRead(context: ChannelHandlerContext, data: NIOAny) {
                 let channel = self.unwrapInboundIn(data)
                 self.promise.succeed(channel)
+                context.fireChannelRead(data)
             }
         }
 
@@ -255,7 +256,13 @@ class NIOTSListenerChannelTests: XCTestCase {
             XCTAssertNoThrow(try connection.close().wait())
         }
 
-        let promisedChannel = try channelPromise.futureResult.wait()
+        // We must wait for channel active here, or the socket addresses won't be set.
+        let promisedChannel = try channelPromise.futureResult.flatMap { (channel) -> EventLoopFuture<Channel> in
+            let promiseChannelActive = channel.eventLoop.makePromise(of: Channel.self)
+            _ = channel.pipeline.addHandler(WaitForActiveHandler(promiseChannelActive))
+            return promiseChannelActive.futureResult
+        }.wait()
+
         XCTAssertEqual(promisedChannel.remoteAddress, connection.localAddress)
         XCTAssertEqual(promisedChannel.localAddress, connection.remoteAddress)
     }
@@ -274,6 +281,32 @@ class NIOTSListenerChannelTests: XCTestCase {
         } catch {
             XCTAssertEqual(error as? NIOTSErrors.BindTimeout, NIOTSErrors.BindTimeout(timeout: .nanoseconds(0)), "unexpected error: \(error)")
         }
+    }
+
+    func testLoadingAddressesInMultipleQueues() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let ourSyncQueue = DispatchQueue(label: "ourSyncQueue")
+
+        let workFuture = NIOTSConnectionBootstrap(group: self.group).connect(to: listener.localAddress!).map { channel -> Channel in
+            XCTAssertTrue(listener.eventLoop.inEventLoop)
+
+            ourSyncQueue.sync {
+                XCTAssertFalse(listener.eventLoop.inEventLoop)
+
+                // These will crash before we apply our fix.
+                XCTAssertNotNil(listener.localAddress)
+                XCTAssertNil(listener.remoteAddress)
+            }
+
+            return channel
+        }.flatMap { $0.close() }
+
+        XCTAssertNoThrow(try workFuture.wait())
     }
 }
 #endif

@@ -67,6 +67,18 @@ private struct ConnectionChannelOptions {
 private typealias PendingWrite = (data: ByteBuffer, promise: EventLoopPromise<Void>?)
 
 
+internal struct AddressCache {
+    // deliberately lets because they must always be updated together (so forcing `init` is useful).
+    let local: Optional<SocketAddress>
+    let remote: Optional<SocketAddress>
+
+    init(local: SocketAddress?, remote: SocketAddress?) {
+        self.local = local
+        self.remote = remote
+    }
+}
+
+
 /// A structure that manages backpressure signaling on this channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 private struct BackpressureManager {
@@ -211,6 +223,12 @@ internal final class NIOTSConnectionChannel {
     /// Whether to use peer-to-peer connectivity when connecting to Bonjour services.
     private var enablePeerToPeer = false
 
+    /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
+    private var _addressCache = AddressCache(local: nil, remote: nil)
+
+    /// A lock that guards the _addressCache.
+    private let _addressCacheLock = Lock()
+
     /// Create a `NIOTSConnectionChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSConnectionChannel` objects cannot be created on arbitrary loops types.
@@ -257,19 +275,15 @@ extension NIOTSConnectionChannel: Channel {
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        if self.eventLoop.inEventLoop {
-            return try? self.localAddress0()
-        } else {
-            return self.connectionQueue.sync { try? self.localAddress0() }
+        return self._addressCacheLock.withLock {
+            return self._addressCache.local
         }
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        if self.eventLoop.inEventLoop {
-            return try? self.remoteAddress0()
-        } else {
-            return self.connectionQueue.sync { try? self.remoteAddress0() }
+        return self._addressCacheLock.withLock {
+            return self._addressCache.remote
         }
     }
 
@@ -748,6 +762,15 @@ extension NIOTSConnectionChannel {
     private func connectionComplete0() {
         let promise = self.connectPromise
         self.connectPromise = nil
+
+        // Before becoming active, update the cached addresses.
+        let localAddress = try? self.localAddress0()
+        let remoteAddress = try? self.remoteAddress0()
+
+        self._addressCacheLock.withLock {
+            self._addressCache = AddressCache(local: localAddress, remote: remoteAddress)
+        }
+
         self.becomeActive0(promise: promise)
 
         if let metadata = self.nwConnection?.metadata(definition: NWProtocolTLS.definition) as? NWProtocolTLS.Metadata {

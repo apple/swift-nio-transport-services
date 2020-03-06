@@ -710,8 +710,32 @@ class NIOTSConnectionChannelTests: XCTestCase {
         XCTAssertNoThrow(try connection.eventLoop.submit {
             XCTAssertEqual(testHandler.readCount, 2)
         }.wait())
+    }
 
-        
+    func testLoadingAddressesInMultipleQueues() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let ourSyncQueue = DispatchQueue(label: "ourSyncQueue")
+
+        let workFuture = NIOTSConnectionBootstrap(group: self.group).connect(to: listener.localAddress!).map { channel -> Channel in
+            XCTAssertTrue(channel.eventLoop.inEventLoop)
+
+            ourSyncQueue.sync {
+                XCTAssertFalse(channel.eventLoop.inEventLoop)
+
+                // These will crash before we apply our fix.
+                XCTAssertNotNil(channel.localAddress)
+                XCTAssertNotNil(channel.remoteAddress)
+            }
+
+            return channel
+        }.flatMap { $0.close() }
+
+        XCTAssertNoThrow(try workFuture.wait())
     }
 }
 #endif
