@@ -28,6 +28,7 @@ public final class NIOTSConnectionBootstrap {
     private var qos: DispatchQoS?
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
+    private var protocolHandlers: Optional<() -> [ChannelHandler]> = nil
 
     /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
@@ -193,7 +194,22 @@ public final class NIOTSConnectionBootstrap {
             }
         }
     }
+
+    /// Sets the protocol handlers that will be added to the front of the `ChannelPipeline` right after the
+    /// `channelInitializer` has been called.
+    ///
+    /// Per bootstrap, you can only set the `protocolHandlers` once. Typically, `protocolHandlers` are used for the TLS
+    /// implementation. Most notably, `NIOClientTCPBootstrap`, NIO's "universal bootstrap" abstraction, uses
+    /// `protocolHandlers` to add the required `ChannelHandler`s for many TLS implementations.
+    public func protocolHandlers(_ handlers: @escaping () -> [ChannelHandler]) -> Self {
+        precondition(self.protocolHandlers == nil, "protocol handlers can only be set once")
+        self.protocolHandlers = handlers
+        return self
+    }
 }
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {}
 
 // This is a backport of ChannelOptions.Storage from SwiftNIO because the initializer wasn't public, so we couldn't actually build it.
 // When https://github.com/apple/swift-nio/pull/988 is in a shipped release, we can remove this and simply bump our lowest supported version of SwiftNIO.
