@@ -2,7 +2,7 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2020 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -29,11 +29,12 @@ class FilterEmptyWritesHandlerTests: XCTestCase {
         self.allocator = self.channel.allocator
         let eventLoop = self.channel.eventLoop as! EmbeddedEventLoop
         self.eventLoop = eventLoop
-        
     }
 
     override func tearDown() {
-        XCTAssertNoThrow(try self.channel.finish())
+        XCTAssertNoThrow(
+            XCTAssertTrue(try self.channel.finish().isClean)
+        )
         self.channel = nil
         self.eventLoop = nil
     }
@@ -152,7 +153,6 @@ class FilterEmptyWritesHandlerTests: XCTestCase {
         let thenSomeWritePromise = self.eventLoop.makePromise(of: Void.self)
         let thenEmptyWrite = self.allocator.buffer(capacity: 0)
         let thenEmptyWritePromise = self.eventLoop.makePromise(of: Void.self)
-        
         enum CheckOrder {
             case noWrite
             case emptyWrite
@@ -247,6 +247,7 @@ class FilterEmptyWritesHandlerTests: XCTestCase {
         XCTAssertNoThrow(
             XCTAssertNil(try self.channel.readOutbound(as: ByteBuffer.self))
         )
+        emptyWritePromise = nil
         let thenEmptyWrite = self.allocator.buffer(capacity: 0)
         var thenEmptyWritePromise: EventLoopPromise<Void>! = self.eventLoop.makePromise()
         self.channel.write(NIOAny(thenEmptyWrite), promise: thenEmptyWritePromise)
@@ -257,5 +258,6 @@ class FilterEmptyWritesHandlerTests: XCTestCase {
         XCTAssertNoThrow(
             XCTAssertNil(try self.channel.readOutbound(as: ByteBuffer.self))
         )
+        thenEmptyWritePromise = nil
     }
 }
