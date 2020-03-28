@@ -52,7 +52,7 @@ fileprivate enum LifecycleState {
 
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-internal class NIOTSEventLoop: QoSEventLoop {
+public class NIOTSEventLoop: QoSEventLoop {
     private let loop: DispatchQueue
     private let taskQueue: DispatchQueue
     private let inQueueKey: DispatchSpecificKey<UUID>
@@ -149,7 +149,7 @@ internal class NIOTSEventLoop: QoSEventLoop {
         }
     }
 
-    func preconditionInEventLoop(file: StaticString, line: UInt) {
+    public func preconditionInEventLoop(file: StaticString, line: UInt) {
         dispatchPrecondition(condition: .onQueue(self.loop))
     }
 }
