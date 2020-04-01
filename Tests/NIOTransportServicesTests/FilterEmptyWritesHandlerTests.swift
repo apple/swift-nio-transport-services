@@ -7,9 +7,7 @@
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
@@ -26,6 +24,7 @@ class FilterEmptyWritesHandlerTests: XCTestCase {
 
     override func setUp() {
         self.channel = EmbeddedChannel(handler: FilterEmptyWritesHandler())
+        XCTAssertNoThrow(try self.channel.connect(to: .init(ipAddress: "1.1.1.1", port: 1)).wait())
         self.allocator = self.channel.allocator
         let eventLoop = self.channel.eventLoop as! EmbeddedEventLoop
         self.eventLoop = eventLoop
