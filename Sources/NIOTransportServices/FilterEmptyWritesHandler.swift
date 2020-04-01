@@ -7,9 +7,7 @@
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
@@ -45,14 +43,12 @@ public final class FilterEmptyWritesHandler: ChannelDuplexHandler {
     public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
         let buffer = self.unwrapOutboundIn(data)
         if buffer.readableBytes > 0 {
-            let lastWritePromise: EventLoopPromise<Void>
             if let promise = promise {
-                lastWritePromise = promise
+                self.lastWritePromise = promise
             } else {
-                lastWritePromise = context.eventLoop.makePromise(of: Void.self)
+                self.lastWritePromise = context.eventLoop.makePromise()
             }
-            self.lastWritePromise = lastWritePromise
-            context.write(data, promise: lastWritePromise)
+            context.write(data, promise: self.lastWritePromise)
         } else {
             /*
              Empty writes needs to be handled individually depending on:
