@@ -18,7 +18,7 @@ import NIO
 /// A `ChannelHandler` that checks for outbound writes of zero length, which are then dropped. This is
 /// due to a bug in `Network Framework`, where zero byte TCP writes lead to stalled connections.
 /// Write promises are confirmed in the correct order.
-public final class FilterEmptyWritesHandler: ChannelDuplexHandler {
+public final class NIOFilterEmptyWritesHandler: ChannelDuplexHandler {
     public typealias InboundIn = ByteBuffer
     public typealias InboundOut = ByteBuffer
     public typealias OutboundIn = ByteBuffer
@@ -84,7 +84,7 @@ public final class FilterEmptyWritesHandler: ChannelDuplexHandler {
 }
 
 // Connection state management
-extension FilterEmptyWritesHandler {
+extension NIOFilterEmptyWritesHandler {
     public func channelActive(context: ChannelHandlerContext) {
         self.state = .open
         context.fireChannelActive()

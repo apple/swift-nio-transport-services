@@ -17,13 +17,13 @@ import NIO
 import NIOTransportServices
 
 
-class FilterEmptyWritesHandlerTests: XCTestCase {
+class NIOFilterEmptyWritesHandlerTests: XCTestCase {
     var allocator: ByteBufferAllocator!
     var channel: EmbeddedChannel!
     var eventLoop: EmbeddedEventLoop!
 
     override func setUp() {
-        self.channel = EmbeddedChannel(handler: FilterEmptyWritesHandler())
+        self.channel = EmbeddedChannel(handler: NIOFilterEmptyWritesHandler())
         XCTAssertNoThrow(try self.channel.connect(to: .init(ipAddress: "1.1.1.1", port: 1)).wait())
         self.allocator = self.channel.allocator
         let eventLoop = self.channel.eventLoop as! EmbeddedEventLoop
