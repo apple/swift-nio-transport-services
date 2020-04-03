@@ -30,7 +30,7 @@ public protocol QoSEventLoop: EventLoop {
     /// Submit a given task to be executed by the `EventLoop` at a given `qos`.
     func execute(qos: DispatchQoS, _ task: @escaping () -> Void) -> Void
 
-    /// Schedule a `task` that is executed by this `SelectableEventLoop` after the given amount of time at the
+    /// Schedule a `task` that is executed by this `NIOTSEventLoop` after the given amount of time at the
     /// given `qos`.
     func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T>
 }

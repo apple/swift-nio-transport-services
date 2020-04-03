@@ -2,7 +2,7 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2020 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -17,6 +17,27 @@ import NIO
 import Dispatch
 import Network
 
+/// A `NIOTSConnectionBootstrap` is an easy way to bootstrap a `NIOTSConnectionChannel` when creating network clients.
+///
+/// Usually you re-use a `NIOTSConnectionBootstrap` once you set it up and called `connect` multiple times on it.
+/// This way you ensure that the same `EventLoop`s will be shared across all your connections.
+///
+/// Example:
+///
+/// ```swift
+///     let group = NIOTSEventLoopGroup()
+///     defer {
+///         try! group.syncShutdownGracefully()
+///     }
+///     let bootstrap = NIOTSConnectionBootstrap(group: group)
+///         .channelInitializer { channel in
+///             channel.pipeline.addHandler(MyChannelHandler())
+///         }
+///     try! bootstrap.connect(host: "example.org", port: 12345).wait()
+///     /* the Channel is now connected */
+/// ```
+///
+/// The connected `NIOTSConnectionChannel` will operate on `ByteBuffer` as inbound and on `IOData` as outbound messages.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSConnectionBootstrap {
     private let group: EventLoopGroup
@@ -30,20 +51,20 @@ public final class NIOTSConnectionBootstrap {
 
     /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
-    /// This initializer only exists to be more in-line with the NIO core bootstraps, in that they
-    /// may be constructed with an `EventLoopGroup` and by extenstion an `EventLoop`. As such an
-    /// existing `NIOTSEventLoop` may be used to initialize this bootstrap. Where possible the
-    /// initializers accepting `NIOTSEventLoopGroup` should be used instead to avoid the wrong
-    /// type being used.
-    ///
-    /// Note that the "real" solution is described in https://github.com/apple/swift-nio/issues/674.
+    /// The `EventLoopGroup` `group` must be compatible, otherwise the program will crash. `NIOTSConnectionBootstrap` is
+    /// compatible only with `NIOTSEventLoopGroup` as well as the `EventLoop`s returned by
+    /// `NIOTSEventLoopGroup.next`. See `init(validatingGroup:)` for a fallible initializer for
+    /// situations where it's impossible to tell ahead of time if the `EventLoopGroup` is compatible or not.
     ///
     /// - parameters:
     ///     - group: The `EventLoopGroup` to use.
-    public init(group: EventLoopGroup) {
-        self.group = group
+    public convenience init(group: EventLoopGroup) {
+        guard NIOTSBootstraps.isCompatible(group: group) else {
+            preconditionFailure("NIOTSConnectionBootstrap is only compatible with NIOTSEventLoopGroup and " +
+                                "NIOTSEventLoop. You tried constructing one with \(group) which is incompatible.")
+        }
 
-        self.channelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+        self.init(validatingGroup: group)!
     }
 
     /// Create a `NIOTSConnectionBootstrap` on the `NIOTSEventLoopGroup` `group`.
@@ -52,6 +73,20 @@ public final class NIOTSConnectionBootstrap {
     ///     - group: The `NIOTSEventLoopGroup` to use.
     public convenience init(group: NIOTSEventLoopGroup) {
       self.init(group: group as EventLoopGroup)
+    }
+
+    /// Create a `NIOTSConnectionBootstrap` on the `NIOTSEventLoopGroup` `group`, validating
+    /// that the `EventLoopGroup` is compatible with `NIOTSConnectionBootstrap`.
+    ///
+    /// - parameters:
+    ///     - group: The `EventLoopGroup` to use.
+    public init?(validatingGroup group: EventLoopGroup) {
+        guard NIOTSBootstraps.isCompatible(group: group) else {
+            return nil
+        }
+
+        self.group = group
+        self.channelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
     }
 
     /// Initialize the connected `NIOTSConnectionChannel` with `initializer`. The most common task in initializer is to add

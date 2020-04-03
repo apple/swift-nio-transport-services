@@ -183,6 +183,69 @@ final class NIOTSBootstrapTests: XCTestCase {
         XCTAssertNoThrow(XCTAssertFalse(try isTLSConnection1.futureResult.wait()))
         XCTAssertNoThrow(XCTAssertTrue(try isTLSConnection2.futureResult.wait()))
     }
+
+    func testNIOTSConnectionBootstrapValidatesWorkingELGsCorrectly() {
+        let elg = NIOTSEventLoopGroup()
+        defer {
+            XCTAssertNoThrow(try elg.syncShutdownGracefully())
+        }
+        let el = elg.next()
+
+        XCTAssertNotNil(NIOTSConnectionBootstrap(validatingGroup: elg))
+        XCTAssertNotNil(NIOTSConnectionBootstrap(validatingGroup: el))
+    }
+
+    func testNIOTSConnectionBootstrapRejectsNotWorkingELGsCorrectly() {
+        let elg = EmbeddedEventLoop()
+        defer {
+            XCTAssertNoThrow(try elg.syncShutdownGracefully())
+        }
+        let el = elg.next()
+
+        XCTAssertNil(NIOTSConnectionBootstrap(validatingGroup: elg))
+        XCTAssertNil(NIOTSConnectionBootstrap(validatingGroup: el))
+    }
+
+    func testNIOTSListenerBootstrapValidatesWorkingELGsCorrectly() {
+        let elg = NIOTSEventLoopGroup()
+        defer {
+            XCTAssertNoThrow(try elg.syncShutdownGracefully())
+        }
+        let el = elg.next()
+
+        XCTAssertNotNil(NIOTSListenerBootstrap(validatingGroup: elg))
+        XCTAssertNotNil(NIOTSListenerBootstrap(validatingGroup: el))
+        XCTAssertNotNil(NIOTSListenerBootstrap(validatingGroup: elg, childGroup: elg))
+        XCTAssertNotNil(NIOTSListenerBootstrap(validatingGroup: el, childGroup: el))
+    }
+
+    func testNIOTSListenerBootstrapRejectsNotWorkingELGsCorrectly() {
+        let correctELG = NIOTSEventLoopGroup()
+        defer {
+            XCTAssertNoThrow(try correctELG.syncShutdownGracefully())
+        }
+
+        let wrongELG = EmbeddedEventLoop()
+        defer {
+            XCTAssertNoThrow(try wrongELG.syncShutdownGracefully())
+        }
+        let wrongEL = wrongELG.next()
+        let correctEL = correctELG.next()
+
+        // both wrong
+        XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongELG))
+        XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongEL))
+        XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongELG, childGroup: wrongELG))
+        XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongEL, childGroup: wrongEL))
+
+        // group correct, child group wrong
+        XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: correctELG, childGroup: wrongELG))
+        XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: correctEL, childGroup: wrongEL))
+
+        // group wrong, child group correct
+        XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongELG, childGroup: correctELG))
+        XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongEL, childGroup: correctEL))
+    }
 }
 
 extension Channel {
