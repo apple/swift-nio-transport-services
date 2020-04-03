@@ -24,12 +24,12 @@ public final class NIOFilterEmptyWritesHandler: ChannelDuplexHandler {
     public typealias OutboundIn = ByteBuffer
     public typealias OutboundOut = ByteBuffer
 
-    fileprivate enum ChannelState {
+    fileprivate enum ChannelState: Equatable {
         case notActiveYet
         case open
         case closedFromLocal
         case closedFromRemote
-        case error(Error)
+        case error
     }
     
     private var state: ChannelState = .notActiveYet
@@ -143,7 +143,7 @@ extension NIOFilterEmptyWritesHandler {
 
         switch self.state {
         case .open:
-            self.state = .error(error)
+            self.state = .error
             save?.fail(error)
         case .closedFromLocal, .closedFromRemote, .error:
             assert(save == nil)
@@ -158,25 +158,6 @@ extension NIOFilterEmptyWritesHandler {
         assert(self.state == .notActiveYet)
         if context.channel.isActive {
             self.state = .open
-        }
-    }
-}
-
-extension NIOFilterEmptyWritesHandler.ChannelState: Equatable {
-    static func == (lhs: NIOFilterEmptyWritesHandler.ChannelState, rhs: NIOFilterEmptyWritesHandler.ChannelState) -> Bool {
-        switch (lhs, rhs) {
-        case (.notActiveYet, .notActiveYet),
-             (.open, .open),
-             (.closedFromLocal, .closedFromLocal),
-             (.closedFromRemote, .closedFromRemote),
-             (.error, .error):
-            return true
-        case (.notActiveYet, _),
-             (.open, _),
-             (.closedFromLocal, _),
-             (.closedFromRemote, _),
-             (.error, _):
-            return false
         }
     }
 }
