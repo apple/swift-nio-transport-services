@@ -24,14 +24,15 @@ public final class NIOFilterEmptyWritesHandler: ChannelDuplexHandler {
     public typealias OutboundIn = ByteBuffer
     public typealias OutboundOut = ByteBuffer
 
-    private enum ChannelState {
+    fileprivate enum ChannelState {
+        case notActiveYet
         case open
-        case closedFromRemote
         case closedFromLocal
-        case error
+        case closedFromRemote
+        case error(Error)
     }
     
-    private var state: ChannelState = .closedFromLocal
+    private var state: ChannelState = .notActiveYet
     private var prefixEmptyWritePromise: Optional<EventLoopPromise<Void>>
     private var lastWritePromise: Optional<EventLoopPromise<Void>>
     
@@ -41,101 +42,141 @@ public final class NIOFilterEmptyWritesHandler: ChannelDuplexHandler {
     }
     
     public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
-        let buffer = self.unwrapOutboundIn(data)
-        if buffer.readableBytes > 0 {
-            if let promise = promise {
-                self.lastWritePromise = promise
+        switch self.state {
+        case .open:
+            let buffer = self.unwrapOutboundIn(data)
+            if buffer.readableBytes > 0 {
+                self.lastWritePromise = promise ?? context.eventLoop.makePromise()
+                context.write(data, promise: self.lastWritePromise)
             } else {
-                self.lastWritePromise = context.eventLoop.makePromise()
+                /*
+                 Empty writes need to be handled individually depending on:
+                 A) Empty write occurring before any non-empty write needs a
+                 separate promise to cascade from (prefix)
+                 B) Non-empty writes carry a promise, that subsequent empty
+                 writes can cascade from
+                 */
+                switch (self.prefixEmptyWritePromise, self.lastWritePromise, promise) {
+                case (_, _, .none): ()
+                case (.none, .none, .some(let promise)):
+                    self.prefixEmptyWritePromise = promise
+                case (_, .some(let lastWritePromise), .some(let promise)):
+                    lastWritePromise.futureResult.cascade(to: promise)
+                case (.some(let prefixEmptyWritePromise), .none, .some(let promise)):
+                    prefixEmptyWritePromise.futureResult.cascade(to: promise)
+                }
             }
-            context.write(data, promise: self.lastWritePromise)
-        } else {
-            /*
-             Empty writes needs to be handled individually depending on:
-             A) Empty write occurring before any non-empty write needs a
-             separate promise to cascade from (prefix)
-             B) Non-empty writes carry a promise, that subsequent empty
-             writes can cascade from
-             */
-            switch (self.prefixEmptyWritePromise, self.lastWritePromise, promise) {
-            case (_, _, .none): break
-            case (.none, .none, .some(let promise)):
-                self.prefixEmptyWritePromise = promise
-            case (_, .some(let lastWritePromise), .some(let promise)):
-                lastWritePromise.futureResult.cascade(to: promise)
-            case (.some(let prefixEmptyWritePromise), .none, .some(let promise)):
-                prefixEmptyWritePromise.futureResult.cascade(to: promise)
-            }
+        case .closedFromLocal, .closedFromRemote, .error:
+            // Since channel is closed, Network Framework bug is not triggered for empty writes
+            context.write(data, promise: promise)
+        case .notActiveYet:
+            preconditionFailure()
         }
     }
     
     public func flush(context: ChannelHandlerContext) {
         self.lastWritePromise = nil
         if let prefixEmptyWritePromise = self.prefixEmptyWritePromise {
-            prefixEmptyWritePromise.futureResult.whenSuccess {
-                context.flush()
-            }
-            prefixEmptyWritePromise.succeed(())
             self.prefixEmptyWritePromise = nil
-        } else {
-            context.flush()
+            prefixEmptyWritePromise.succeed(())
         }
+
+        context.flush()
     }
 }
 
 // Connection state management
 extension NIOFilterEmptyWritesHandler {
     public func channelActive(context: ChannelHandlerContext) {
+        assert(self.state == .notActiveYet)
         self.state = .open
         context.fireChannelActive()
     }
     
     public func channelInactive(context: ChannelHandlerContext) {
-        if case .open = self.state {
-            self.state = .closedFromRemote
-            self.prefixEmptyWritePromise?.fail(ChannelError.eof)
-        }
+        let save = self.prefixEmptyWritePromise
         self.prefixEmptyWritePromise = nil
         self.lastWritePromise = nil
+
+        switch self.state {
+        case .open:
+            self.state = .closedFromRemote
+            save?.fail(ChannelError.eof)
+        case .closedFromLocal, .closedFromRemote, .error:
+            assert(save == nil)
+        case .notActiveYet:
+            preconditionFailure()
+        }
         context.fireChannelInactive()
     }
 
     public func close(context: ChannelHandlerContext, mode: CloseMode, promise: EventLoopPromise<Void>?) {
-        defer {
-            context.close(mode: mode, promise: promise)
-        }
-        
-        switch mode {
-        case .all:
-            if case .open = self.state {
-                self.state = .closedFromLocal
-                self.prefixEmptyWritePromise?.fail(ChannelError.ioOnClosedChannel)
-            }
-        case .output:
-            if case .open = self.state {
-                self.state = .closedFromLocal
-                self.prefixEmptyWritePromise?.fail(ChannelError.outputClosed)
-            }
-        case .input:
-            return
-        }
+        let save = self.prefixEmptyWritePromise
         self.prefixEmptyWritePromise = nil
         self.lastWritePromise = nil
+
+        switch (mode, self.state) {
+        case (.all, .open),
+             (.output, .open):
+            self.state = .closedFromLocal
+            save?.fail(ChannelError.outputClosed)
+        case (.all, .closedFromLocal),
+             (.output, .closedFromLocal),
+             (.all, .closedFromRemote),
+             (.output, .closedFromRemote),
+             (.all, .notActiveYet),
+             (.output, .notActiveYet),
+             (.all, .error),
+             (.output, .error):
+            assert(save == nil)
+        case (.input, _):
+            save?.fail(ChannelError.operationUnsupported)
+        }
+
+        context.close(mode: mode, promise: promise)
     }
 
     public func errorCaught(context: ChannelHandlerContext, error: Error) {
-        if case .open = self.state {
-            self.state = .error
-            self.prefixEmptyWritePromise?.fail(error)
-        }
+        let save = self.prefixEmptyWritePromise
         self.prefixEmptyWritePromise = nil
         self.lastWritePromise = nil
+
+        switch self.state {
+        case .open:
+            self.state = .error(error)
+            save?.fail(error)
+        case .closedFromLocal, .closedFromRemote, .error:
+            assert(save == nil)
+        case .notActiveYet:
+            preconditionFailure()
+        }
+        
         context.fireErrorCaught(error)
     }
 
     public func handlerAdded(context: ChannelHandlerContext) {
+        assert(self.state == .notActiveYet)
         if context.channel.isActive {
             self.state = .open
+        }
+    }
+}
+
+extension NIOFilterEmptyWritesHandler.ChannelState: Equatable {
+    static func == (lhs: NIOFilterEmptyWritesHandler.ChannelState, rhs: NIOFilterEmptyWritesHandler.ChannelState) -> Bool {
+        switch (lhs, rhs) {
+        case (.notActiveYet, .notActiveYet),
+             (.open, .open),
+             (.closedFromLocal, .closedFromLocal),
+             (.closedFromRemote, .closedFromRemote),
+             (.error, .error):
+            return true
+        case (.notActiveYet, _),
+             (.open, _),
+             (.closedFromLocal, _),
+             (.closedFromRemote, _),
+             (.error, _):
+            return false
         }
     }
 }
