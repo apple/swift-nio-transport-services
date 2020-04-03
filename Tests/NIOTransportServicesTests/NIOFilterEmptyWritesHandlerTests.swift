@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if canImport(Network)
 import XCTest
 import NIO
 import NIOTransportServices
@@ -260,3 +261,4 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
         thenEmptyWritePromise = nil
     }
 }
+#endif
