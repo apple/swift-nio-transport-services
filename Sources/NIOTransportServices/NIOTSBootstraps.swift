@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if canImport(Network)
 import NIO
 
 /// Shared functionality across NIOTS bootstraps.
@@ -21,3 +22,5 @@ internal enum NIOTSBootstraps {
         return group is NIOTSEventLoop || group is NIOTSEventLoopGroup
     }
 }
+
+#endif
