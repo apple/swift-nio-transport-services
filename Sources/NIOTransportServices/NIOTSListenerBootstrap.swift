@@ -59,8 +59,8 @@ public final class NIOTSListenerBootstrap {
     private let childGroup: EventLoopGroup
     private var serverChannelInit: ((Channel) -> EventLoopFuture<Void>)?
     private var childChannelInit: ((Channel) -> EventLoopFuture<Void>)?
-    private var serverChannelOptions = ChannelOptionsStorage()
-    private var childChannelOptions = ChannelOptionsStorage()
+    private var serverChannelOptions = ChannelOptions.Storage()
+    private var childChannelOptions = ChannelOptions.Storage()
     private var serverQoS: DispatchQoS?
     private var childQoS: DispatchQoS?
     private var tcpOptions: NWProtocolTCP.Options = .init()
@@ -355,10 +355,10 @@ private class AcceptHandler: ChannelInboundHandler {
     typealias InboundOut = NIOTSConnectionChannel
 
     private let childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?
-    private let childChannelOptions: ChannelOptionsStorage
+    private let childChannelOptions: ChannelOptions.Storage
 
     init(childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?,
-         childChannelOptions: ChannelOptionsStorage) {
+         childChannelOptions: ChannelOptions.Storage) {
         self.childChannelInitializer = childChannelInitializer
         self.childChannelOptions = childChannelOptions
     }
