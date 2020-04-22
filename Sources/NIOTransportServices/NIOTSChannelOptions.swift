@@ -54,6 +54,18 @@ extension NIOTSChannelOptions {
 
             public init() {}
         }
+        
+        /// `NIOTSAllowLocalEndpointReuse` controls whether the `Channel` can reuse a TCP address recently used.
+        ///  Setting this to true is the equivalent of setting at least one of REUSEADDR and REUSEPORT to
+        /// `true`. By default this option is set to `false`.
+        ///
+        /// This option must be set on the bootstrap: setting it after the channel is initialized will have no effect.
+        @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        public struct NIOTSAllowLocalEndpointReuse: ChannelOption, Equatable {
+            public typealias Value = Bool
+
+            public init() {}
+        }
     }
 }
 
