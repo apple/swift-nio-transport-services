@@ -21,6 +21,9 @@ public struct NIOTSChannelOptions {
     public static let waitForActivity = NIOTSChannelOptions.Types.NIOTSWaitForActivityOption()
 
     public static let enablePeerToPeer = NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption()
+    
+    /// - See: NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse
+    public static let allowLocalEndpointReuse = NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse()
 }
 
 
