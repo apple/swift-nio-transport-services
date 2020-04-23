@@ -110,6 +110,26 @@ public final class NIOTSConnectionBootstrap {
         channelOptions.append(key: option, value: value)
         return self
     }
+    
+    /// Specifies some `ChannelOption`s to be applied to the `NIOTSConnectionChannel`.
+    /// - See: channelOption
+    /// - Parameter options: List of shorthand options to apply.
+    /// - Returns: The updated client bootstrap (`self` being mutated)
+    @inlinable
+    public func channelOptions(_ options: [NIOTCPShorthandOption]) -> Self {
+        var toReturn = self
+        for option in options {
+            // Check for mapping specific to us.
+            toReturn = applyChannelOption(option) ?? option.applyOption(with: toReturn)
+            /* if let updatedValue = applyChannelOption(option) {
+                toReturn = NIOClientTCPBootstrap(updatedUnderlying,
+                                                 tlsEnabler: self.tlsEnablerTypeErased)
+            } else {
+                toReturn = option.applyOption(with: toReturn)
+            } */
+        }
+        return toReturn
+    }
 
     /// Specifies a timeout to apply to a connection attempt.
     //
@@ -254,6 +274,13 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
             return channelOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: true)
         }
         return .none
+    }
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSConnectionBootstrap : NIOTCPOptionAppliable {
+    public func applyOption<Option>(_ option: Option, value: Option.Value) -> Self where Option : ChannelOption {
+        return self.channelOption(option, value: value)
     }
 }
 #endif
