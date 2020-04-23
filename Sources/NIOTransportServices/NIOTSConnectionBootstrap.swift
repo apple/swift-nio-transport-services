@@ -242,5 +242,18 @@ public final class NIOTSConnectionBootstrap {
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {}
+extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
+    /// Apply a shorthand option to this bootstrap.
+    /// - parameters:
+    ///     - option:  The option to try applying.
+    /// - returns: The updated bootstrap if option was successfully applied, otherwise nil suggesting the caller try another method.
+    public func applyChannelOption(_ option: NIOTCPShorthandOption) -> Self? {
+        // Currently the only thing we have special action for is allowImmediateEndpointAddressReuse
+        // deal with that and let the default behaviour take care of everything else.
+        if option == NIOTCPShorthandOption.allowImmediateEndpointAddressReuse {
+            return channelOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: true)
+        }
+        return .none
+    }
+}
 #endif
