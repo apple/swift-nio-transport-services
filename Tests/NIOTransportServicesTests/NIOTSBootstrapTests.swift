@@ -246,6 +246,30 @@ final class NIOTSBootstrapTests: XCTestCase {
         XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongELG, childGroup: correctELG))
         XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongEL, childGroup: correctEL))
     }
+    
+    func testEndpointReuseShortcutOption() throws {
+        let group = NIOTSEventLoopGroup()
+        let listenerChannel = try NIOTSListenerBootstrap(group: group)
+            /* .childChannelInitializer { channel in
+                XCTAssertEqual(0, numberOfConnections.add(1))
+                return channel.pipeline.addHandler(TellMeIfConnectionIsTLSHandler(isTLS: isTLS))
+            } */
+            .bind(host: "127.0.0.1", port: 0)
+            .wait()
+        
+        var optionValue : EventLoopFuture<Bool>? = nil
+        let bootstrap = NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
+                                              tls: NIOInsecureNoTLS())
+            .channelOptions([.allowImmediateEndpointAddressReuse])
+            .channelInitializer { channel in
+                optionValue = channel.getOption(NIOTSChannelOptions.allowLocalEndpointReuse)
+                return channel.eventLoop.makeSucceededFuture(())
+            }
+        var client = try bootstrap.connect(to: listenerChannel.localAddress!).wait()
+        try client.close().wait()
+        
+        XCTAssertEqual(try optionValue!.wait(), true)
+    }
 }
 
 extension Channel {
