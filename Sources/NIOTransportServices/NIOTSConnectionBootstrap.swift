@@ -250,7 +250,7 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
     public func applyChannelOption(_ option: NIOTCPShorthandOption) -> Self? {
         // Currently the only thing we have special action for is allowImmediateEndpointAddressReuse
         // deal with that and let the default behaviour take care of everything else.
-        if option == NIOTCPShorthandOption.allowImmediateEndpointAddressReuse {
+        if option == NIOTCPShorthandOption.allowImmediateLocalEndpointAddressReuse {
             return channelOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: true)
         }
         return .none
@@ -276,7 +276,7 @@ extension NIOTSConnectionBootstrap {
     @usableFromInline
     func channelOption(_ option: NIOTCPShorthandOption) -> NIOTSConnectionBootstrap {
         let applier = NIOTSConnectionBootstrap_Applier(contained: self)
-        return option.applyOptionDefaultMapping(with: applier).contained
+        return option.applyOptionDefaultMapping(applier).contained
     }
     
     fileprivate struct NIOTSConnectionBootstrap_Applier : NIOChannelOptionAppliable {

@@ -256,7 +256,7 @@ final class NIOTSBootstrapTests: XCTestCase {
         var optionValue : EventLoopFuture<Bool>? = nil
         let bootstrap = NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
                                               tls: NIOInsecureNoTLS())
-            .channelOptions([.allowImmediateEndpointAddressReuse])
+            .channelOptions([.allowImmediateLocalEndpointAddressReuse])
             .channelInitializer { channel in
                 optionValue = channel.getOption(NIOTSChannelOptions.allowLocalEndpointReuse)
                 return channel.eventLoop.makeSucceededFuture(())
@@ -304,7 +304,7 @@ final class NIOTSBootstrapTests: XCTestCase {
         
         try checkOptionEquivalence(longOption: NIOTSChannelOptions.allowLocalEndpointReuse,
                                    setValue: true,
-                                   shortOption: .allowImmediateEndpointAddressReuse)
+                                   shortOption: .allowImmediateLocalEndpointAddressReuse)
         try checkOptionEquivalence(longOption: ChannelOptions.allowRemoteHalfClosure,
                                    setValue: true,
                                    shortOption: .allowRemoteHalfClosure)
