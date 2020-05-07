@@ -160,16 +160,13 @@ internal class NIOTSEventLoop: QoSEventLoop {
         }
     }
 
-    public func preconditionInEventLoop(_ message: @autoclosure() -> String, file: StaticString, line: UInt) {
-        /// `dispatchPrecondition(condition:)` is unable to accept an error message for the failure case, and we
-        /// can not safely rely on `self.inEventLoop` in this implementation. Any message provided by the caller
-        /// must therefore be ignored. We do not foresee ever being able to fix this behavior, given the design
-        /// constraints of the respective subsystems.
+    @inlinable
+    public func preconditionInEventLoop(file: StaticString, line: UInt) {
         dispatchPrecondition(condition: .onQueue(self.loop))
     }
 
-    public func preconditionNotInEventLoop(_ message: @autoclosure() -> String = "", file: StaticString, line: UInt) {
-        /// As in our counterpart method, we can't do anything with the `message` parameter. See above for details.
+    @inlinable
+    public func preconditionNotInEventLoop(file: StaticString, line: UInt) {
         dispatchPrecondition(condition: .notOnQueue(self.loop))
     }
 }
