@@ -50,6 +50,30 @@ fileprivate enum LifecycleState {
     case closed
 }
 
+/// Reports a fatal error in the same manner as `preconditionFailure(_:file:line:)`. Requires Swift private API
+/// via `SwiftShims`. Used in `preconditionInEventLoop(_:file:line:)` and `preconditionNotInEventLoop(_:file:line:)`.
+/// This will almost definitely be removed before merging.
+#if !USE_PUBLIC_API_ONLY
+import SwiftShims
+
+fileprivate func stdlibPrivate_reportFatalErrorInFile(prefix: StaticString, message: String, file: StaticString, line: UInt) {
+    var mmessage = message
+    
+    prefix.withUTF8Buffer { prefix in
+        mmessage.withUTF8 { message in
+            file.withUTF8Buffer { file in
+                _swift_stdlib_reportFatalErrorInFile(
+                    prefix.baseAddress!, CInt(prefix.count),
+                    message.baseAddress!, CInt(message.count),
+                    file.baseAddress!, CInt(file.count),
+                    UInt32(line),
+                    UInt32(_isDebugAssertConfiguration() ? 1 : 0)
+                )
+            }
+        }
+    }
+}
+#endif
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal class NIOTSEventLoop: QoSEventLoop {
@@ -150,7 +174,88 @@ internal class NIOTSEventLoop: QoSEventLoop {
     }
 
     func preconditionInEventLoop(file: StaticString, line: UInt) {
+        // Do not forward to the other overload.
         dispatchPrecondition(condition: .onQueue(self.loop))
+    }
+
+    func preconditionInEventLoop(_ message: @autoclosure() -> String, file: StaticString, line: UInt) {
+        /// There are several problems complicating this otherwise simple method:
+        ///
+        ///  - There's no way to hook into `dispatchPrecondition(condition:)` failures, so there's no way to
+        ///    output a message on failure before the process crashes.
+        ///
+        ///  - There are esoteric ways of interrupting the process crashing, such as a fatal signal handler,
+        ///    but none of them are safe or play well with user code.
+        ///
+        ///  - We can't just ignore the `message`. For example, in `EventLoopFuture.wait()`, the precondition comes
+        ///    with a clear and immediate explanation of what went wrong. This explanation is invaluable to coders
+        ///    still learning how futures and event loops work, but it can't help if it's discarded.
+        ///
+        ///  - The value of `self.inEventLoop` is documented as unreliable. Specifically, there is an apparent
+        ///    risk of inccorect `false` values, which would cause the precondition to trigger when it shouldn't.
+        ///
+        ///  - It is possible to submit a carefully constructed task to an appropriate choice of event loop and await
+        ///    a result that will determine whether or not the caller is running in the event loop. But, the code to
+        ///    do it would be very convoluted and very easy to break by accident. It would also be very slow, incurring
+        ///    at least two context switches just as a start. Given that this code remains active in release builds, the
+        ///    speed cost would be unacceptable even if the implementation was perfect.
+        ///
+        /// At the time of this writing, it's uncear what the best solution is, or if there is one at all. It would
+        /// be extremely helpful to obtain a more complete understanding of exactly how and why `inEventLoop`'s
+        /// behavior is unreliable.
+        ///
+        /// For now, in order to produce a first draft, this implementation assumes (pretends?) that `inEventLoop` is
+        /// accurate and treats its value as definitive. The value determines whether or not the provided message (if
+        /// any) is reported. Either way, an appropriate `dispatchPrecondition(condition:)` call follows afterwards
+        /// so the process continues or terminates correctly even if the flag was wrong after all. The behavior in that
+        /// case will be a spurious message referring to a failure that didn't happen. This won't be acceptable as a
+        /// final implementation but it works fine as a first draft.
+        precondition({
+            if !self.inEventLoop {
+                let msg = message()
+
+                // Ideally, we'd like mimic `preconditionFailure()` as much as possible. Unfortunately, this is
+                // impossible to accomplish using public API without also terminating the process. Two solutions
+                // are shown here:
+                #if USE_PUBLIC_API_ONLY
+                    /// In the API-only case, just accept it's not gonna be a real "fatal error" and print to stderr.
+                    /// Not that calling `write(2)` like this is really so great either, but at least it's simple. It
+                    /// can be improved upon as needed.
+                    let output = "Precondition failure: \(msg)\(msg.isEmpty ? "" : ": ")file \(file), line \(line)\n"
+                    
+                    write(STDERR_FILENO, output, output.utf8.count)
+                #else
+                    /// If private API is allowed, pretty much just copy how `preconditionFailure(_:file:line:)` works,
+                    /// minus the "crash this process" part at the end.
+                    /// See `stdlibPrivate_reportFatalErrorInFile(prefix:message:file:line:)` above for more details.
+                    stdlibPrivate_reportFatalErrorInFile(prefix: "Precondition failure", message: msg, file: file, line: line)
+                #endif
+            }
+            return true
+        }())
+        dispatchPrecondition(condition: .onQueue(self.loop))
+    }
+
+    func preconditionNotInEventLoop(_ message: @autoclosure() -> String = "", file: StaticString, line: UInt) {
+        /// Refer to the detailed remarks immediately above in `preconditionInEventLoop(_:file:line:)`
+        /// for background information and contextual detail on this implementation.
+        ///
+        /// Additional note: In the case of this method, instead of a spurious erorr message if the `inEventLoop`
+        /// flag is wrong, there will be a spurious _lack_ of an error message. This is even less acceptable,
+        /// obviously, but again, it will work as a first draft.
+        precondition({
+            if self.inEventLoop {
+                let msg = message()
+                #if USE_PUBLIC_API_ONLY
+                    let output = "Precondition failure: \(msg)\(msg.isEmpty ? "" : ": ")file \(file), line \(line)\n"
+                    write(STDERR_FILENO, output, output.utf8.count)
+                #else
+                    stdlibPrivate_reportFatalErrorInFile(prefix: "Precondition failure", message: msg, file: file, line: line)
+                #endif
+            }
+            return true
+        }())
+        dispatchPrecondition(condition: .notOnQueue(self.loop))
     }
 }
 
