@@ -43,6 +43,19 @@ and add the project as a sub-project by dragging it into your iOS project and ad
 
 Do note however that Network.framework requires macOS 10.14+, iOS 12+, or tvOS 12+.
 
+### Supported Platforms
+
+NIOTransportServices is supported where Network.framework is supported: macOS
+10.14+, iOS 12+, tvOS 12+, and watchOS 6+.
+
+In order to allow dependencies to use NIOTransportServices when it's available
+and fallback to NIO when it isn't, all code is behind import guards checking
+the availability of Network.framework. As such NIOTransportServices may be
+built on platforms where Network.framework is *not* available.
+NIOTransportServices can be built on macOS 10.12+, iOS 10+, tvOS 10+, watchOS
+6+ and Linux but is only functionally useful on macOS 10.14+, iOS 12+, tvOS 12+
+and watchOS 6+.
+
 ## Versioning
 
 Just like the rest of the SwiftNIO family, `swift-nio-transport-services` follows [SemVer 2.0.0](https://semver.org/#semantic-versioning-200) with a separate document
