@@ -94,7 +94,7 @@ public final class NIOTSListenerBootstrap {
     /// Create a `NIOTSListenerBootstrap`.
     ///
     /// This initializer only exists to be more in-line with the NIO core bootstraps, in that they
-    /// may be constructed with an `EventLoopGroup` and by extenstion an `EventLoop`. As such an
+    /// may be constructed with an `EventLoopGroup` and by extension an `EventLoop`. As such an
     /// existing `NIOTSEventLoop` may be used to initialize this bootstrap. Where possible the
     /// initializers accepting `NIOTSEventLoopGroup` should be used instead to avoid the wrong
     /// type being used.
@@ -161,7 +161,8 @@ public final class NIOTSListenerBootstrap {
     }
 
     /// Initialize the accepted `NIOTSConnectionChannel`s with `initializer`. The most common task in initializer is to add
-    /// `ChannelHandler`s to the `ChannelPipeline`.
+    /// `ChannelHandler`s to the `ChannelPipeline`. Note that if the `initializer` fails then the error will be
+    /// fired in the *parent* channel.
     ///
     /// The accepted `Channel` will operate on `ByteBuffer` as inbound and `IOData` as outbound messages.
     ///
