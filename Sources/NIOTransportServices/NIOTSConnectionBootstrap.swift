@@ -243,48 +243,16 @@ public final class NIOTSConnectionBootstrap {
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
-    /// Apply a shorthand option to this bootstrap.
+    /// Apply any understood shorthand options to the bootstrap, removing them from the set of options if they are consumed.
     /// - parameters:
-    ///     - option:  The option to try applying.
-    /// - returns: The updated bootstrap if option was successfully applied, otherwise nil suggesting the caller try another method.
-    public func applyChannelOption(_ option: NIOTCPShorthandOption) -> Self? {
-        // Currently the only thing we have special action for is allowImmediateEndpointAddressReuse
-        // deal with that and let the default behaviour take care of everything else.
-        if option == NIOTCPShorthandOption.allowImmediateLocalEndpointAddressReuse {
-            return channelOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: true)
-        }
-        return .none
-    }
-}
-
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSConnectionBootstrap {
-    /// Specifies some `ChannelOption`s to be applied to the channel.
-    /// - See: channelOption
-    /// - Parameter options: List of shorthand options to apply.
-    /// - Returns: The updated client bootstrap (`self` being mutated)
-    @inlinable
-    public func channelOptions(_ options: [NIOTCPShorthandOption]) -> NIOTSConnectionBootstrap {
+    ///     - options:  The options to try applying - the options applied should be consumed from here.
+    /// - returns: The updated bootstrap with and options applied.
+    public func applyOptions(_ options: inout NIOTCPShorthandOptions) -> Self {
         var toReturn = self
-        for option in options {
-            // Apply our specific overrides first.
-            toReturn = applyChannelOption(option) ?? toReturn.channelOption(option)
+        if options.consumeAllowImmediateLocalEndpointAddressReuse().isSet {
+            toReturn = channelOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: true)
         }
         return toReturn
-    }
-    
-    @usableFromInline
-    func channelOption(_ option: NIOTCPShorthandOption) -> NIOTSConnectionBootstrap {
-        let applier = NIOTSConnectionBootstrap_Applier(contained: self)
-        return option.applyOptionDefaultMapping(applier).contained
-    }
-    
-    fileprivate struct NIOTSConnectionBootstrap_Applier : NIOChannelOptionAppliable {
-        var contained : NIOTSConnectionBootstrap
-        
-        func applyOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> NIOTSConnectionBootstrap_Applier {
-            return NIOTSConnectionBootstrap_Applier(contained: contained.channelOption(option, value: value))
-        }
     }
 }
 #endif

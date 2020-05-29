@@ -256,7 +256,7 @@ final class NIOTSBootstrapTests: XCTestCase {
         var optionValue : EventLoopFuture<Bool>? = nil
         let bootstrap = NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
                                               tls: NIOInsecureNoTLS())
-            .channelOptions([.allowImmediateLocalEndpointAddressReuse])
+            .options([.allowImmediateLocalEndpointAddressReuse])
             .channelInitializer { channel in
                 optionValue = channel.getOption(NIOTSChannelOptions.allowLocalEndpointReuse)
                 return channel.eventLoop.makeSucceededFuture(())
@@ -268,16 +268,16 @@ final class NIOTSBootstrapTests: XCTestCase {
     }
     
     func testShorthandOptionsAreEquvalent() throws {
-        func setAndGetOption<Option>(option: Option, _ applyOptions : (NIOTSConnectionBootstrap) ->
-            NIOTSConnectionBootstrap) throws
-            -> Option.Value where Option : ChannelOption {
+        func setAndGetOption<Option>(option: Option, _ applyOptions : (NIOClientTCPBootstrap) ->
+                NIOClientTCPBootstrap) throws -> Option.Value where Option : ChannelOption {
             var optionRead : EventLoopFuture<Option.Value>?
             let group = NIOTSEventLoopGroup()
             let listenerChannel = try NIOTSListenerBootstrap(group: group)
                 .bind(host: "127.0.0.1", port: 0)
                 .wait()
             
-            let bootstrap = applyOptions(NIOTSConnectionBootstrap(group: group))
+            let bootstrap = applyOptions(NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
+                                                               tls: NIOInsecureNoTLS()))
                 .channelInitializer { channel in
                     optionRead = channel.getOption(option)
                     return channel.eventLoop.makeSucceededFuture(())
@@ -294,7 +294,7 @@ final class NIOTSBootstrapTests: XCTestCase {
                 bs.channelOption(longOption, value: setValue)
             }
             let shortSetValue = try setAndGetOption(option: longOption) { bs in
-                bs.channelOptions([shortOption])
+                bs.options([shortOption])
             }
             let unsetValue = try setAndGetOption(option: longOption) { $0 }
             
