@@ -349,6 +349,34 @@ extension NIOTSConnectionChannel: Channel {
     }
 
     public func getOption<Option: ChannelOption>(_ option: Option) -> EventLoopFuture<Option.Value> {
+        if #available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *) {
+            switch option {
+            case is NIOTSChannelOptions.Types.NIOTSEstablishmentReportOption:
+                let promise: EventLoopPromise<Option.Value> = eventLoop.makePromise()
+                do {
+                    try self.nwConnection0().requestEstablishmentReport(queue: self.connectionQueue) {
+                        promise.succeed($0 as! Option.Value)
+                    }
+                } catch {
+                    promise.fail(error)
+                }
+                return promise.futureResult
+                
+            case is NIOTSChannelOptions.Types.NIOTSDataTransferReportOption:
+                let promise: EventLoopPromise<Option.Value> = eventLoop.makePromise()
+                do {
+                    let pendingReport = try self.nwConnection0().startDataTransferReport()
+                    promise.succeed(pendingReport as! Option.Value)
+                } catch {
+                    promise.fail(error)
+                }
+                return promise.futureResult
+                
+            default:
+                break
+            }
+        }
+        
         if eventLoop.inEventLoop {
             let promise: EventLoopPromise<Option.Value> = eventLoop.makePromise()
             executeAndComplete(promise) { try getOption0(option: option) }
@@ -388,7 +416,14 @@ extension NIOTSConnectionChannel: Channel {
             return self.options.waitForActivity as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
             return self.enablePeerToPeer as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSCurrentPathOption:
+            return try self.nwConnection0().currentPath as! Option.Value
         default:
+            if #available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *) {
+                if let metadataOption = option as? NIOTSChannelOptions.Types.NIOTSMetadataOption {
+                    return try self.nwConnection0().metadata(definition: metadataOption.definition) as! Option.Value
+                }
+            }
             fatalError("option \(type(of: option)).\(option) not supported")
         }
     }
@@ -423,6 +458,13 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         init() {
             self = .open
         }
+    }
+    
+    public func nwConnection0() throws -> NWConnection {
+        guard let nwConnection = self.nwConnection else {
+            throw NIOTSErrors.NoCurrentConnection()
+        }
+        return nwConnection
     }
 
     public func localAddress0() throws -> SocketAddress {

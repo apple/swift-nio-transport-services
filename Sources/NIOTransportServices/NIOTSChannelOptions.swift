@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #if canImport(Network)
 import NIO
+import Network
 
 /// Options that can be set explicitly and only on bootstraps provided by `NIOTransportServices`.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -21,6 +22,19 @@ public struct NIOTSChannelOptions {
     public static let waitForActivity = NIOTSChannelOptions.Types.NIOTSWaitForActivityOption()
 
     public static let enablePeerToPeer = NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption()
+    
+    public static let currentPath = Types.NIOTSCurrentPathOption()
+
+    @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+    public static let metadata = { (definition: NWProtocolDefinition) -> Types.NIOTSMetadataOption in
+        .init(definition: definition)
+    }
+
+    @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+    public static let establishmentReport = Types.NIOTSEstablishmentReportOption()
+
+    @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+    public static let dataTransferReport = Types.NIOTSDataTransferReportOption()
 }
 
 
@@ -52,6 +66,50 @@ extension NIOTSChannelOptions {
         public struct NIOTSEnablePeerToPeerOption: ChannelOption, Equatable {
             public typealias Value = Bool
 
+            public init() {}
+        }
+        
+        /// `NIOTSCurrentPathOption` accesses the `NWConnection.currentPath` of the underlying connection.
+        ///
+        /// This option is only valid with `NIOTSConnectionBootstrap`.
+        @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        public struct NIOTSCurrentPathOption: ChannelOption, Equatable {
+            public typealias Value = NWPath
+            
+            public init() {}
+        }
+        
+        /// `NIOTSMetadataOption` accesses the metadata for a given `NWProtocol`.
+        ///
+        /// This option is only valid with `NIOTSConnectionBootstrap`.
+        @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        public struct NIOTSMetadataOption: ChannelOption, Equatable {
+            public typealias Value = NWProtocolMetadata
+            
+            let definition: NWProtocolDefinition
+            
+            public init(definition: NWProtocolDefinition) {
+                self.definition = definition
+            }
+        }
+
+        /// `NIOTSEstablishmentReportOption` accesses the `NWConnection.EstablishmentReport` of the underlying connection.
+        ///
+        /// This option is only valid with `NIOTSConnectionBootstrap`.
+        @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        public struct NIOTSEstablishmentReportOption: ChannelOption, Equatable {
+            public typealias Value = NWConnection.EstablishmentReport
+            
+            public init() {}
+        }
+
+        /// `NIOTSDataTransferReportOption` accesses the `NWConnection.DataTransferReport` of the underlying connection.
+        ///
+        /// This option is only valid with `NIOTSConnectionBootstrap`.
+        @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        public struct NIOTSDataTransferReportOption: ChannelOption, Equatable {
+            public typealias Value = NWConnection.PendingDataTransferReport
+            
             public init() {}
         }
     }
