@@ -45,6 +45,10 @@ public enum NIOTSErrors {
     /// that channel has no path available. This can manifest, for example, when asking for remote
     /// or local addresses.
     public struct NoCurrentPath: NIOTSError { }
+    
+    /// `NoCurrentConnection` is thrown when an attempt is made to request connection details from a channel and
+    /// that channel has no connection available.
+    public struct NoCurrentConnection: NIOTSError { }
 
     /// `InvalidPort` is thrown when the port passed to a method is not valid.
     public struct InvalidPort: NIOTSError {

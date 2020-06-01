@@ -388,7 +388,39 @@ extension NIOTSConnectionChannel: Channel {
             return self.options.waitForActivity as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
             return self.enablePeerToPeer as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSCurrentPathOption:
+            guard let currentPath = self.nwConnection?.currentPath else {
+                throw NIOTSErrors.NoCurrentPath()
+            }
+            return currentPath as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSMetadataOption:
+            let optionValue = option as! NIOTSChannelOptions.Types.NIOTSMetadataOption
+            guard let nwConnection = self.nwConnection else {
+                throw NIOTSErrors.NoCurrentConnection()
+            }
+            return nwConnection.metadata(definition: optionValue.definition) as! Option.Value
         default:
+            if #available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *) {
+                switch option {
+                case is NIOTSChannelOptions.Types.NIOTSEstablishmentReportOption:
+                    guard let nwConnection = self.nwConnection else {
+                        throw NIOTSErrors.NoCurrentConnection()
+                    }
+                    let promise: EventLoopPromise<NWConnection.EstablishmentReport?> = eventLoop.makePromise()
+                    nwConnection.requestEstablishmentReport(queue: connectionQueue) { report in
+                        promise.succeed(report)
+                    }
+                    return promise.futureResult as! Option.Value
+                case is NIOTSChannelOptions.Types.NIOTSDataTransferReportOption:
+                    guard let nwConnection = self.nwConnection else {
+                        throw NIOTSErrors.NoCurrentConnection()
+                    }
+                    return nwConnection.startDataTransferReport() as! Option.Value
+                default:
+                    break
+                }
+            }
+            
             fatalError("option \(type(of: option)).\(option) not supported")
         }
     }
