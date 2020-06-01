@@ -19,7 +19,7 @@ import NIOConcurrencyHelpers
 import NIOTransportServices
 import Network
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 class NIOTSChannelOptionsTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
 
@@ -49,7 +49,6 @@ class NIOTSChannelOptionsTests: XCTestCase {
         XCTAssertEqual(currentPath.status, NWPath.Status.satisfied)
     }
     
-    @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
     func testMetadata() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .bind(host: "localhost", port: 0).wait()
@@ -68,7 +67,7 @@ class NIOTSChannelOptionsTests: XCTestCase {
         XCTAssertEqual(metadata.availableReceiveBuffer, 0)
     }
 
-    @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+    @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
     func testEstablishmentReport() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .bind(host: "localhost", port: 0).wait()
@@ -89,7 +88,7 @@ class NIOTSChannelOptionsTests: XCTestCase {
         XCTAssertEqual(establishmentReport!.resolutions.count, 0)
     }
     
-    @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+    @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
     func testDataTransferReport() throws {
         let syncQueue = DispatchQueue(label: "syncQueue")
         let collectGroup = DispatchGroup()
