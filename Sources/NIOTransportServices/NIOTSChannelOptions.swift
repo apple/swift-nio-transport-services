@@ -25,16 +25,16 @@ public struct NIOTSChannelOptions {
     
     public static let currentPath = Types.NIOTSCurrentPathOption()
 
-    @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-    public static let metadata = { (definition: NWProtocolDefinition) -> Types.NIOTSMetadataOption in
+    @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 5.0, *)
+    public static let metadata = { (definition: NWProtocolDefinition) -> NIOTSChannelOptions.Types.NIOTSMetadataOption in
         .init(definition: definition)
     }
 
-    @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-    public static let establishmentReport = Types.NIOTSEstablishmentReportOption()
+    @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    public static let establishmentReport = NIOTSChannelOptions.Types.NIOTSEstablishmentReportOption()
 
-    @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-    public static let dataTransferReport = Types.NIOTSDataTransferReportOption()
+    @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    public static let dataTransferReport = NIOTSChannelOptions.Types.NIOTSDataTransferReportOption()
 }
 
 
@@ -82,7 +82,7 @@ extension NIOTSChannelOptions {
         /// `NIOTSMetadataOption` accesses the metadata for a given `NWProtocol`.
         ///
         /// This option is only valid with `NIOTSConnectionBootstrap`.
-        @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 5.0, *)
         public struct NIOTSMetadataOption: ChannelOption, Equatable {
             public typealias Value = NWProtocolMetadata
             
@@ -96,9 +96,9 @@ extension NIOTSChannelOptions {
         /// `NIOTSEstablishmentReportOption` accesses the `NWConnection.EstablishmentReport` of the underlying connection.
         ///
         /// This option is only valid with `NIOTSConnectionBootstrap`.
-        @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
         public struct NIOTSEstablishmentReportOption: ChannelOption, Equatable {
-            public typealias Value = NWConnection.EstablishmentReport
+            public typealias Value = EventLoopFuture<NWConnection.EstablishmentReport?>
             
             public init() {}
         }
@@ -106,7 +106,7 @@ extension NIOTSChannelOptions {
         /// `NIOTSDataTransferReportOption` accesses the `NWConnection.DataTransferReport` of the underlying connection.
         ///
         /// This option is only valid with `NIOTSConnectionBootstrap`.
-        @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
         public struct NIOTSDataTransferReportOption: ChannelOption, Equatable {
             public typealias Value = NWConnection.PendingDataTransferReport
             

@@ -83,8 +83,10 @@ class NIOTSChannelOptionsTests: XCTestCase {
             XCTAssertNoThrow(try connection.close().wait())
         }
         
-        let report = try connection.getOption(NIOTSChannelOptions.establishmentReport).wait()
-        XCTAssertEqual(report.resolutions.count, 0)
+        let reportFuture = try connection.getOption(NIOTSChannelOptions.establishmentReport).wait()
+        let establishmentReport = try reportFuture.wait()
+        
+        XCTAssertEqual(establishmentReport!.resolutions.count, 0)
     }
     
     @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -104,11 +106,9 @@ class NIOTSChannelOptionsTests: XCTestCase {
         
         let pendingReport = try connection.getOption(NIOTSChannelOptions.dataTransferReport).wait()
         
-        // okay this here does not work, obviously
-        
-        //  pendingReport.collect(queue: .main) { report in
-        //      XCTAssertEqual(report.pathReports.count, 1)
-        //  }
+        pendingReport.collect(queue: .main) { report in
+            XCTAssertEqual(report.pathReports.count, 1)
+        }
     }
 
 }
