@@ -2,7 +2,7 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2020 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -91,6 +91,9 @@ class NIOTSChannelOptionsTests: XCTestCase {
     
     @available(OSX 10.15, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
     func testDataTransferReport() throws {
+        let syncQueue = DispatchQueue(label: "syncQueue")
+        let collectGroup = DispatchGroup()
+
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .bind(host: "localhost", port: 0).wait()
         defer {
@@ -106,9 +109,13 @@ class NIOTSChannelOptionsTests: XCTestCase {
         
         let pendingReport = try connection.getOption(NIOTSChannelOptions.dataTransferReport).wait()
         
-        pendingReport.collect(queue: .main) { report in
+        collectGroup.enter()
+        pendingReport.collect(queue: syncQueue) { report in
             XCTAssertEqual(report.pathReports.count, 1)
+            collectGroup.leave()
         }
+
+        collectGroup.wait()
     }
 
 }

@@ -426,6 +426,7 @@ extension NIOTSConnectionChannel: Channel {
     }
 }
 
+
 // MARK:- NIOTSConnectionChannel implementation of StateManagedChannel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel: StateManagedChannel {
@@ -455,7 +456,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
             self = .open
         }
     }
-    
+
     public func localAddress0() throws -> SocketAddress {
         guard let localEndpoint = self.nwConnection?.currentPath?.localEndpoint else {
             throw NIOTSErrors.NoCurrentPath()

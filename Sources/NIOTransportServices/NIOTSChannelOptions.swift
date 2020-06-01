@@ -25,7 +25,6 @@ public struct NIOTSChannelOptions {
     
     public static let currentPath = NIOTSChannelOptions.Types.NIOTSCurrentPathOption()
 
-    @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 5.0, *)
     public static let metadata = { (definition: NWProtocolDefinition) -> NIOTSChannelOptions.Types.NIOTSMetadataOption in
         .init(definition: definition)
     }
