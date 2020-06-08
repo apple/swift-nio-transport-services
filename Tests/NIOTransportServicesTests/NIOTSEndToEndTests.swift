@@ -20,7 +20,8 @@ import Foundation
 import Network
 
 
-func assertNoThrowWithValue<T>(_ body: @autoclosure () throws -> T, defaultValue: T? = nil, message: String? = nil, file: StaticString = #file, line: UInt = #line) throws -> T {
+func assertNoThrowWithValue<T>(_ body: @autoclosure () throws -> T, defaultValue: T? = nil, message: String? = nil,
+                               file: StaticString = (#file), line: UInt = #line) throws -> T {
     do {
         return try body()
     } catch {
