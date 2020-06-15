@@ -67,5 +67,18 @@ public enum NIOTSNetworkEvents {
         /// The endpoint to which we want to bind.
         public let endpoint: NWEndpoint
     }
+
+    /// This event is fired when when the OS has informed NIO that it cannot immediately connect
+    /// to the remote endpoint, but that it is possible that changes in network conditions may
+    /// allow connection in future. This can occur in cases where the route is not currently
+    /// satisfiable (e.g. because airplane mode is on, or because the app is forbidden from using cellular)
+    /// but where a change in network state may allow the connection.
+    public struct WaitingForConnectivity: NIOTSNetworkEvent {
+        /// The reason the connection couldn't be established at this time.
+        ///
+        /// Note that these reasons are _not fatal_: applications are strongly advised not to treat them
+        /// as fatal, and instead to use them as information to inform UI decisions.
+        public var transientError: NWError
+    }
 }
 #endif

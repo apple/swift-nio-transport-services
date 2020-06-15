@@ -688,6 +688,7 @@ extension NIOTSConnectionChannel {
                 // This means the connection cannot currently be completed. We should notify the pipeline
                 // here, or support this with a channel option or something, but for now for the sake of
                 // demos we will just allow ourselves into this stage.
+                self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.WaitingForConnectivity(transientError: err))
                 break
             }
 
