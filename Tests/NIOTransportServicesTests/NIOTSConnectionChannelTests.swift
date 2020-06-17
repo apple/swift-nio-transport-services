@@ -89,7 +89,7 @@ final class DisableWaitingAfterConnect: ChannelOutboundHandler {
 
 final class PromiseOnActiveHandler: ChannelInboundHandler {
     typealias InboundIn = Any
-    typealias InboudOut = Any
+    typealias InboundOut = Any
 
     private let promise: EventLoopPromise<Void>
 
@@ -99,6 +99,27 @@ final class PromiseOnActiveHandler: ChannelInboundHandler {
 
     func channelActive(context: ChannelHandlerContext) {
         self.promise.succeed(())
+    }
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+final class EventWaiter<Event>: ChannelInboundHandler {
+    typealias InboundIn = Any
+    typealias InboundOut = Any
+
+    private var eventWaiter: EventLoopPromise<Event>?
+
+    init(_ eventWaiter: EventLoopPromise<Event>) {
+        self.eventWaiter = eventWaiter
+    }
+
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+        if let event = event as? Event {
+            var promise = Optional<EventLoopPromise<Event>>.none
+            swap(&promise, &self.eventWaiter)
+            promise?.succeed(event)
+        }
+        context.fireUserInboundEventTriggered(event)
     }
 }
 
@@ -734,6 +755,28 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }.flatMap { $0.close() }
 
         XCTAssertNoThrow(try workFuture.wait())
+    }
+
+    func testConnectingInvolvesWaiting() throws {
+        let loop = self.group.next()
+        let eventPromise = loop.makePromise(of: NIOTSNetworkEvents.WaitingForConnectivity.self)
+        let eventRecordingHandler = EventWaiter<NIOTSNetworkEvents.WaitingForConnectivity>(eventPromise)
+
+        let connectBootstrap = NIOTSConnectionBootstrap(group: loop)
+            .channelInitializer { channel in channel.pipeline.addHandler(eventRecordingHandler) }
+            .connectTimeout(.seconds(5))  // This is the worst-case test time: normally it'll be faster as we don't wait for this.
+
+        let target = NWEndpoint.hostPort(host: "example.invalid", port: 80)
+
+        // We don't wait here, as the connect attempt should timeout. If it doesn't, we'll close it.
+        connectBootstrap.connect(endpoint: target).whenSuccess { conn in
+            XCTFail("DNS resolution should have returned NXDOMAIN but did not: DNS hijacking forces this test to fail")
+            conn.close(promise: nil)
+        }
+
+        // We don't actually investigate this because the error is going to be very OS specific. It just mustn't
+        // throw
+        XCTAssertNoThrow(try eventPromise.futureResult.wait())
     }
 }
 #endif
