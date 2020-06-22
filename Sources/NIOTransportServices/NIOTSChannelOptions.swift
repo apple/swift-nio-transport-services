@@ -58,7 +58,6 @@ extension NIOTSChannelOptions {
             public init() {}
         }
 
-
         /// `NIOTSEnablePeerToPeerOption` controls whether the `Channel` will advertise services using peer-to-peer
         /// connectivity. Setting this to true is the equivalent of setting `NWParameters.enablePeerToPeer` to
         /// `true`. By default this option is set to `false`.
@@ -79,6 +78,9 @@ extension NIOTSChannelOptions {
         @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
         public struct NIOTSAllowLocalEndpointReuse: ChannelOption, Equatable {
             public typealias Value = Bool
+            
+            public init() {}
+        }
 
         /// `NIOTSCurrentPathOption` accesses the `NWConnection.currentPath` of the underlying connection.
         ///
