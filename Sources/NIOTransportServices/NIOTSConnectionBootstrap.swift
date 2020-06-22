@@ -247,9 +247,9 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
     /// - parameters:
     ///     - options:  The options to try applying - the options applied should be consumed from here.
     /// - returns: The updated bootstrap with and options applied.
-    public func _applyOptions(_ options: inout NIOTCPShorthandOptions) -> Self {
+    public func _applyChannelConvenienceOptions(_ options: inout ChannelOptions.TCPConvenienceOptions) -> Self {
         var toReturn = self
-        if options.consumeAllowImmediateLocalEndpointAddressReuse().isSet {
+        if options.consumeAllowLocalEndpointReuse().isSet {
             toReturn = channelOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: true)
         }
         return toReturn

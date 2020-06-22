@@ -256,7 +256,7 @@ final class NIOTSBootstrapTests: XCTestCase {
         var optionValue : EventLoopFuture<Bool>? = nil
         let bootstrap = NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
                                               tls: NIOInsecureNoTLS())
-            .options([.allowImmediateLocalEndpointAddressReuse])
+            .channelConvenienceOptions([.allowLocalEndpointReuse])
             .channelInitializer { channel in
                 optionValue = channel.getOption(NIOTSChannelOptions.allowLocalEndpointReuse)
                 return channel.eventLoop.makeSucceededFuture(())
@@ -288,13 +288,13 @@ final class NIOTSBootstrapTests: XCTestCase {
         }
         
         func checkOptionEquivalence<Option>(longOption: Option, setValue: Option.Value,
-                                            shortOption: NIOTCPShorthandOption) throws
+                                            shortOption: ChannelOptions.TCPConvenienceOption) throws
             where Option : ChannelOption, Option.Value : Equatable {
             let longSetValue = try setAndGetOption(option: longOption) { bs in
                 bs.channelOption(longOption, value: setValue)
             }
             let shortSetValue = try setAndGetOption(option: longOption) { bs in
-                bs.options([shortOption])
+                bs.channelConvenienceOptions([shortOption])
             }
             let unsetValue = try setAndGetOption(option: longOption) { $0 }
             
@@ -304,7 +304,7 @@ final class NIOTSBootstrapTests: XCTestCase {
         
         try checkOptionEquivalence(longOption: NIOTSChannelOptions.allowLocalEndpointReuse,
                                    setValue: true,
-                                   shortOption: .allowImmediateLocalEndpointAddressReuse)
+                                   shortOption: .allowLocalEndpointReuse)
         try checkOptionEquivalence(longOption: ChannelOptions.allowRemoteHalfClosure,
                                    setValue: true,
                                    shortOption: .allowRemoteHalfClosure)
