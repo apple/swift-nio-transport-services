@@ -246,7 +246,7 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
     /// Apply any understood shorthand options to the bootstrap, removing them from the set of options if they are consumed.
     /// - parameters:
     ///     - options:  The options to try applying - the options applied should be consumed from here.
-    /// - returns: The updated bootstrap with and options applied.
+    /// - returns: The updated bootstrap with any understood options applied.
     public func _applyChannelConvenienceOptions(_ options: inout ChannelOptions.TCPConvenienceOptions) -> Self {
         var toReturn = self
         if options.consumeAllowLocalEndpointReuse().isSet {

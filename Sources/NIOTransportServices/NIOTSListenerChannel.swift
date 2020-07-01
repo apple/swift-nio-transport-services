@@ -316,7 +316,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
         }
 
         // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
-        // either.
+        // either or it's been explicitly set.
         parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort || self.allowLocalEndpointReuse
 
         parameters.includePeerToPeer = self.enablePeerToPeer
