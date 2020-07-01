@@ -246,6 +246,66 @@ final class NIOTSBootstrapTests: XCTestCase {
         XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongELG, childGroup: correctELG))
         XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongEL, childGroup: correctEL))
     }
+    
+    func testEndpointReuseShortcutOption() throws {
+        let group = NIOTSEventLoopGroup()
+        let listenerChannel = try NIOTSListenerBootstrap(group: group)
+            .bind(host: "127.0.0.1", port: 0)
+            .wait()
+        
+        
+        let bootstrap = NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
+                                              tls: NIOInsecureNoTLS())
+            .channelConvenienceOptions([.allowLocalEndpointReuse])
+        let client = try bootstrap.connect(to: listenerChannel.localAddress!).wait()
+        let optionValue = try client.getOption(NIOTSChannelOptions.allowLocalEndpointReuse).wait()
+        try client.close().wait()
+        
+        XCTAssertEqual(optionValue, true)
+    }
+    
+    func testShorthandOptionsAreEquivalent() throws {
+        func setAndGetOption<Option>(option: Option,
+                                     _ applyOptions : (NIOClientTCPBootstrap) -> NIOClientTCPBootstrap)
+                                    throws -> Option.Value where Option : ChannelOption {
+            let group = NIOTSEventLoopGroup()
+            let listenerChannel = try NIOTSListenerBootstrap(group: group)
+                .bind(host: "127.0.0.1", port: 0)
+                .wait()
+            
+            let bootstrap = applyOptions(NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
+                                                               tls: NIOInsecureNoTLS()))
+            let client = try bootstrap.connect(to: listenerChannel.localAddress!).wait()
+            let optionRead = try client.getOption(option).wait()
+            try client.close().wait()
+            return optionRead
+        }
+        
+        func checkOptionEquivalence<Option>(longOption: Option, setValue: Option.Value,
+                                            shortOption: ChannelOptions.TCPConvenienceOption) throws
+            where Option : ChannelOption, Option.Value : Equatable {
+            let longSetValue = try setAndGetOption(option: longOption) { bs in
+                bs.channelOption(longOption, value: setValue)
+            }
+            let shortSetValue = try setAndGetOption(option: longOption) { bs in
+                bs.channelConvenienceOptions([shortOption])
+            }
+            let unsetValue = try setAndGetOption(option: longOption) { $0 }
+            
+            XCTAssertEqual(longSetValue, shortSetValue)
+            XCTAssertNotEqual(longSetValue, unsetValue)
+        }
+        
+        try checkOptionEquivalence(longOption: NIOTSChannelOptions.allowLocalEndpointReuse,
+                                   setValue: true,
+                                   shortOption: .allowLocalEndpointReuse)
+        try checkOptionEquivalence(longOption: ChannelOptions.allowRemoteHalfClosure,
+                                   setValue: true,
+                                   shortOption: .allowRemoteHalfClosure)
+        try checkOptionEquivalence(longOption: ChannelOptions.autoRead,
+                                   setValue: false,
+                                   shortOption: .disableAutoRead)
+    }
 }
 
 extension Channel {

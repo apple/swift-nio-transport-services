@@ -242,5 +242,17 @@ public final class NIOTSConnectionBootstrap {
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {}
+extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
+    /// Apply any understood shorthand options to the bootstrap, removing them from the set of options if they are consumed.
+    /// - parameters:
+    ///     - options:  The options to try applying - the options applied should be consumed from here.
+    /// - returns: The updated bootstrap with any understood options applied.
+    public func _applyChannelConvenienceOptions(_ options: inout ChannelOptions.TCPConvenienceOptions) -> Self {
+        var toReturn = self
+        if options.consumeAllowLocalEndpointReuse().isSet {
+            toReturn = self.channelOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: true)
+        }
+        return toReturn
+    }
+}
 #endif

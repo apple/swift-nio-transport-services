@@ -217,6 +217,9 @@ internal final class NIOTSConnectionChannel {
 
     /// The value of SO_REUSEPORT.
     private var reusePort = false
+    
+    /// The value of the allowLocalEndpointReuse option.
+    private var allowLocalEndpointReuse = false
 
     /// Whether to use peer-to-peer connectivity when connecting to Bonjour services.
     private var enablePeerToPeer = false
@@ -343,6 +346,8 @@ extension NIOTSConnectionChannel: Channel {
             }
         case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
             self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
+            self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -388,6 +393,8 @@ extension NIOTSConnectionChannel: Channel {
             return self.options.waitForActivity as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
             return self.enablePeerToPeer as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
+            return self.allowLocalEndpointReuse as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSCurrentPathOption:
             guard let currentPath = self.nwConnection?.currentPath else {
                 throw NIOTSErrors.NoCurrentPath()
@@ -498,8 +505,8 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         let parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
 
         // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
-        // either.
-        parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort
+        // either or it's been explicitly set.
+        parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort || self.allowLocalEndpointReuse
 
         parameters.includePeerToPeer = self.enablePeerToPeer
 
