@@ -250,7 +250,7 @@ extension NIOTSConnectionBootstrap: NIOClientTCPBootstrapProtocol {
     public func _applyChannelConvenienceOptions(_ options: inout ChannelOptions.TCPConvenienceOptions) -> Self {
         var toReturn = self
         if options.consumeAllowLocalEndpointReuse().isSet {
-            toReturn = channelOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: true)
+            toReturn = self.channelOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: true)
         }
         return toReturn
     }
