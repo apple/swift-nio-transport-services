@@ -253,24 +253,21 @@ final class NIOTSBootstrapTests: XCTestCase {
             .bind(host: "127.0.0.1", port: 0)
             .wait()
         
-        var optionValue : EventLoopFuture<Bool>? = nil
+        
         let bootstrap = NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
                                               tls: NIOInsecureNoTLS())
             .channelConvenienceOptions([.allowLocalEndpointReuse])
-            .channelInitializer { channel in
-                optionValue = channel.getOption(NIOTSChannelOptions.allowLocalEndpointReuse)
-                return channel.eventLoop.makeSucceededFuture(())
-            }
         let client = try bootstrap.connect(to: listenerChannel.localAddress!).wait()
+        let optionValue = try client.getOption(NIOTSChannelOptions.allowLocalEndpointReuse).wait()
         try client.close().wait()
         
-        XCTAssertEqual(try optionValue!.wait(), true)
+        XCTAssertEqual(optionValue, true)
     }
     
-    func testShorthandOptionsAreEquvalent() throws {
-        func setAndGetOption<Option>(option: Option, _ applyOptions : (NIOClientTCPBootstrap) ->
-                NIOClientTCPBootstrap) throws -> Option.Value where Option : ChannelOption {
-            var optionRead : EventLoopFuture<Option.Value>?
+    func testShorthandOptionsAreEquivalent() throws {
+        func setAndGetOption<Option>(option: Option,
+                                     _ applyOptions : (NIOClientTCPBootstrap) -> NIOClientTCPBootstrap)
+                                    throws -> Option.Value where Option : ChannelOption {
             let group = NIOTSEventLoopGroup()
             let listenerChannel = try NIOTSListenerBootstrap(group: group)
                 .bind(host: "127.0.0.1", port: 0)
@@ -278,13 +275,10 @@ final class NIOTSBootstrapTests: XCTestCase {
             
             let bootstrap = applyOptions(NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
                                                                tls: NIOInsecureNoTLS()))
-                .channelInitializer { channel in
-                    optionRead = channel.getOption(option)
-                    return channel.eventLoop.makeSucceededFuture(())
-                }
             let client = try bootstrap.connect(to: listenerChannel.localAddress!).wait()
+            let optionRead = try client.getOption(option).wait()
             try client.close().wait()
-            return try optionRead!.wait()
+            return optionRead
         }
         
         func checkOptionEquivalence<Option>(longOption: Option, setValue: Option.Value,
