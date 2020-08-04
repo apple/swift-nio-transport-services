@@ -13,4 +13,4 @@ services:
     image: swift-nio-transport-services:18.04-5.0
 
   shell:
-    image: swift-nio:18.04-5.0
+    image: swift-nio-transport-services:18.04-5.0
