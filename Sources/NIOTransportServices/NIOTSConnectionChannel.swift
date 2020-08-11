@@ -500,6 +500,16 @@ extension NIOTSConnectionChannel: StateManagedChannel {
     internal func beginActivating0(to target: NWEndpoint, promise: EventLoopPromise<Void>?) {
         assert(self.nwConnection == nil)
         assert(self.connectPromise == nil)
+
+        // Before we start, we validate that the target won't cause a crash: see
+        // https://github.com/apple/swift-nio/issues/1617.
+        if case .hostPort(host: let host, port: _) = target, host == "" {
+            // We don't pass the promise in here because we'll actually not complete it. We complete it manually ourselves.
+            self.close0(error: NIOTSErrors.InvalidHostname(), mode: .all, promise: nil)
+            promise?.fail(NIOTSErrors.InvalidHostname())
+            return
+        }
+
         self.connectPromise = promise
 
         let parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
