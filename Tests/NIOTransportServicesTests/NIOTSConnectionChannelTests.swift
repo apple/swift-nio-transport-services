@@ -778,5 +778,12 @@ class NIOTSConnectionChannelTests: XCTestCase {
         // throw
         XCTAssertNoThrow(try eventPromise.futureResult.wait())
     }
+
+    func testConnectingToEmptyStringErrors() throws {
+        let connectBootstrap = NIOTSConnectionBootstrap(group: self.group)
+        XCTAssertThrowsError(try connectBootstrap.connect(host: "", port: 80).wait()) { error in
+            XCTAssertTrue(error is NIOTSErrors.InvalidHostname)
+        }
+    }
 }
 #endif

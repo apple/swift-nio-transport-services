@@ -69,5 +69,10 @@ public enum NIOTSErrors {
             self.timeout = timeout
         }
     }
+
+    /// `InvalidHostname` is thrown when attempting to connect to an invalid host.
+    public struct InvalidHostname: NIOTSError {
+        public init() { }
+    }
 }
 #endif
