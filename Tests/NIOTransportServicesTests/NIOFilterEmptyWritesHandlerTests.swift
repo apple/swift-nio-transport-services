@@ -260,5 +260,19 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
         )
         thenEmptyWritePromise = nil
     }
+
+    func testCloseOnConnect() {
+        /// This test reproduces https://github.com/grpc/grpc-swift/issues/1014. It does so by testing
+        /// that a precondition _does not fire_. This test makes no assertions, it just shouldn't crash.
+        let channel = EmbeddedChannel(handler: NIOFilterEmptyWritesHandler())
+        let promise = channel.eventLoop.makePromise(of: Void.self)
+        let future: EventLoopFuture<Void> = promise.futureResult.flatMap {
+            XCTAssertTrue(channel.isActive)
+            return channel.close()
+        }
+        channel.connect(to: try! .init(ipAddress: "1.1.1.1", port: 1), promise: promise)
+        XCTAssertNoThrow(try future.wait())
+        XCTAssertFalse(channel.isActive)
+    }
 }
 #endif

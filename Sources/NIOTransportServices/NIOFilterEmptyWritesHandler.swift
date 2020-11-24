@@ -88,9 +88,16 @@ public final class NIOFilterEmptyWritesHandler: ChannelDuplexHandler {
 // Connection state management
 extension NIOFilterEmptyWritesHandler {
     public func channelActive(context: ChannelHandlerContext) {
-        assert(self.state == .notActiveYet)
-        self.state = .open
-        context.fireChannelActive()
+        switch self.state {
+        case .notActiveYet:
+            self.state = .open
+            context.fireChannelActive()
+        case .closedFromLocal:
+            // Closed before we activated, not a problem.
+            assert(self.prefixEmptyWritePromise == nil)
+        case .open, .closedFromRemote, .error:
+            preconditionFailure()
+        }
     }
     
     public func channelInactive(context: ChannelHandlerContext) {
@@ -117,15 +124,17 @@ extension NIOFilterEmptyWritesHandler {
 
         switch (mode, self.state) {
         case (.all, .open),
-             (.output, .open):
+             (.output, .open),
+
+             // We allow closure in .notActiveYet because it is possible to close before the channelActive fires.
+             (.all, .notActiveYet),
+             (.output, .notActiveYet):
             self.state = .closedFromLocal
             save?.fail(ChannelError.outputClosed)
         case (.all, .closedFromLocal),
              (.output, .closedFromLocal),
              (.all, .closedFromRemote),
              (.output, .closedFromRemote),
-             (.all, .notActiveYet),
-             (.output, .notActiveYet),
              (.all, .error),
              (.output, .error):
             assert(save == nil)
