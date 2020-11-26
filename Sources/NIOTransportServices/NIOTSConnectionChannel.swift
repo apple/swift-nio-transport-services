@@ -407,7 +407,8 @@ extension NIOTSConnectionChannel: Channel {
             }
             return nwConnection.metadata(definition: optionValue.definition) as! Option.Value
         default:
-            if #available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *) {
+            // watchOS 6.0 availability is covered by the @available on this extension.
+            if #available(OSX 10.15, iOS 13.0, tvOS 13.0, *) {
                 switch option {
                 case is NIOTSChannelOptions.Types.NIOTSEstablishmentReportOption:
                     guard let nwConnection = self.nwConnection else {
