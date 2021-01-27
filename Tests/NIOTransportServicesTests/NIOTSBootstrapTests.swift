@@ -306,6 +306,33 @@ final class NIOTSBootstrapTests: XCTestCase {
                                    setValue: false,
                                    shortOption: .disableAutoRead)
     }
+
+    func testBootstrapsErrorGracefullyOnOutOfBandPorts() throws {
+        let invalidPortNumbers = [-1, 65536]
+
+        let group = NIOTSEventLoopGroup()
+        defer {
+            try! group.syncShutdownGracefully()
+        }
+
+        let listenerBootstrap = NIOTSListenerBootstrap(group: group)
+        let connectionBootstrap = NIOTSConnectionBootstrap(group: group)
+
+        for invalidPort in invalidPortNumbers {
+            var listenerChannel: Channel?
+            var connectionChannel: Channel?
+
+            XCTAssertThrowsError(listenerChannel = try listenerBootstrap.bind(host: "localhost", port: invalidPort).wait()) { error in
+                XCTAssertNotNil(error as? NIOTSErrors.InvalidPort)
+            }
+            XCTAssertThrowsError(connectionChannel = try connectionBootstrap.connect(host: "localhost", port: invalidPort).wait())  { error in
+                XCTAssertNotNil(error as? NIOTSErrors.InvalidPort)
+            }
+
+            try? listenerChannel?.close().wait()
+            try? connectionChannel?.close().wait()
+        }
+    }
 }
 
 extension Channel {

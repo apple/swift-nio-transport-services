@@ -249,6 +249,11 @@ public final class NIOTSListenerBootstrap {
     ///     - host: The host to bind on.
     ///     - port: The port to bind on.
     public func bind(host: String, port: Int) -> EventLoopFuture<Channel> {
+        let validPortRange = Int(UInt16.min)...Int(UInt16.max)
+        guard validPortRange.contains(port) else {
+            return self.group.next().makeFailedFuture(NIOTSErrors.InvalidPort(port: port))
+        }
+
         return self.bind0 { (channel, promise) in
             do {
                 // NWListener does not actually resolve hostname-based NWEndpoints

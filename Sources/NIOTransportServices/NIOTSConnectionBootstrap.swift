@@ -156,6 +156,11 @@ public final class NIOTSConnectionBootstrap {
     ///     - port: The port to connect to.
     /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
     public func connect(host: String, port: Int) -> EventLoopFuture<Channel> {
+        let validPortRange = Int(UInt16.min)...Int(UInt16.max)
+        guard validPortRange.contains(port) else {
+            return self.group.next().makeFailedFuture(NIOTSErrors.InvalidPort(port: port))
+        }
+
         guard let actualPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
             return self.group.next().makeFailedFuture(NIOTSErrors.InvalidPort(port: port))
         }
