@@ -785,5 +785,41 @@ class NIOTSConnectionChannelTests: XCTestCase {
             XCTAssertTrue(error is NIOTSErrors.InvalidHostname)
         }
     }
+
+    func testSyncOptionsAreSupported() throws {
+        func testSyncOptions(_ channel: Channel) {
+            if let sync = channel.syncOptions {
+                do {
+                    let autoRead = try sync.getOption(ChannelOptions.autoRead)
+                    try sync.setOption(ChannelOptions.autoRead, value: !autoRead)
+                    XCTAssertNotEqual(autoRead, try sync.getOption(ChannelOptions.autoRead))
+                } catch {
+                    XCTFail("Could not get/set autoRead: \(error)")
+                }
+            } else {
+                XCTFail("\(channel) unexpectedly returned nil syncOptions")
+            }
+        }
+
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .childChannelInitializer { channel in
+                testSyncOptions(channel)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .bind(host: "localhost", port: 0)
+            .wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                testSyncOptions(channel)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .connect(to: listener.localAddress!)
+            .wait()
+        XCTAssertNoThrow(try connection.close().wait())
+    }
 }
 #endif

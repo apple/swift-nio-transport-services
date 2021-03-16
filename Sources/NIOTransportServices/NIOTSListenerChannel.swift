@@ -163,17 +163,15 @@ extension NIOTSListenerChannel: Channel {
     }
 
     public func setOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> EventLoopFuture<Void> {
-        if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<Void> = eventLoop.makePromise()
-            executeAndComplete(promise) { try setOption0(option: option, value: value) }
-            return promise.futureResult
+        if self.eventLoop.inEventLoop {
+            return self.eventLoop.makeCompletedFuture(Result { try setOption0(option: option, value: value) })
         } else {
-            return eventLoop.submit { try self.setOption0(option: option, value: value) }
+            return self.eventLoop.submit { try self.setOption0(option: option, value: value) }
         }
     }
 
-    private func setOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws {
-        self.eventLoop.assertInEventLoop()
+    fileprivate func setOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws {
+        self.eventLoop.preconditionInEventLoop()
 
         guard !self.closed else {
             throw ChannelError.ioOnClosedChannel
@@ -207,16 +205,14 @@ extension NIOTSListenerChannel: Channel {
 
     public func getOption<Option: ChannelOption>(_ option: Option) -> EventLoopFuture<Option.Value> {
         if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<Option.Value> = eventLoop.makePromise()
-            executeAndComplete(promise) { try getOption0(option: option) }
-            return promise.futureResult
+            return self.eventLoop.makeCompletedFuture(Result { try getOption0(option: option) })
         } else {
             return eventLoop.submit { try self.getOption0(option: option) }
         }
     }
 
-    func getOption0<Option: ChannelOption>(option: Option) throws -> Option.Value {
-        self.eventLoop.assertInEventLoop()
+    fileprivate func getOption0<Option: ChannelOption>(option: Option) throws -> Option.Value {
+        self.eventLoop.preconditionInEventLoop()
 
         guard !self.closed else {
             throw ChannelError.ioOnClosedChannel
@@ -472,6 +468,29 @@ extension NIOTSListenerChannel {
         }
 
         self.becomeActive0(promise: promise)
+    }
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSListenerChannel {
+    internal struct SynchronousOptions: NIOSynchronousChannelOptions {
+        private let channel: NIOTSListenerChannel
+
+        fileprivate init(channel: NIOTSListenerChannel) {
+            self.channel = channel
+        }
+
+        public func setOption<Option: ChannelOption>(_ option: Option, value: Option.Value) throws {
+            try self.channel.setOption0(option: option, value: value)
+        }
+
+        public func getOption<Option: ChannelOption>(_ option: Option) throws -> Option.Value {
+            return try self.channel.getOption0(option: option)
+        }
+    }
+
+    public var syncOptions: NIOSynchronousChannelOptions? {
+        return SynchronousOptions(channel: self)
     }
 }
 #endif
