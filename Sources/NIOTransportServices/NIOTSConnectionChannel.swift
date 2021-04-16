@@ -34,6 +34,9 @@ private struct ConnectionChannelOptions {
 
     /// Whether this channel should wait for the connection to become active.
     internal var waitForActivity: Bool = true
+
+    // Maximum number of bytes read from a connection
+    internal var maxRecvBytes: Int = 8192
 }
 
 
@@ -321,6 +324,8 @@ extension NIOTSConnectionChannel: Channel {
             self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
             self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+        case _ as NIOTSChannelOptions.Types.NIOMaxReceiveBytesOption:
+            self.options.maxRecvBytes = value as! Int
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -571,7 +576,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
 
         // TODO: Can we do something sensible with these numbers?
         self.outstandingRead = true
-        conn.receive(minimumIncompleteLength: 1, maximumLength: 8192, completion: self.dataReceivedHandler(content:context:isComplete:error:))
+        conn.receive(minimumIncompleteLength: 1, maximumLength: self.options.maxRecvBytes, completion: self.dataReceivedHandler(content:context:isComplete:error:))
     }
 
     public func doClose0(error: Error) {
