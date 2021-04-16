@@ -371,6 +371,8 @@ extension NIOTSConnectionChannel: Channel {
             return self.enablePeerToPeer as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
             return self.allowLocalEndpointReuse as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOMaxReceiveBytesOption:
+            return self.options.maxRecvBytes as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSCurrentPathOption:
             guard let currentPath = self.nwConnection?.currentPath else {
                 throw NIOTSErrors.NoCurrentPath()
