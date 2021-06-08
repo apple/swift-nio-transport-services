@@ -19,8 +19,6 @@ let package = Package(
     name: "swift-nio-transport-services",
     products: [
         .library(name: "NIOTransportServices", targets: ["NIOTransportServices"]),
-        .executable(name: "NIOTSHTTPClient", targets: ["NIOTSHTTPClient"]),
-        .executable(name: "NIOTSHTTPServer", targets: ["NIOTSHTTPServer"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.27.0"),
