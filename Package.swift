@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.2
 //===----------------------------------------------------------------------===//
 //
 // This source file is part of the SwiftNIO open source project
@@ -24,13 +24,34 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.27.0"),
     ],
     targets: [
-        .target(name: "NIOTransportServices",
-            dependencies: ["NIO", "NIOFoundationCompat", "NIOConcurrencyHelpers", "NIOTLS"]),
-        .target(name: "NIOTSHTTPClient",
-            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1"]),
-        .target(name: "NIOTSHTTPServer",
-            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1"]),
-        .testTarget(name: "NIOTransportServicesTests",
-            dependencies: ["NIO", "NIOTransportServices", "NIOConcurrencyHelpers"]),
+        .target(
+            name: "NIOTransportServices",
+            dependencies: [
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOFoundationCompat", package: "swift-nio"),
+                .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
+                .product(name: "NIOTLS", package: "swift-nio"),
+            ]),
+        .target(
+            name: "NIOTSHTTPClient",
+            dependencies: [
+                "NIOTransportServices",
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+            ]),
+        .target(
+            name: "NIOTSHTTPServer",
+            dependencies: [
+                "NIOTransportServices",
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+            ]),
+        .testTarget(
+            name: "NIOTransportServicesTests",
+            dependencies: [
+                "NIOTransportServices",
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
+            ]),
     ]
 )
