@@ -21,7 +21,7 @@ let package = Package(
         .library(name: "NIOTransportServices", targets: ["NIOTransportServices"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.27.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.30.0"),
     ],
     targets: [
         .target(
