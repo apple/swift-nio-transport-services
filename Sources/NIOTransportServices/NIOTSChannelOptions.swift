@@ -28,6 +28,8 @@ public struct NIOTSChannelOptions {
 
     public static let currentPath = NIOTSChannelOptions.Types.NIOTSCurrentPathOption()
 
+    public static let maxReceiveBytes = NIOTSChannelOptions.Types.NIOMaxReceiveBytesOption()
+
     public static let metadata = { (definition: NWProtocolDefinition) -> NIOTSChannelOptions.Types.NIOTSMetadataOption in
         .init(definition: definition)
     }
@@ -89,6 +91,13 @@ extension NIOTSChannelOptions {
         public struct NIOTSCurrentPathOption: ChannelOption, Equatable {
             public typealias Value = NWPath
             
+            public init() {}
+        }
+
+        @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        public struct NIOMaxReceiveBytesOption: ChannelOption, Equatable {
+            public typealias Value = Int
+
             public init() {}
         }
         
