@@ -225,7 +225,7 @@ extension StateManagedChannel {
             // Now we schedule our final cleanup. We need to keep the channel pipeline alive for at least one more event
             // loop tick, as more work might be using it.
             self.eventLoop.execute {
-                self.removeHandlers(channel: self)
+                self.removeHandlers(pipeline: self.pipeline)
                 self.closePromise.succeed(())
             }
 
