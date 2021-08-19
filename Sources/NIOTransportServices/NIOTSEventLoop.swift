@@ -121,16 +121,15 @@ internal class NIOTSEventLoop: QoSEventLoop {
     public func scheduleTask<T>(deadline: NIODeadline, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T> {
         let p: EventLoopPromise<T> = self.makePromise()
 
-        guard self.state != .closed else {
-            p.fail(EventLoopError.shutdown)
-            return Scheduled(promise: p, cancellationTask: { } )
-        }
-
         // Dispatch support for cancellation exists at the work-item level, so we explicitly create one here.
         // We set the QoS on this work item and explicitly enforce it when the block runs.
         let timerSource = DispatchSource.makeTimerSource(queue: self.taskQueue)
         timerSource.schedule(deadline: DispatchTime(uptimeNanoseconds: deadline.uptimeNanoseconds))
         timerSource.setEventHandler(qos: qos, flags: .enforceQoS) {
+            guard self.state != .closed else {
+                p.fail(EventLoopError.shutdown)
+                return
+            }
             do {
                 p.succeed(try task())
             } catch {
