@@ -28,6 +28,7 @@ let package = Package(
             name: "NIOTransportServices",
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
                 .product(name: "NIOTLS", package: "swift-nio"),
@@ -36,21 +37,22 @@ let package = Package(
             name: "NIOTSHTTPClient",
             dependencies: [
                 "NIOTransportServices",
-                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ]),
         .target(
             name: "NIOTSHTTPServer",
             dependencies: [
                 "NIOTransportServices",
-                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ]),
         .testTarget(
             name: "NIOTransportServicesTests",
             dependencies: [
                 "NIOTransportServices",
-                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOEmbedded", package: "swift-nio"),
                 .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
             ]),
     ]
