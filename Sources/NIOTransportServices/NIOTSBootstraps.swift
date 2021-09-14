@@ -2,7 +2,7 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2020 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2020-2021 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-import NIO
+import NIOCore
 
 /// Shared functionality across NIOTS bootstraps.
 internal enum NIOTSBootstraps {

@@ -21,6 +21,15 @@ function replace_acceptable_years() {
     sed -e 's/20[12][78901]-20[12][8901]/YEARS/' -e 's/20[12][8901]/YEARS/'
 }
 
+# This checks for the umbrella NIO module.
+printf "=> Checking for imports of umbrella NIO module... "
+if git grep --color=never -i "^[ \t]*import \+NIO[ \t]*$" > /dev/null; then
+    printf "\033[0;31mUmbrella imports found.\033[0m\n"
+    git grep -i "^[ \t]*import \+NIO[ \t]*$"
+    exit 1
+fi
+printf "\033[0;32mokay.\033[0m\n"
+
 printf "=> Checking license headers... "
 tmp=$(mktemp /tmp/.swift-nio-sanity_XXXXXX)
 
