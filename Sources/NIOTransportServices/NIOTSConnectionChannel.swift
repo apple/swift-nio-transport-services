@@ -582,6 +582,8 @@ extension NIOTSConnectionChannel: StateManagedChannel {
             return
         }
 
+        self.nwConnection = nil
+
         // Step 1 is to tell the network stack we're done.
         // TODO: Does this drop the connection fully, or can we keep receiving data? Must investigate.
         conn.cancel()
@@ -669,6 +671,10 @@ extension NIOTSConnectionChannel: StateManagedChannel {
 extension NIOTSConnectionChannel {
     /// Called by the underlying `NWConnection` when its internal state has changed.
     private func stateUpdateHandler(newState: NWConnection.State) {
+        guard !self.closed else {
+            return
+        }
+
         switch newState {
         case .setup:
             preconditionFailure("Should not be told about this state.")
@@ -749,6 +755,10 @@ extension NIOTSConnectionChannel {
     ///
     /// Notifies the channel pipeline of the new option.
     private func betterPathHandler(available: Bool) {
+        guard !self.closed else {
+            return
+        }
+
         if available {
             self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.BetterPathAvailable())
         } else {
@@ -760,6 +770,9 @@ extension NIOTSConnectionChannel {
     ///
     /// Notifies the channel pipeline of the new path.
     private func pathChangedHandler(newPath path: NWPath) {
+        guard !self.closed else {
+            return
+        }
         self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.PathChanged(newPath: path))
     }
 }

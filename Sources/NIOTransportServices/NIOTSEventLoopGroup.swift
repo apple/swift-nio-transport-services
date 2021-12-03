@@ -48,15 +48,29 @@ import Network
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSEventLoopGroup: EventLoopGroup {
     private let index = NIOAtomic<Int>.makeAtomic(value: 0)
-    private let eventLoops: [NIOTSEventLoop]
+    private var eventLoops: [NIOTSEventLoop] = []
 
     public init(loopCount: Int = 1, defaultQoS: DispatchQoS = .default) {
         precondition(loopCount > 0)
-        self.eventLoops = (0..<loopCount).map { _ in NIOTSEventLoop(qos: defaultQoS) }
+        self.eventLoops = (0..<loopCount).map { _ in
+            NIOTSEventLoop(qos: defaultQoS, parentGroup: self)
+        }
     }
 
     public func next() -> EventLoop {
         return self.eventLoops[abs(index.add(1) % self.eventLoops.count)]
+    }
+
+    public func any() -> EventLoop {
+        if let loop = DispatchQueue.getSpecific(key: globalInQueueKey),
+           // We are on `loop`, so we can safely access this property.
+           loop.parentGroupAccessibleOnTheEventLoopOnly === self {
+            // Nice, we can continue on the current `EventLoop`.
+            return loop
+        } else {
+            // Oh well, let's get the next one then.
+            return self.next()
+        }
     }
 
     /// Shuts down all of the event loops, rendering them unable to perform further work.

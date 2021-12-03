@@ -647,21 +647,6 @@ class NIOTSConnectionChannelTests: XCTestCase {
         XCTAssertNoThrow(try channel.close().wait())
     }
 
-    func testConnectingChannelsOnShutdownEventLoopsFails() throws {
-        let temporaryGroup = NIOTSEventLoopGroup()
-        XCTAssertNoThrow(try temporaryGroup.syncShutdownGracefully())
-
-        let bootstrap = NIOTSConnectionBootstrap(group: temporaryGroup)
-
-        do {
-            _ = try bootstrap.connect(host: "localhost", port: 12345).wait()
-        } catch EventLoopError.shutdown {
-            // Expected
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
-
     func testAutoReadTraversesThePipeline() throws {
         // This test is driven entirely by a channel handler inserted into the client channel.
         final class TestHandler: ChannelDuplexHandler {
