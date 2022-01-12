@@ -78,4 +78,3 @@ The legacy `swift-nio-transport-services` 0.x is part of the SwiftNIO 1 family o
 For the most part, NIO Transport Services development is as straightforward as any other SwiftPM project. With that said, we do have a few processes that are worth understanding before you contribute. For details, please see `CONTRIBUTING.md` in this repository.
 
 Please note that all work on NIO Transport Services is covered by the [SwiftNIO Code of Conduct](https://github.com/apple/swift-nio/blob/main/CODE_OF_CONDUCT.md).
-
