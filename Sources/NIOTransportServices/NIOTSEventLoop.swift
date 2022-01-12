@@ -138,6 +138,12 @@ internal class NIOTSEventLoop: QoSEventLoop {
         }
         timerSource.resume()
 
+        // Create a retain cycle between the future and the timer source. This will be broken when the promise is
+        // completed by the event handler and this callback is run.
+        p.futureResult.whenComplete { _ in
+            timerSource.cancel()
+        }
+
         return Scheduled(promise: p, cancellationTask: {
             timerSource.cancel()
         })
