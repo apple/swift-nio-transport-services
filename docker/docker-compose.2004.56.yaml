@@ -1,0 +1,16 @@
+version: "3"
+
+services:
+
+  runtime-setup:
+    image: swift-nio-transport-services:20.04-5.6
+    build:
+      args:
+        ubuntu_version: "focal"
+        base_image: "swiftlang/swift:nightly-5.6-focal"
+
+  test:
+    image: swift-nio-transport-services:20.04-5.6
+
+  shell:
+    image: swift-nio-transport-services:20.04-5.6
