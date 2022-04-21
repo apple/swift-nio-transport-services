@@ -33,14 +33,14 @@ let package = Package(
                 .product(name: "NIOConcurrencyHelpers", package: "swift-nio"),
                 .product(name: "NIOTLS", package: "swift-nio"),
             ]),
-        .target(
+        .executableTarget(
             name: "NIOTSHTTPClient",
             dependencies: [
                 "NIOTransportServices",
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
             ]),
-        .target(
+        .executableTarget(
             name: "NIOTSHTTPServer",
             dependencies: [
                 "NIOTransportServices",
