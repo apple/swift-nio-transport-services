@@ -80,10 +80,19 @@ Pod::Spec.new do |s|
   s.watchos.deployment_target = '6.0'
 
   s.source_files = 'Sources/NIOTransportServices/**/*.swift'
+  s.dependency 'CNIOAtomics', '>= $nio_version', '< $next_major_version'
+  s.dependency 'CNIODarwin', '>= $nio_version', '< $next_major_version'
+  s.dependency 'CNIOLinux', '>= $nio_version', '< $next_major_version'
+  s.dependency 'CNIOWindows', '>= $nio_version', '< $next_major_version'
   s.dependency 'SwiftNIO', '>= $nio_version', '< $next_major_version'
-  s.dependency 'SwiftNIOFoundationCompat', '>= $nio_version', '< $next_major_version'
   s.dependency 'SwiftNIOConcurrencyHelpers', '>= $nio_version', '< $next_major_version'
+  s.dependency 'SwiftNIOConcurrencyHelpers', '>= $nio_version', '< $next_major_version'
+  s.dependency 'SwiftNIOCore', '>= $nio_version', '< $next_major_version'
+  s.dependency 'SwiftNIOEmbedded', '>= $nio_version', '< $next_major_version'
+  s.dependency 'SwiftNIOFoundationCompat', '>= $nio_version', '< $next_major_version'
+  s.dependency 'SwiftNIOPosix', '>= $nio_version', '< $next_major_version'
   s.dependency 'SwiftNIOTLS', '>= $nio_version', '< $next_major_version'
+  s.dependency '_NIODataStructures', '>= $nio_version', '< $next_major_version'
 end
 EOF
 
