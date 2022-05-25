@@ -766,7 +766,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             .channelInitializer { channel in channel.pipeline.addHandler(eventRecordingHandler) }
             .connectTimeout(.seconds(5))  // This is the worst-case test time: normally it'll be faster as we don't wait for this.
 
-        let target = NWEndpoint.hostPort(host: "example.invalid", port: 80)
+        let target = NWEndpoint.hostPort(host: "example.invalid", port: 443)
 
         // We don't wait here, as the connect attempt should timeout. If it doesn't, we'll close it.
         connectBootstrap.connect(endpoint: target).whenSuccess { conn in
