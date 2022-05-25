@@ -766,6 +766,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             .channelInitializer { channel in channel.pipeline.addHandler(eventRecordingHandler) }
             .connectTimeout(.seconds(5))  // This is the worst-case test time: normally it'll be faster as we don't wait for this.
 
+        // We choose 443 here to avoid triggering Private Relay, which can do all kinds of weird stuff to this test.
         let target = NWEndpoint.hostPort(host: "example.invalid", port: 443)
 
         // We don't wait here, as the connect attempt should timeout. If it doesn't, we'll close it.
