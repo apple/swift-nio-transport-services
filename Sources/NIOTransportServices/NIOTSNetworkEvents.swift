@@ -31,12 +31,18 @@ public enum NIOTSNetworkEvents {
     ///
     /// If you can handle this event, you should make a new connection attempt, and then
     /// transfer your work to that connection before closing this one.
-    public struct BetterPathAvailable: NIOTSNetworkEvent { }
+    public struct BetterPathAvailable: NIOTSNetworkEvent {
+        /// Create a new `BetterPathAvailable` event.
+        public init(){ }
+    }
 
     /// This event is fired when the OS has informed NIO that no better path to the
     /// to the remote endpoint than the one currently being used by this `Channel` is
     /// currently available.
-    public struct BetterPathUnavailable: NIOTSNetworkEvent { }
+    public struct BetterPathUnavailable: NIOTSNetworkEvent {
+        /// Create a new `BetterPathUnavailable` event.
+        public init(){ }
+    }
 
     /// This event is fired whenever the OS has informed NIO that a new path is in use
     /// for this `Channel`.
@@ -57,6 +63,11 @@ public enum NIOTSNetworkEvents {
     public struct ConnectToNWEndpoint: NIOTSNetworkEvent {
         /// The endpoint to which we want to connect.
         public let endpoint: NWEndpoint
+        
+        /// Create a new `ConnectToNWEndpoint` event.
+        public init(endpoint: NWEndpoint) {
+            self.endpoint = endpoint
+        }
     }
 
     /// This event is fired as an outbound event when NIO would like to ask Network.framework
@@ -66,6 +77,11 @@ public enum NIOTSNetworkEvents {
     public struct BindToNWEndpoint: NIOTSNetworkEvent {
         /// The endpoint to which we want to bind.
         public let endpoint: NWEndpoint
+        
+        /// Create a new `BindToNWEndpoint` event.
+        public init(endpoint: NWEndpoint) {
+            self.endpoint = endpoint
+        }
     }
 
     /// This event is fired when when the OS has informed NIO that it cannot immediately connect
@@ -79,6 +95,11 @@ public enum NIOTSNetworkEvents {
         /// Note that these reasons are _not fatal_: applications are strongly advised not to treat them
         /// as fatal, and instead to use them as information to inform UI decisions.
         public var transientError: NWError
+        
+        /// Create a new `WaitingForConnectivity` event.
+        public init(transientError: NWError) {
+            self.transientError = transientError
+        }
     }
 }
 #endif
