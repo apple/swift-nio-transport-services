@@ -86,6 +86,19 @@ final class DisableWaitingAfterConnect: ChannelOutboundHandler {
     }
 }
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+final class EnableWaitingAfterWaiting: ChannelInboundHandler {
+    typealias InboundIn = Any
+    typealias InboundOut = Any
+
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+        if event is NIOTSNetworkEvents.WaitingForConnectivity {
+            // Note that this is the default value and is set to _true_.
+            try! context.channel.syncOptions!.setOption(NIOTSChannelOptions.waitForActivity, value: true)
+        }
+    }
+}
+
 
 final class PromiseOnActiveHandler: ChannelInboundHandler {
     typealias InboundIn = Any
@@ -576,6 +589,36 @@ class NIOTSConnectionChannelTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error \(error)")
         }
+    }
+
+    func testSettingWaitForConnectivityDoesntCloseImmediately() throws {
+        enum Reason {
+            case timedClose
+            case autoClose
+        }
+
+        // We want a single loop for all this to enforce serialization.
+        let chosenLoop = self.group.next()
+        let closedPromise = chosenLoop.makePromise(of: Reason.self)
+
+        _ = NIOTSConnectionBootstrap(group: chosenLoop)
+            .channelInitializer { channel in
+                try! channel.pipeline.syncOperations.addHandler(EnableWaitingAfterWaiting())
+
+                channel.eventLoop.scheduleTask(in: .milliseconds(500)) {
+                    channel.close(promise: nil)
+                    closedPromise.succeed(.timedClose)
+                }
+
+                channel.closeFuture.whenComplete { _ in
+                    closedPromise.succeed(.autoClose)
+                }
+
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }.connect(to: try SocketAddress(unixDomainSocketPath: "/this/path/definitely/doesnt/exist"))
+
+        let result = try closedPromise.futureResult.wait()
+        XCTAssertEqual(result, .timedClose)
     }
 
     func testCanObserveValueOfDisableWaiting() throws {

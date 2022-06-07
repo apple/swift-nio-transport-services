@@ -313,7 +313,7 @@ extension NIOTSConnectionChannel: Channel {
             let newValue = value as! Bool
             self.options.waitForActivity = newValue
 
-            if let state = self.nwConnection?.state, case .waiting(let err) = state {
+            if let state = self.nwConnection?.state, case .waiting(let err) = state, !newValue {
                 // We're in waiting now, so we should drop the connection.
                 self.close0(error: err, mode: .all, promise: nil)
             }
