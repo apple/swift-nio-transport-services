@@ -187,21 +187,6 @@ class NIOTSListenerChannelTests: XCTestCase {
         XCTAssertNoThrow(try channel.closeFuture.wait())
     }
 
-    func testBindingChannelsOnShutdownEventLoopsFails() throws {
-        let temporaryGroup = NIOTSEventLoopGroup()
-        XCTAssertNoThrow(try temporaryGroup.syncShutdownGracefully())
-
-        let bootstrap = NIOTSListenerBootstrap(group: temporaryGroup)
-
-        do {
-            _ = try bootstrap.bind(host: "localhost", port: 0).wait()
-        } catch EventLoopError.shutdown {
-            // Expected
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
-
     func testCanObserveValueOfEnablePeerToPeer() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .serverChannelInitializer { channel in
@@ -305,6 +290,21 @@ class NIOTSListenerChannelTests: XCTestCase {
         }.flatMap { $0.close() }
 
         XCTAssertNoThrow(try workFuture.wait())
+    }
+
+    func testListenerCloseFutureWorks() {
+        var maybeListener: Channel?
+        XCTAssertNoThrow(maybeListener = try NIOTSListenerBootstrap(group: self.group)
+                            .bind(host: "127.0.0.1", port: 0)
+                            .wait())
+        guard let listener = maybeListener else {
+            XCTFail("could not listen")
+            return
+        }
+
+        let closeOpFuture = listener.close()
+        XCTAssertNoThrow(try closeOpFuture.wait())
+        XCTAssertNoThrow(try listener.closeFuture.wait())
     }
 }
 #endif

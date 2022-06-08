@@ -128,5 +128,40 @@ class NIOTSEventLoopTest: XCTestCase {
         XCTAssertNil(weakELG)
         XCTAssertNil(weakEL)
     }
+
+    func testCallingAnyOnAnNIOTSELGThatIsNotSelfDoesNotReturnItself() {
+        let group1 = NIOTSEventLoopGroup(loopCount: 3, defaultQoS: .default)
+        let group2 = NIOTSEventLoopGroup(loopCount: 3, defaultQoS: .default)
+        defer {
+            XCTAssertNoThrow(try group2.syncShutdownGracefully())
+            XCTAssertNoThrow(try group1.syncShutdownGracefully())
+        }
+
+        XCTAssertNoThrow(try group1.any().submit {
+            let el1_1 = group1.any()
+            let el1_2 = group1.any()
+            let el2_1 = group2.any()
+            let el2_2 = group2.any()
+
+            XCTAssert(el1_1 === el1_2) // NIOTSELG _does_ supprt `any()` so all these `EventLoop`s should be the same.
+            XCTAssert(el2_1 !== el2_2) // NIOTSELG _does_ supprt `any()` but this `any()` call went across `group`s.
+            XCTAssert(el1_1 !== el2_1) // different groups...
+            XCTAssert(el1_1 !== el2_2) // different groups...
+        }.wait())
+    }
+
+    func testNIOTSELGSupportsStickyAnyImplementation() {
+        let group = NIOTSEventLoopGroup(loopCount: 3, defaultQoS: .default)
+        defer {
+            XCTAssertNoThrow(try group.syncShutdownGracefully())
+        }
+
+        XCTAssertNoThrow(try group.any().submit {
+            let el1 = group.any()
+            let el2 = group.any()
+            XCTAssert(el1 === el2) // NIOTSELG _does_ supprt `any()` so all these `EventLoop`s should be the same.
+        }.wait())
+    }
+
 }
 #endif

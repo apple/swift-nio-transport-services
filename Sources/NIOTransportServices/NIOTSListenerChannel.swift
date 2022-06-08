@@ -357,6 +357,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
     public func doClose0(error: Error) {
         // Step 1: tell the networking stack (if created) that we're done.
         if let listener = self.nwListener {
+            self.nwListener = nil
             listener.cancel()
         }
 

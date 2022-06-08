@@ -50,13 +50,29 @@ fileprivate enum LifecycleState {
     case closed
 }
 
+internal struct Maybe<T> {
+    internal var value: Optional<T>
+
+    init(_ value: Optional<T>) {
+        self.value = value
+    }
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+internal let globalInQueueKey = DispatchSpecificKey<NIOTSEventLoop>()
+
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal class NIOTSEventLoop: QoSEventLoop {
     private let loop: DispatchQueue
-    private let taskQueue: DispatchQueue
-    private let inQueueKey: DispatchSpecificKey<UUID>
-    private let loopID: UUID
     private let defaultQoS: DispatchQoS
+    private var parentGroup: Optional<NIOTSEventLoopGroup> // `nil` iff either shut down or a standalone NIOTSEventLoop.
+
+    // taskQueue is...
+    // ... read protected by _either_ holding `lock` or being on `taskQueue` itself.
+    // ... write protected by being _both_ on `taskQueue` itself as well as holding the lock.
+    private var taskQueue: Maybe<DispatchQueue> // `nil` iff we're shut down.
+    private let taskQueueLock = Lock()
+
 
     /// All the channels registered to this event loop.
     ///
@@ -93,16 +109,17 @@ internal class NIOTSEventLoop: QoSEventLoop {
     /// callers ever use synchronous dispatch (which is impossible to enforce), or to hope that a future version of
     /// libdispatch will provide a solution.
     public var inEventLoop: Bool {
-        return DispatchQueue.getSpecific(key: self.inQueueKey) == self.loopID
+        return DispatchQueue.getSpecific(key: globalInQueueKey) === self
     }
 
-    public init(qos: DispatchQoS) {
+    internal init(qos: DispatchQoS, parentGroup: NIOTSEventLoopGroup?) {
+        self.parentGroup = parentGroup
         self.loop = DispatchQueue(label: "nio.transportservices.eventloop.loop", qos: qos, autoreleaseFrequency: .workItem)
-        self.taskQueue = DispatchQueue(label: "nio.transportservices.eventloop.taskqueue", target: self.loop)
-        self.loopID = UUID()
-        self.inQueueKey = DispatchSpecificKey()
+        let taskQueue = DispatchQueue(label: "nio.transportservices.eventloop.taskqueue", target: self.loop)
+        self.taskQueue = .init(taskQueue)
         self.defaultQoS = qos
-        loop.setSpecific(key: inQueueKey, value: self.loopID)
+
+        taskQueue.setSpecific(key: globalInQueueKey, value: self) // cycle broken in `closeGently` by setting this `nil`.
     }
 
     public func execute(_ task: @escaping () -> Void) {
@@ -111,7 +128,18 @@ internal class NIOTSEventLoop: QoSEventLoop {
 
     public func execute(qos: DispatchQoS, _ task: @escaping () -> Void) {
         // Ideally we'd not accept new work while closed. Sadly, that's not possible with the current APIs for this.
-        self.taskQueue.async(qos: qos, execute: task)
+        let taskQueue = self.taskQueueLock.withLock {
+            self.taskQueue
+        }
+
+        if let taskQueue = taskQueue.value {
+            taskQueue.async(qos: qos, execute: task)
+        } else {
+            print("""
+                  ERROR: Cannot schedule tasks on an EventLoop that has already shut down. \
+                  This will be upgraded to a forced crash in future SwiftNIO versions.
+                  """)
+        }
     }
 
     public func scheduleTask<T>(deadline: NIODeadline, _ task: @escaping () throws -> T) -> Scheduled<T> {
@@ -121,9 +149,23 @@ internal class NIOTSEventLoop: QoSEventLoop {
     public func scheduleTask<T>(deadline: NIODeadline, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T> {
         let p: EventLoopPromise<T> = self.makePromise()
 
+        let taskQueue: DispatchQueue?
+        if self.inEventLoop {
+            taskQueue = self.taskQueue.value
+        } else {
+            taskQueue = self.taskQueueLock.withLock { () -> DispatchQueue? in
+                self.taskQueue.value
+            }
+        }
+
+        guard let taskQueue = taskQueue else {
+            p.fail(EventLoopError.shutdown)
+            return Scheduled(promise: p, cancellationTask: { })
+        }
+
         // Dispatch support for cancellation exists at the work-item level, so we explicitly create one here.
         // We set the QoS on this work item and explicitly enforce it when the block runs.
-        let timerSource = DispatchSource.makeTimerSource(queue: self.taskQueue)
+        let timerSource = DispatchSource.makeTimerSource(queue: taskQueue)
         timerSource.schedule(deadline: DispatchTime(uptimeNanoseconds: deadline.uptimeNanoseconds))
         timerSource.setEventHandler(qos: qos, flags: .enforceQoS) {
             guard self.state != .closed else {
@@ -187,14 +229,26 @@ extension NIOTSEventLoop {
         let qos = qos ?? self.defaultQoS
         return DispatchQueue(label: label, qos: qos, target: self.loop)
     }
+
+    internal var parentGroupAccessibleOnTheEventLoopOnly: NIOTSEventLoopGroup? {
+        self.assertInEventLoop()
+        return self.parentGroup
+    }
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSEventLoop {
     internal func closeGently() -> EventLoopFuture<Void> {
         let p: EventLoopPromise<Void> = self.makePromise()
-        self.taskQueue.async {
+        guard let taskQueue = self.taskQueueLock.withLock({ self.taskQueue.value }) else {
+            p.fail(EventLoopError.shutdown)
+            return p.futureResult
+        }
+
+        taskQueue.async {
             guard self.open else {
+                assert(self.parentGroup == nil)
+                assert(DispatchQueue.getSpecific(key: globalInQueueKey) == nil)
                 p.fail(EventLoopError.shutdown)
                 return
             }
@@ -222,6 +276,12 @@ extension NIOTSEventLoop {
             completionFuture.cascade(to: p)
             completionFuture.whenComplete { (_: Result<Void, Error>) in
                 self.state = .closed
+
+                // Break the reference cycles.
+                self.taskQueueLock.withLock {
+                    self.taskQueue = .init(nil)
+                }
+                self.parentGroup = nil
             }
         }
         return p.futureResult
