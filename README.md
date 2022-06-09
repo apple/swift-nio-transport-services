@@ -28,21 +28,6 @@ and then adding the NIOTransportServices module to your target dependencies.
 
 If your project is set up as an Xcode project and you're using Xcode 11+, you can add NIO Transport Services as a dependency to your Xcode project by clicking File -> Swift Packages -> Add Package Dependency. In the upcoming dialog, please enter `https://github.com/apple/swift-nio-transport-services.git` and click Next twice. Finally, make sure `NIOTransportServices` is selected and click finish. Now will be able to `import NIOTransportServices` in your project.
 
-You can also use SwiftNIO Transport Services in an iOS project through CocoaPods:
-
-    pod 'SwiftNIO', '~> 2.0.0'
-    pod 'SwiftNIOTransportServices', '~> 1.0.0'
-
-If you want to develop SwiftNIO with Xcode 10, you have to generate an Xcode project:
-
-```
-swift package generate-xcodeproj
-```
-
-and add the project as a sub-project by dragging it into your iOS project and adding the framework (`NIOTransportServices.framework`) in 'Build Phases' -> 'Link Binary Libraries'.
-
-Do note however that Network.framework requires macOS 10.14+, iOS 12+, or tvOS 12+.
-
 ### Supported Platforms
 
 NIOTransportServices is supported where Network.framework is supported: macOS
