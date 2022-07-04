@@ -795,9 +795,16 @@ extension NIOTSConnectionChannel {
 
         if let metadata = self.nwConnection?.metadata(definition: NWProtocolTLS.definition) as? NWProtocolTLS.Metadata {
             // This is a TLS connection, we may need to fire some other events.
-            let negotiatedProtocol = sec_protocol_metadata_get_negotiated_protocol(metadata.securityProtocolMetadata).map {
-                String(cString: $0)
+            let securityMetadata = metadata.securityProtocolMetadata
+
+            // The pointer returned by `sec_protocol_metadata_get_negotiated_protocol` is presumably owned by it, so we need
+            // to confirm it's still alive while we copy the data out.
+            let negotiatedProtocol = withExtendedLifetime(securityMetadata) {
+                sec_protocol_metadata_get_negotiated_protocol(metadata.securityProtocolMetadata).map {
+                    String(cString: $0)
+                }
             }
+
             self.pipeline.fireUserInboundEventTriggered(TLSUserEvent.handshakeCompleted(negotiatedProtocol: negotiatedProtocol))
         }
     }
