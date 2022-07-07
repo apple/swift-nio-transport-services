@@ -18,6 +18,7 @@ import NIOCore
 import NIOConcurrencyHelpers
 import Dispatch
 import Network
+import Atomics
 
 
 /// An `EventLoopGroup` containing `EventLoop`s specifically designed for use with
@@ -47,7 +48,7 @@ import Network
 /// preferred networking backend.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSEventLoopGroup: EventLoopGroup {
-    private let index = NIOAtomic<Int>.makeAtomic(value: 0)
+    private let index = ManagedAtomic(0)
     private let eventLoops: [NIOTSEventLoop]
 
     public init(loopCount: Int = 1, defaultQoS: DispatchQoS = .default) {
@@ -56,7 +57,7 @@ public final class NIOTSEventLoopGroup: EventLoopGroup {
     }
 
     public func next() -> EventLoop {
-        return self.eventLoops[abs(index.add(1) % self.eventLoops.count)]
+        return self.eventLoops[abs(index.loadThenWrappingIncrement(ordering: .relaxed) % self.eventLoops.count)]
     }
 
     /// Shuts down all of the event loops, rendering them unable to perform further work.

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
+import Atomics
 import XCTest
 import NIOCore
 import NIOConcurrencyHelpers
@@ -101,11 +102,11 @@ class NIOTSEventLoopTest: XCTestCase {
             weakELG = group
             weakEL = group.next()
 
-            let counter = NIOAtomic<Int>.makeAtomic(value: 0)
+            let counter = ManagedAtomic(0)
             let acceptedChan = group.next().makePromise(of: Channel.self)
             let server = try NIOTSListenerBootstrap(group: group)
                 .childChannelInitializer { channel in
-                    XCTAssertEqual(0, counter.add(1))
+                    XCTAssertEqual(0, counter.loadThenWrappingIncrement(ordering: .relaxed))
                     acceptedChan.succeed(channel)
                     return channel.eventLoop.makeSucceededFuture(())
                 }

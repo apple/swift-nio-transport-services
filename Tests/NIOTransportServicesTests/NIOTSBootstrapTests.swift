@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
+import Atomics
 import XCTest
 import Network
 import NIOCore
@@ -128,10 +129,10 @@ final class NIOTSBootstrapTests: XCTestCase {
         }
         let group = NIOTSEventLoopGroup()
         func makeServer(isTLS: EventLoopPromise<Bool>) throws -> Channel {
-            let numberOfConnections = NIOAtomic<Int>.makeAtomic(value: 0)
+            let numberOfConnections = ManagedAtomic(0)
             return try NIOTSListenerBootstrap(group: group)
                 .childChannelInitializer { channel in
-                    XCTAssertEqual(0, numberOfConnections.add(1))
+                    XCTAssertEqual(0, numberOfConnections.loadThenWrappingIncrement(ordering: .relaxed))
                     return channel.pipeline.addHandler(TellMeIfConnectionIsTLSHandler(isTLS: isTLS))
             }
             .bind(host: "127.0.0.1", port: 0)
