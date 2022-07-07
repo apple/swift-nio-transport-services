@@ -19,6 +19,7 @@ import NIOFoundationCompat
 import NIOConcurrencyHelpers
 import Dispatch
 import Network
+import Atomics
 
 
 /// An object that conforms to this protocol represents the substate of a channel in the
@@ -102,7 +103,7 @@ internal protocol StateManagedChannel: Channel, ChannelCore {
 
     var state: ChannelState<ActiveSubstate> { get set }
 
-    var isActive0: NIOAtomic<Bool> { get set }
+    var isActive0: ManagedAtomic<Bool> { get set }
 
     var tsEventLoop: NIOTSEventLoop { get }
 
@@ -131,7 +132,7 @@ extension StateManagedChannel {
 
     /// Whether this channel is currently active.
     public var isActive: Bool {
-        return self.isActive0.load()
+        return self.isActive0.load(ordering: .relaxed)
     }
 
     /// Whether this channel is currently closed. This is not necessary for the public
@@ -201,7 +202,7 @@ extension StateManagedChannel {
                 return
             }
 
-            self.isActive0.store(false)
+            self.isActive0.store(false, ordering: .relaxed)
 
             self.doClose0(error: error)
 
@@ -247,7 +248,7 @@ extension StateManagedChannel {
             return
         }
 
-        self.isActive0.store(true)
+        self.isActive0.store(true, ordering: .relaxed)
         promise?.succeed(())
         self.pipeline.fireChannelActive()
         self.readIfNeeded0()

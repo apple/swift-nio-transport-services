@@ -21,6 +21,7 @@ import NIOTLS
 import Dispatch
 import Network
 import Security
+import Atomics
 
 /// Channel options for the connection channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -66,7 +67,7 @@ private struct BackpressureManager {
     /// because in most cases these loads/stores will be free, as the user will never actually check the
     /// channel writability from another thread, meaning this cache line is uncontended. CAS is never free:
     /// it always has some substantial runtime cost over loads/stores.
-    let writable = NIOAtomic<Bool>.makeAtomic(value: true)
+    let writable = ManagedAtomic(true)
 
     /// The number of bytes outstanding on the network.
     private var outstandingBytes: Int = 0
@@ -82,8 +83,8 @@ private struct BackpressureManager {
     /// - returns: Whether the state changed.
     mutating func writabilityChanges(whenQueueingBytes newBytes: Int) -> Bool {
         self.outstandingBytes += newBytes
-        if self.outstandingBytes > self.waterMarks.high && self.writable.load() {
-            self.writable.store(false)
+        if self.outstandingBytes > self.waterMarks.high && self.writable.load(ordering: .relaxed)  {
+            self.writable.store(false, ordering: .relaxed)
             return true
         }
 
@@ -98,8 +99,8 @@ private struct BackpressureManager {
     /// - returns: Whether the state changed.
     mutating func writabilityChanges(whenBytesSent sentBytes: Int) -> Bool {
         self.outstandingBytes -= sentBytes
-        if self.outstandingBytes < self.waterMarks.low && !self.writable.load() {
-            self.writable.store(true)
+        if self.outstandingBytes < self.waterMarks.low && !self.writable.load(ordering: .relaxed) {
+            self.writable.store(true, ordering: .relaxed)
             return true
         }
 
@@ -113,14 +114,14 @@ private struct BackpressureManager {
     ///     - waterMarks: The new waterMarks to use.
     /// - returns: Whether the state changed.
     mutating func writabilityChanges(whenUpdatingWaterMarks waterMarks: ChannelOptions.Types.WriteBufferWaterMark) -> Bool {
-        let writable = self.writable.load()
+        let writable = self.writable.load(ordering: .relaxed)
         self.waterMarks = waterMarks
 
         if writable && self.outstandingBytes > self.waterMarks.high {
-            self.writable.store(false)
+            self.writable.store(false, ordering: .relaxed)
             return true
         } else if !writable && self.outstandingBytes < self.waterMarks.low {
-            self.writable.store(true)
+            self.writable.store(true, ordering: .relaxed)
             return true
         }
 
@@ -169,7 +170,7 @@ internal final class NIOTSConnectionChannel {
     internal var state: ChannelState<ActiveSubstate> = .idle
 
     /// The active state, used for safely reporting the channel state across threads.
-    internal var isActive0: NIOAtomic<Bool> = .makeAtomic(value: false)
+    internal var isActive0 = ManagedAtomic(false)
 
     /// The kinds of channel activation this channel supports
     internal let supportedActivationType: ActivationType = .connect
@@ -265,7 +266,7 @@ extension NIOTSConnectionChannel: Channel {
 
     /// Whether this channel is currently writable.
     public var isWritable: Bool {
-        return self.backpressureManager.writable.load()
+        return self.backpressureManager.writable.load(ordering: .relaxed)
     }
 
     public var _channelCore: ChannelCore {

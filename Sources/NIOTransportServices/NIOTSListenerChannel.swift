@@ -19,6 +19,7 @@ import NIOFoundationCompat
 import NIOConcurrencyHelpers
 import Dispatch
 import Network
+import Atomics
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal final class NIOTSListenerChannel {
@@ -63,7 +64,7 @@ internal final class NIOTSListenerChannel {
     internal let supportedActivationType: ActivationType = .bind
 
     /// The active state, used for safely reporting the channel state across threads.
-    internal var isActive0: NIOAtomic<Bool> = .makeAtomic(value: false)
+    internal var isActive0 = ManagedAtomic(false)
 
     /// Whether a call to NWListener.receive has been made, but the completion
     /// handler has not yet been invoked.
