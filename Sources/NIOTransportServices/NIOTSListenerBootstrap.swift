@@ -17,7 +17,7 @@ import NIOCore
 import Dispatch
 import Network
 
-/// A `NIOTSListenerBootstrap` is an easy way to bootstrap a `NIOTSListenerChannel` when creating network servers.
+/// A ``NIOTSListenerBootstrap`` is an easy way to bootstrap a `NIOTSListenerChannel` when creating network servers.
 ///
 /// Example:
 ///
@@ -67,15 +67,15 @@ public final class NIOTSListenerBootstrap {
     private var tlsOptions: NWProtocolTLS.Options?
     private var bindTimeout: TimeAmount?
 
-    /// Create a `NIOTSListenerBootstrap` for the `EventLoopGroup` `group`.
+    /// Create a ``NIOTSListenerBootstrap`` for the `EventLoopGroup` `group`.
     ///
     /// This initializer only exists to be more in-line with the NIO core bootstraps, in that they
     /// may be constructed with an `EventLoopGroup` and by extenstion an `EventLoop`. As such an
     /// existing `NIOTSEventLoop` may be used to initialize this bootstrap. Where possible the
-    /// initializers accepting `NIOTSEventLoopGroup` should be used instead to avoid the wrong
+    /// initializers accepting ``NIOTSEventLoopGroup`` should be used instead to avoid the wrong
     /// type being used.
     ///
-    /// Note that the "real" solution is described in https://github.com/apple/swift-nio/issues/674.
+    /// > Note: The "real" solution is described in https://github.com/apple/swift-nio/issues/674.
     ///
     /// - parameters:
     ///     - group: The `EventLoopGroup` to use for the `NIOTSListenerChannel`.
@@ -83,23 +83,23 @@ public final class NIOTSListenerBootstrap {
         self.init(group: group, childGroup: group)
     }
 
-    /// Create a `NIOTSListenerBootstrap` for the `NIOTSEventLoopGroup` `group`.
+    /// Create a ``NIOTSListenerBootstrap`` for the ``NIOTSEventLoopGroup`` `group`.
     ///
     /// - parameters:
-    ///     - group: The `NIOTSEventLoopGroup` to use for the `NIOTSListenerChannel`.
+    ///     - group: The ``NIOTSEventLoopGroup`` to use for the `NIOTSListenerChannel`.
     public convenience init(group: NIOTSEventLoopGroup) {
         self.init(group: group as EventLoopGroup)
     }
 
-    /// Create a `NIOTSListenerBootstrap`.
+    /// Create a ``NIOTSListenerBootstrap``.
     ///
     /// This initializer only exists to be more in-line with the NIO core bootstraps, in that they
     /// may be constructed with an `EventLoopGroup` and by extension an `EventLoop`. As such an
     /// existing `NIOTSEventLoop` may be used to initialize this bootstrap. Where possible the
-    /// initializers accepting `NIOTSEventLoopGroup` should be used instead to avoid the wrong
+    /// initializers accepting ``NIOTSEventLoopGroup`` should be used instead to avoid the wrong
     /// type being used.
     ///
-    /// Note that the "real" solution is described in https://github.com/apple/swift-nio/issues/674.
+    /// > Note: The "real" solution is described in https://github.com/apple/swift-nio/issues/674.
     ///
     /// - parameters:
     ///     - group: The `EventLoopGroup` to use for the `bind` of the `NIOTSListenerChannel`
@@ -115,8 +115,8 @@ public final class NIOTSListenerBootstrap {
         self.init(validatingGroup: group, childGroup: childGroup)!
     }
 
-    /// Create a `NIOTSListenerBootstrap` on the `EventLoopGroup` `group` which accepts `Channel`s on `childGroup`,
-    /// validating that the `EventLoopGroup`s are compatible with `NIOTSListenerBootstrap`.
+    /// Create a ``NIOTSListenerBootstrap`` on the `EventLoopGroup` `group` which accepts `Channel`s on `childGroup`,
+    /// validating that the `EventLoopGroup`s are compatible with ``NIOTSListenerBootstrap``.
     ///
     /// - parameters:
     ///     - group: The `EventLoopGroup` to use for the `bind` of the `NIOTSListenerChannel`
@@ -135,12 +135,12 @@ public final class NIOTSListenerBootstrap {
         self.childChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
     }
 
-    /// Create a `NIOTSListenerBootstrap`.
+    /// Create a ``NIOTSListenerBootstrap``.
     ///
     /// - parameters:
-    ///     - group: The `NIOTSEventLoopGroup` to use for the `bind` of the `NIOTSListenerChannel`
+    ///     - group: The ``NIOTSEventLoopGroup`` to use for the `bind` of the `NIOTSListenerChannel`
     ///         and to accept new `NIOTSConnectionChannel`s with.
-    ///     - childGroup: The `NIOTSEventLoopGroup` to run the accepted `NIOTSConnectionChannel`s on.
+    ///     - childGroup: The ``NIOTSEventLoopGroup`` to run the accepted `NIOTSConnectionChannel`s on.
     public convenience init(group: NIOTSEventLoopGroup, childGroup: NIOTSEventLoopGroup) {
         self.init(group: group as EventLoopGroup, childGroup: childGroup as EventLoopGroup)
     }
@@ -150,8 +150,8 @@ public final class NIOTSListenerBootstrap {
     ///
     /// The `NIOTSListenerChannel` uses the accepted `NIOTSConnectionChannel`s as inbound messages.
     ///
-    /// - note: To set the initializer for the accepted `NIOTSConnectionChannel`s, look at
-    ///     `NIOTSConnectionBootstrap.childChannelInitializer`.
+    /// > Note: To set the initializer for the accepted `NIOTSConnectionChannel`s, look at
+    ///     ``childChannelInitializer(_:)``.
     ///
     /// - parameters:
     ///     - initializer: A closure that initializes the provided `Channel`.
@@ -175,7 +175,7 @@ public final class NIOTSListenerBootstrap {
 
     /// Specifies a `ChannelOption` to be applied to the `NIOTSListenerChannel`.
     ///
-    /// - note: To specify options for the accepted `NIOTSConnectionChannels`s, look at `NIOTSListenerBootstrap.childChannelOption`.
+    /// > Note: To specify options for the accepted `NIOTSConnectionChannel`s, look at ``childChannelOption(_:value:)``.
     ///
     /// - parameters:
     ///     - option: The option to be applied.
@@ -196,7 +196,7 @@ public final class NIOTSListenerBootstrap {
     }
 
     /// Specifies a timeout to apply to a bind attempt.
-    //
+    ///
     /// - parameters:
     ///     - timeout: The timeout that will apply to the bind attempt.
     public func bindTimeout(_ timeout: TimeAmount) -> Self {
@@ -224,20 +224,12 @@ public final class NIOTSListenerBootstrap {
     }
 
     /// Specifies the TCP options to use on the child `Channel`s.
-    ///
-    /// To retrieve the TCP options from connected channels, use
-    /// `NIOTSChannelOptions.TCPConfiguration`. It is not possible to change the
-    /// TCP configuration after `bind` is called.
     public func tcpOptions(_ options: NWProtocolTCP.Options) -> Self {
         self.tcpOptions = options
         return self
     }
 
     /// Specifies the TLS options to use on the child `Channel`s.
-    ///
-    /// To retrieve the TLS options from connected channels, use
-    /// `NIOTSChannelOptions.TLSConfiguration`. It is not possible to change the
-    /// TLS configuration after `bind` is called.
     public func tlsOptions(_ options: NWProtocolTLS.Options) -> Self {
         self.tlsOptions = options
         return self

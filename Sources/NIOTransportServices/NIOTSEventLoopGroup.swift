@@ -2,7 +2,7 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2021 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2022 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -43,14 +43,19 @@ import Atomics
 ///     take advantage of the various interfaces available on mobile devices.
 ///
 /// In general, when building applications whose primary purpose is to be deployed on Darwin
-/// platforms, the `NIOTSEventLoopGroup` should be preferred over the
-/// `MultiThreadedEventLoopGroup`. In particular, on iOS, the `NIOTSEventLoopGroup` is the
+/// platforms, the ``NIOTSEventLoopGroup`` should be preferred over the
+/// `MultiThreadedEventLoopGroup`. In particular, on iOS, the ``NIOTSEventLoopGroup`` is the
 /// preferred networking backend.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSEventLoopGroup: EventLoopGroup {
     private let index = ManagedAtomic(0)
     private let eventLoops: [NIOTSEventLoop]
 
+    /// Construct a ``NIOTSEventLoopGroup`` with a specified number of loops and QoS.
+    ///
+    /// - parameters:
+    ///     - loopCount: The number of independent loops to use. Defaults to `1`.
+    ///     - defaultQoS: The default QoS for tasks enqueued on this loop. Defaults to `.default`.
     public init(loopCount: Int = 1, defaultQoS: DispatchQoS = .default) {
         precondition(loopCount > 0)
         self.eventLoops = (0..<loopCount).map { _ in NIOTSEventLoop(qos: defaultQoS) }

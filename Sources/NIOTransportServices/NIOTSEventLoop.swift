@@ -22,7 +22,7 @@ import NIOConcurrencyHelpers
 
 /// An `EventLoop` that interacts with `DispatchQoS` to help schedule upcoming work.
 ///
-/// `EventLoop`s that implement `QoSEventLoop` can interact with `Dispatch` to propagate information
+/// `EventLoop`s that implement ``QoSEventLoop`` can interact with `Dispatch` to propagate information
 /// about the QoS required for a specific task block. This allows tasks to be dispatched onto an
 /// event loop with a different priority than the majority of tasks on that loop.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
