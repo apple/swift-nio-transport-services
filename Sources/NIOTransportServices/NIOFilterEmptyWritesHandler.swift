@@ -85,6 +85,11 @@ public final class NIOFilterEmptyWritesHandler: ChannelDuplexHandler {
     }
 }
 
+#if swift(>=5.6)
+@available(*, unavailable)
+extension NIOFilterEmptyWritesHandler: Sendable {}
+#endif
+
 // Connection state management
 extension NIOFilterEmptyWritesHandler {
     public func channelActive(context: ChannelHandlerContext) {
