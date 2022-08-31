@@ -13,14 +13,18 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
+#if swift(>=5.6)
+@preconcurrency import Network
+#else
 import Network
+#endif
 import NIOCore
 
 /// A tag protocol that can be used to cover all network events emitted by `NIOTransportServices`.
 ///
 /// Users are strongly encouraged not to conform their own types to this protocol.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public protocol NIOTSNetworkEvent: Equatable { }
+public protocol NIOTSNetworkEvent: Equatable, NIOPreconcurrencySendable { }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public enum NIOTSNetworkEvents {
@@ -98,4 +102,20 @@ public enum NIOTSNetworkEvents {
         }
     }
 }
+
+#if swift(>=5.6)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSNetworkEvents.BetterPathAvailable: Sendable {}
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSNetworkEvents.BetterPathUnavailable: Sendable {}
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSNetworkEvents.PathChanged: Sendable {}
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSNetworkEvents.ConnectToNWEndpoint: Sendable {}
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSNetworkEvents.BindToNWEndpoint: Sendable {}
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSNetworkEvents.WaitingForConnectivity: Sendable {}
+#endif
+
 #endif

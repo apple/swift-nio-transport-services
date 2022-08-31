@@ -13,7 +13,11 @@
 //===----------------------------------------------------------------------===//
 #if canImport(Network)
 import NIOCore
+#if swift(>=5.6)
+@preconcurrency import Network
+#else
 import Network
+#endif
 
 /// Options that can be set explicitly and only on bootstraps provided by `NIOTransportServices`.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)

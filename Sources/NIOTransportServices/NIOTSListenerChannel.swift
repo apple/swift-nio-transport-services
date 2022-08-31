@@ -130,6 +130,10 @@ internal final class NIOTSListenerChannel {
     }
 }
 
+#if swift(>=5.5) && canImport(_Concurrency)
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSListenerChannel: @unchecked Sendable {}
+#endif
 
 // MARK:- NIOTSListenerChannel implementation of Channel
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
