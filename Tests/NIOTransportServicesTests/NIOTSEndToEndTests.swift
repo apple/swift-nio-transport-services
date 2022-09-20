@@ -254,7 +254,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let buffer = connection.allocator.bufferFor(string: "hello, world!")
         let completeFuture = connection.expectRead(buffer)
         connection.writeAndFlush(buffer, promise: nil)
-        //        this is the assert that matters to make sure it works writes data
+        //        this is the assert that matters to make sure it works & writes data
         XCTAssertNoThrow(try completeFuture.wait())
     }
 
@@ -555,7 +555,7 @@ class NIOTSEndToEndTests: XCTestCase {
             .connect(to: address)
             .wait()) { error in
                 print(error)
-            }
+        }
     }
 }
 #endif

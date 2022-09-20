@@ -144,9 +144,9 @@ internal final class NIOTSListenerChannel {
                   tcpOptions: tcpOptions,
                   tlsOptions: tlsOptions,
                   childLoopGroup: childLoopGroup,
-                  childChannelQoS:childChannelQoS,
-                  childTCPOptions:childTCPOptions,
-                  childTLSOptions:childTLSOptions
+                  childChannelQoS: childChannelQoS,
+                  childTCPOptions: childTCPOptions,
+                  childTLSOptions: childTLSOptions
         )
         self.nwListener = listener
     }

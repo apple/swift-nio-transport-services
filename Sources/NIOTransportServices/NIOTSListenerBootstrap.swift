@@ -66,7 +66,6 @@ public final class NIOTSListenerBootstrap {
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
     private var bindTimeout: TimeAmount?
-    private var newListener: NWListener?
 
     /// Create a ``NIOTSListenerBootstrap`` for the `EventLoopGroup` `group`.
     ///
@@ -295,6 +294,10 @@ public final class NIOTSListenerBootstrap {
         }
     }
 
+    /// Bind the `NIOTSListenerChannel` to an existing `NWListener`.
+    ///
+    /// - parameters:
+    ///     - listener: The NWListener path to bind.
     public func withNWListener(_ listener:NWListener) -> EventLoopFuture<Channel>{
         return self.bind0(existingNWListener: listener,shouldRegister: false) { channel, promise in
             channel.registerAlreadyConfigured0(promise: promise)
