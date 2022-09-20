@@ -228,7 +228,7 @@ internal final class NIOTSConnectionChannel {
     /// Create a `NIOTSConnectionChannel` with an already-established `NWConnection`.
     internal convenience init(wrapping connection: NWConnection,
                               on eventLoop: NIOTSEventLoop,
-                              parent: Channel,
+                              parent: Channel? = nil,
                               qos: DispatchQoS? = nil,
                               tcpOptions: NWProtocolTCP.Options,
                               tlsOptions: NWProtocolTLS.Options?) {
@@ -463,7 +463,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
             promise?.fail(NIOTSErrors.NotPreConfigured())
             return
         }
-
+        self.connectPromise = promise
         connection.stateUpdateHandler = self.stateUpdateHandler(newState:)
         connection.betterPathUpdateHandler = self.betterPathHandler
         connection.pathUpdateHandler = self.pathChangedHandler(newPath:)

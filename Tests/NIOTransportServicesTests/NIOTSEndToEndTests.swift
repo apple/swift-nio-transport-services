@@ -229,6 +229,35 @@ class NIOTSEndToEndTests: XCTestCase {
         XCTAssertNoThrow(try completeFuture.wait())
     }
 
+    func testNWExistingListener() throws {
+        let nwListenerTest = try NWListener(
+            using: NWParameters(tls: nil),
+            on: NWEndpoint.Port(rawValue: 0)!)
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
+            .withNWListener(nwListenerTest).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let nwConnectionTest = NWConnection(
+            host: NWEndpoint.Host("localhost"),
+            port: nwListenerTest.port!,
+            using: NWParameters(tls: nil))
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+
+            .withExistingNWConnection(nwConnectionTest).wait()
+        defer {
+            XCTAssertNoThrow(try connection.close().wait())
+        }
+
+        let buffer = connection.allocator.bufferFor(string: "hello, world!")
+        let completeFuture = connection.expectRead(buffer)
+        connection.writeAndFlush(buffer, promise: nil)
+        //        this is the assert that matters to make sure it works writes data
+        XCTAssertNoThrow(try completeFuture.wait())
+    }
+
     func testMultipleConnectionsOneListener() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
@@ -526,7 +555,7 @@ class NIOTSEndToEndTests: XCTestCase {
             .connect(to: address)
             .wait()) { error in
                 print(error)
-        }
+            }
     }
 }
 #endif
