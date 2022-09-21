@@ -246,7 +246,7 @@ public final class NIOTSListenerBootstrap {
             return self.group.next().makeFailedFuture(NIOTSErrors.InvalidPort(port: port))
         }
 
-        return self.bind0 { (channel, promise) in
+        return self.bind0(shouldRegister: true) { (channel, promise) in
             do {
                 // NWListener does not actually resolve hostname-based NWEndpoints
                 // for use with requiredLocalEndpoint, so we fall back to
@@ -264,7 +264,7 @@ public final class NIOTSListenerBootstrap {
     /// - parameters:
     ///     - address: The `SocketAddress` to bind on.
     public func bind(to address: SocketAddress) -> EventLoopFuture<Channel> {
-        return self.bind0 { (channel, promise) in
+        return self.bind0(shouldRegister: true) { (channel, promise) in
             channel.bind(to: address, promise: promise)
         }
     }
@@ -274,7 +274,7 @@ public final class NIOTSListenerBootstrap {
     /// - parameters:
     ///     - unixDomainSocketPath: The _Unix domain socket_ path to bind to. `unixDomainSocketPath` must not exist, it will be created by the system.
     public func bind(unixDomainSocketPath: String) -> EventLoopFuture<Channel> {
-        return self.bind0 { (channel, promise) in
+        return self.bind0(shouldRegister: true) { (channel, promise) in
             do {
                 let address = try SocketAddress(unixDomainSocketPath: unixDomainSocketPath)
                 channel.bind(to: address, promise: promise)
@@ -289,26 +289,49 @@ public final class NIOTSListenerBootstrap {
     /// - parameters:
     ///     - endpoint: The `NWEndpoint` to bind this channel to.
     public func bind(endpoint: NWEndpoint) -> EventLoopFuture<Channel> {
-        return self.bind0 { (channel, promise) in
+        return self.bind0(shouldRegister: true) { (channel, promise) in
             channel.triggerUserOutboundEvent(NIOTSNetworkEvents.BindToNWEndpoint(endpoint: endpoint), promise: promise)
         }
     }
 
-    private func bind0(_ binder: @escaping (Channel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
+    /// Bind the `NIOTSListenerChannel` to an existing `NWListener`.
+    ///
+    /// - parameters:
+    ///     - listener: The NWListener to wrap.
+    public func withNWListener(_ listener:NWListener) -> EventLoopFuture<Channel>{
+        return self.bind0(existingNWListener: listener,shouldRegister: false) { channel, promise in
+            channel.registerAlreadyConfigured0(promise: promise)
+        }
+    }
+
+    private func bind0(existingNWListener: NWListener? = nil, shouldRegister: Bool, _ binder: @escaping (NIOTSListenerChannel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
         let eventLoop = self.group.next() as! NIOTSEventLoop
         let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(()) }
         let childChannelInit = self.childChannelInit
         let serverChannelOptions = self.serverChannelOptions
         let childChannelOptions = self.childChannelOptions
 
-        let serverChannel = NIOTSListenerChannel(eventLoop: eventLoop,
-                                                 qos: self.serverQoS,
-                                                 tcpOptions: self.tcpOptions,
-                                                 tlsOptions: self.tlsOptions,
-                                                 childLoopGroup: self.childGroup,
-                                                 childChannelQoS: self.childQoS,
-                                                 childTCPOptions: self.tcpOptions,
-                                                 childTLSOptions: self.tlsOptions)
+        let serverChannel: NIOTSListenerChannel
+        if let newListener = existingNWListener {
+            serverChannel = NIOTSListenerChannel(wrapping: newListener,
+                                                     on: self.group.next() as! NIOTSEventLoop,
+                                                     qos: self.serverQoS,
+                                                     tcpOptions: self.tcpOptions,
+                                                     tlsOptions: self.tlsOptions,
+                                                     childLoopGroup: self.childGroup,
+                                                     childChannelQoS: self.childQoS,
+                                                     childTCPOptions: self.tcpOptions,
+                                                     childTLSOptions: self.tlsOptions)
+        } else {
+            serverChannel = NIOTSListenerChannel(eventLoop: eventLoop,
+                                                     qos: self.serverQoS,
+                                                     tcpOptions: self.tcpOptions,
+                                                     tlsOptions: self.tlsOptions,
+                                                     childLoopGroup: self.childGroup,
+                                                     childChannelQoS: self.childQoS,
+                                                     childTCPOptions: self.tcpOptions,
+                                                     childTLSOptions: self.tlsOptions)
+        }
 
         return eventLoop.submit {
             return serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
@@ -318,7 +341,11 @@ public final class NIOTSListenerBootstrap {
                 return serverChannel.pipeline.addHandler(AcceptHandler(childChannelInitializer: childChannelInit,
                                                                        childChannelOptions: childChannelOptions))
             }.flatMap {
-                serverChannel.register()
+                if shouldRegister{
+                     return serverChannel.register()
+                } else {
+                    return eventLoop.makeSucceededVoidFuture()
+                }
             }.flatMap {
                 let bindPromise = eventLoop.makePromise(of: Void.self)
                 binder(serverChannel, bindPromise)

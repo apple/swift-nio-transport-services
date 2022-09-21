@@ -163,7 +163,6 @@ extension StateManagedChannel {
             try self.state.register(eventLoop: self.tsEventLoop, channel: self)
             self.pipeline.fireChannelRegistered()
             try self.state.beginActivating()
-            promise?.succeed(())
         } catch {
             promise?.fail(error)
             self.close0(error: error, mode: .all, promise: nil)

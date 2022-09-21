@@ -165,7 +165,7 @@ public final class NIOTSConnectionBootstrap {
     ///     - address: The address to connect to.
     /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
     public func connect(to address: SocketAddress) -> EventLoopFuture<Channel> {
-        return self.connect { channel, promise in
+        return self.connect(shouldRegister: true) { channel, promise in
             channel.connect(to: address, promise: promise)
         }
     }
@@ -186,17 +186,36 @@ public final class NIOTSConnectionBootstrap {
 
     /// Specify the `endpoint` to connect to for the TCP `Channel` that will be established.
     public func connect(endpoint: NWEndpoint) -> EventLoopFuture<Channel> {
-        return self.connect { channel, promise in
+        return self.connect(shouldRegister: true) {channel, promise in
             channel.triggerUserOutboundEvent(NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint),
                                              promise: promise)
         }
     }
 
-    private func connect(_ connectAction: @escaping (Channel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
-        let conn: Channel = NIOTSConnectionChannel(eventLoop: self.group.next() as! NIOTSEventLoop,
-                                                   qos: self.qos,
-                                                   tcpOptions: self.tcpOptions,
-                                                   tlsOptions: self.tlsOptions)
+    /// Use a pre-existing `NWConnection` to connect a `Channel`.
+    ///
+    /// - parameters:
+    ///     - connection: The NWConnection to wrap.
+    /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
+    public func withExistingNWConnection(_ connection: NWConnection) -> EventLoopFuture<Channel> {
+        return self.connect(existingNWConnection: connection, shouldRegister: false) { channel, promise in
+            channel.registerAlreadyConfigured0(promise: promise)
+        }
+    }
+
+    private func connect(existingNWConnection: NWConnection? = nil, shouldRegister: Bool, _ connectAction: @escaping (NIOTSConnectionChannel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
+        let conn: NIOTSConnectionChannel
+        if let newConnection = existingNWConnection {
+            conn = NIOTSConnectionChannel(wrapping: newConnection,
+                                          on: self.group.next() as! NIOTSEventLoop,
+                                          tcpOptions: self.tcpOptions,
+                                          tlsOptions: self.tlsOptions)
+        } else {
+            conn = NIOTSConnectionChannel(eventLoop: self.group.next() as! NIOTSEventLoop,
+                                                       qos: self.qos,
+                                                       tcpOptions: self.tcpOptions,
+                                                       tlsOptions: self.tlsOptions)
+        }
         let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
         let channelOptions = self.channelOptions
 
@@ -205,7 +224,11 @@ public final class NIOTSConnectionBootstrap {
                 initializer(conn)
             }.flatMap {
                 conn.eventLoop.assertInEventLoop()
-                return conn.register()
+                if shouldRegister {
+                    return conn.register()
+                } else {
+                    return conn.eventLoop.makeSucceededVoidFuture()
+                }
             }.flatMap {
                 let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
                 connectAction(conn, connectPromise)
