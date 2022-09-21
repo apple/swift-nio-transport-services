@@ -195,7 +195,7 @@ public final class NIOTSConnectionBootstrap {
     /// Use a pre-existing `NWConnection` to connect a `Channel`.
     ///
     /// - parameters:
-    ///     - connection: The NWConnection path to wrap.
+    ///     - connection: The NWConnection to wrap.
     /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
     public func withExistingNWConnection(_ connection: NWConnection) -> EventLoopFuture<Channel> {
         return self.connect(existingNWConnection: connection, shouldRegister: false) { channel, promise in

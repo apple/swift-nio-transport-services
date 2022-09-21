@@ -297,7 +297,7 @@ public final class NIOTSListenerBootstrap {
     /// Bind the `NIOTSListenerChannel` to an existing `NWListener`.
     ///
     /// - parameters:
-    ///     - listener: The NWListener path to bind.
+    ///     - listener: The NWListener to wrap.
     public func withNWListener(_ listener:NWListener) -> EventLoopFuture<Channel>{
         return self.bind0(existingNWListener: listener,shouldRegister: false) { channel, promise in
             channel.registerAlreadyConfigured0(promise: promise)

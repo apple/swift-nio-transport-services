@@ -129,7 +129,7 @@ internal final class NIOTSListenerChannel {
         self._pipeline = ChannelPipeline(channel: self)
     }
 
-    /// Create a `NIOTSConnectionChannel` with an already-established `NWListener`.
+    /// Create a `NIOTSListenerChannel` with an already-established `NWListener`.
     internal convenience init(wrapping listener: NWListener,
                               on eventLoop: NIOTSEventLoop,
                               qos: DispatchQoS? = nil,
