@@ -25,7 +25,7 @@ import Foundation
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 final class NIOTSBootstrapTests: XCTestCase {
     var groupBag: [NIOTSEventLoopGroup]? = nil // protected by `self.lock`
-    let lock = Lock()
+    let lock = NIOLock()
 
     override func setUp() {
         self.lock.withLock {
