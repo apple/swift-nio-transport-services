@@ -48,13 +48,20 @@ declaring [SwiftNIO's Public API](https://github.com/apple/swift-nio/blob/main/d
 
 ### NIO Transport Services 1.x
 
-`swift-nio-transport-services` versions 1.x is part of the SwiftNIO 2 family of repositories and does not have any dependencies besides [`swift-nio`](https://github.com/apple/swift-nio), Swift 5.4, and an Apple OS supporting `Network.framework`. As the latest version, it lives on the [`main`](https://github.com/apple/swift-nio-transport-services) branch.
+`swift-nio-transport-services` versions 1.x is part of the SwiftNIO 2 family of repositories and does not have any dependencies besides [`swift-nio`](https://github.com/apple/swift-nio), Swift 5.5, and an Apple OS supporting `Network.framework`. As the latest version, it lives on the [`main`](https://github.com/apple/swift-nio-transport-services) branch.
 
 To depend on `swift-nio-transport-services `, put the following in the `dependencies` of your `Package.swift`:
 
     .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.0.0"),
 
-`swift-nio-transport-services` version 1.11.x and earlier support Swift 5.2 and 5.3. Earlier 1.x versions also support Swift 5.0 and 5.1.
+The most recent versions of SwiftNIO Transport Services support Swift 5.5 and newer. The minimum Swift version supported by SwiftNIO Transport Services releases are detailed below:
+
+SwiftNIO Extras     | Minimum Swift Version
+--------------------|----------------------
+`1.0.0 ..< 1.11.0`  | 5.0
+`1.11.0 ..< 1.12.0` | 5.2
+`1.12.0 ..< 1.14.0` | 5.4
+`1.14.0 ...`        | 5.5
 
 ### NIO Transport Services 0.x
 
