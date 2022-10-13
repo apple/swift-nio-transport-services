@@ -525,9 +525,8 @@ extension NIOTSListenerChannel {
         return SynchronousOptions(channel: self)
     }
 }
-#endif
 
-#if swift(>=5.5) && canImport(_Concurrency) && canImport(Network)
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSListenerChannel: @unchecked Sendable {}
+
 #endif
