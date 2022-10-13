@@ -103,6 +103,10 @@ public enum NIOTSNetworkEvents {
     }
 }
 
+// Network.framework has not adopted `Sendable` yet.
+// We therefore need to import it with `@preconcurrency`.
+// `@preconcurrency` is only available in Swift 5.6.
+#if swift(>=5.6)
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSNetworkEvents.BetterPathAvailable: Sendable {}
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -115,5 +119,6 @@ extension NIOTSNetworkEvents.ConnectToNWEndpoint: Sendable {}
 extension NIOTSNetworkEvents.BindToNWEndpoint: Sendable {}
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSNetworkEvents.WaitingForConnectivity: Sendable {}
+#endif
 
 #endif
