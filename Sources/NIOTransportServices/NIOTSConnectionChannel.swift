@@ -893,4 +893,53 @@ extension NIOTSConnectionChannel {
         return SynchronousOptions(channel: self)
     }
 }
+
+
+public struct NIOTSConnectionNotInitialized: Error, Hashable {
+    public init() {}
+}
+
+public struct NIOTSChannelIsNotATransportServiceChannel: Error, Hashable {
+    public init() {}
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSConnectionChannel {
+    fileprivate func metadata(definition: NWProtocolDefinition) throws -> NWProtocolMetadata? {
+        guard let nwConnection = nwConnection else {
+            throw NIOTSConnectionNotInitialized()
+        }
+        return nwConnection.metadata(definition: definition)
+    }
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension Channel {
+    /// Retrieves the metadata for a specific protocol from the underlying ``NWConnection``
+    /// - Throws: If `self` isn't a `NIOTS` channel with a `NWConnection` this method will throw
+    /// ``NIOTSChannelIsNotATransportServicesChannel`` or ``NIOTSConnectionNotInitialized``.
+    public func getMetadata(definition: NWProtocolDefinition) -> EventLoopFuture<NWProtocolMetadata?> {
+        guard let channel = self as? NIOTSConnectionChannel else {
+            return self.eventLoop.makeFailedFuture(NIOTSChannelIsNotATransportServiceChannel())
+        }
+        return self.eventLoop.submit { try channel.metadata(definition: definition) }
+    }
+    
+    /// Retrieves the metadata for a specific protocol from the underlying ``NWConnection``
+    /// - Precondition: Must be called on the `EventLoop` the `Channel` is running on.
+    /// - Throws: If `self` isn't a `NIOTS` channel with a `NWConnection` this method will throw
+    /// ``NIOTSChannelIsNotATransportServicesChannel`` or ``NIOTSConnectionNotInitialized``.
+    public func getMetadataSync(
+        definition: NWProtocolDefinition,
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) throws -> NWProtocolMetadata? {
+        self.eventLoop.preconditionInEventLoop(file: file, line: line)
+        guard let channel = self as? NIOTSConnectionChannel else {
+            throw NIOTSChannelIsNotATransportServiceChannel()
+        }
+        return try channel.metadata(definition: definition)
+    }
+}
+
 #endif
