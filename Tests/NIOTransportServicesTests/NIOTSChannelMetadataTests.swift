@@ -18,6 +18,7 @@ import NIOCore
 import XCTest
 @testable import NIOTransportServices
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 final class NIOTSChannelMetadataTests: XCTestCase {
     func testThrowsIfCalledOnWrongChannel() throws {
         let eventLoopGroup = NIOTSEventLoopGroup()
