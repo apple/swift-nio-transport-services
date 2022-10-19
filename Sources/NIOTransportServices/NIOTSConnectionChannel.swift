@@ -906,7 +906,7 @@ public struct NIOTSChannelIsNotATransportServicesChannel: Error, Hashable {
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel {
     fileprivate func metadata(definition: NWProtocolDefinition) throws -> NWProtocolMetadata? {
-        guard let nwConnection = nwConnection else {
+        guard let nwConnection = self.nwConnection else {
             throw NIOTSConnectionNotInitialized()
         }
         return nwConnection.metadata(definition: definition)
