@@ -173,6 +173,7 @@ final class NIOTSBootstrapTests: XCTestCase {
             XCTFail("can't connect to server1")
             return
         }
+        XCTAssertNotNil(try client1.getMetadata(definition: NWProtocolTCP.definition).wait() as? NWProtocolTCP.Metadata)
         XCTAssertNoThrow(try client1.writeAndFlush(buffer).wait())
 
         // The TLS connection won't actually succeed but it takes Network.framework a while to tell us, we don't
