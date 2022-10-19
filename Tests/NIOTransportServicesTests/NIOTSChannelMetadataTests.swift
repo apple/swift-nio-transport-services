@@ -28,11 +28,11 @@ final class NIOTSChannelMetadataTests: XCTestCase {
         defer { XCTAssertNoThrow(try listenerChannel.close().wait()) }
         
         XCTAssertThrowsError(try listenerChannel.getMetadata(definition: NWProtocolTLS.definition).wait()) { error in
-            XCTAssertTrue(error is NIOTSChannelIsNotATransportServicesChannel, "unexpected error \(error)")
+            XCTAssertTrue(error is NIOTSChannelIsNotANIOTSConnectionChannel, "unexpected error \(error)")
         }
         try! listenerChannel.eventLoop.submit {
             XCTAssertThrowsError(try listenerChannel.getMetadataSync(definition: NWProtocolTLS.definition)) { error in
-                XCTAssertTrue(error is NIOTSChannelIsNotATransportServicesChannel, "unexpected error \(error)")
+                XCTAssertTrue(error is NIOTSChannelIsNotANIOTSConnectionChannel, "unexpected error \(error)")
             }
         }.wait()
         

@@ -899,7 +899,7 @@ public struct NIOTSConnectionNotInitialized: Error, Hashable {
     public init() {}
 }
 
-public struct NIOTSChannelIsNotATransportServicesChannel: Error, Hashable {
+public struct NIOTSChannelIsNotANIOTSConnectionChannel: Error, Hashable {
     public init() {}
 }
 
@@ -920,7 +920,7 @@ extension Channel {
     /// ``NIOTSChannelIsNotATransportServicesChannel`` or ``NIOTSConnectionNotInitialized``.
     public func getMetadata(definition: NWProtocolDefinition) -> EventLoopFuture<NWProtocolMetadata?> {
         guard let channel = self as? NIOTSConnectionChannel else {
-            return self.eventLoop.makeFailedFuture(NIOTSChannelIsNotATransportServicesChannel())
+            return self.eventLoop.makeFailedFuture(NIOTSChannelIsNotANIOTSConnectionChannel())
         }
         if self.eventLoop.inEventLoop {
             return self.eventLoop.makeCompletedFuture {
@@ -944,7 +944,7 @@ extension Channel {
     ) throws -> NWProtocolMetadata? {
         self.eventLoop.preconditionInEventLoop(file: file, line: line)
         guard let channel = self as? NIOTSConnectionChannel else {
-            throw NIOTSChannelIsNotATransportServicesChannel()
+            throw NIOTSChannelIsNotANIOTSConnectionChannel()
         }
         return try channel.metadata(definition: definition)
     }
