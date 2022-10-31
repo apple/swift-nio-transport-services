@@ -21,7 +21,7 @@ import Network
 
 
 func assertNoThrowWithValue<T>(_ body: @autoclosure () throws -> T, defaultValue: T? = nil, message: String? = nil,
-                               file: StaticString = #filePa, line: UInt = #line) throws -> T {
+                               file: StaticString = #filePath, line: UInt = #line) throws -> T {
     do {
         return try body()
     } catch {
