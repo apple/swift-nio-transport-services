@@ -46,6 +46,9 @@ public struct NIOTSChannelOptions {
     /// See: ``Types/NIOTSDataTransferReportOption``.
     @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
     public static let dataTransferReport = NIOTSChannelOptions.Types.NIOTSDataTransferReportOption()
+
+    /// See: ``Types/NIOTSMultipathOption``
+    public static let multipathServiceType = NIOTSChannelOptions.Types.NIOTSMultipathOption()
 }
 
 
@@ -133,6 +136,15 @@ extension NIOTSChannelOptions {
         public struct NIOTSDataTransferReportOption: ChannelOption, Equatable {
             public typealias Value = NWConnection.PendingDataTransferReport
             
+            public init() {}
+        }
+
+        /// ``NIOTSMultipathOption`` sets the multipath behaviour for a given `NWConnection`
+        /// or `NWListener`.
+        @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        public struct NIOTSMultipathOption: ChannelOption, Equatable {
+            public typealias Value = NWParameters.MultipathServiceType
+
             public init() {}
         }
     }

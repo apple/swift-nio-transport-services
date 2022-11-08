@@ -200,6 +200,9 @@ internal final class NIOTSConnectionChannel {
     /// Whether to use peer-to-peer connectivity when connecting to Bonjour services.
     private var enablePeerToPeer = false
 
+    /// The default multipath service type.
+    private var multipathServiceType = NWParameters.MultipathServiceType.disabled
+
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
     private var _addressCache = AddressCache(local: nil, remote: nil)
 
@@ -322,6 +325,8 @@ extension NIOTSConnectionChannel: Channel {
             self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
             self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            self.multipathServiceType = value as! NIOTSChannelOptions.Types.NIOTSMultipathOption.Value
         default:
             fatalError("option \(type(of: option)).\(option) not supported")
         }
@@ -378,6 +383,8 @@ extension NIOTSConnectionChannel: Channel {
                 throw NIOTSErrors.NoCurrentConnection()
             }
             return nwConnection.metadata(definition: optionValue.definition) as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            return self.multipathServiceType as! Option.Value
         default:
             // watchOS 6.0 availability is covered by the @available on this extension.
             if #available(OSX 10.15, iOS 13.0, tvOS 13.0, *) {
@@ -492,6 +499,8 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort || self.allowLocalEndpointReuse
 
         parameters.includePeerToPeer = self.enablePeerToPeer
+
+        parameters.multipathServiceType = self.multipathServiceType
 
         let connection = NWConnection(to: target, using: parameters)
         connection.stateUpdateHandler = self.stateUpdateHandler(newState:)

@@ -117,5 +117,27 @@ class NIOTSChannelOptionsTests: XCTestCase {
         collectGroup.wait()
     }
 
+    func testMultipathOptions() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .serverChannelOption(NIOTSChannelOptions.multipathServiceType, value: .handover)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .channelOption(NIOTSChannelOptions.multipathServiceType, value: .interactive)
+            .connect(to: listener.localAddress!)
+            .wait()
+        defer {
+            XCTAssertNoThrow(try connection.close().wait())
+        }
+
+        let listenerValue = try assertNoThrowWithValue(listener.getOption(NIOTSChannelOptions.multipathServiceType).wait())
+        let connectionValue = try assertNoThrowWithValue(connection.getOption(NIOTSChannelOptions.multipathServiceType).wait())
+
+        XCTAssertEqual(listenerValue, .handover)
+        XCTAssertEqual(connectionValue, .interactive)
+    }
 }
 #endif
