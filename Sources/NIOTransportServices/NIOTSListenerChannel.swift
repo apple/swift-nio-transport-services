@@ -85,6 +85,9 @@ internal final class NIOTSListenerChannel {
     /// Whether to enable peer-to-peer connectivity when using Bonjour services.
     private var enablePeerToPeer = false
 
+    /// The default multipath service type.
+    private var multipathServiceType = NWParameters.MultipathServiceType.disabled
+
     /// The event loop group to use for child channels.
     private let childLoopGroup: EventLoopGroup
 
@@ -220,6 +223,8 @@ extension NIOTSListenerChannel: Channel {
             self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
             self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            self.multipathServiceType = value as! NIOTSChannelOptions.Types.NIOTSMultipathOption.Value
         default:
             fatalError("option \(option) not supported")
         }
@@ -257,6 +262,8 @@ extension NIOTSListenerChannel: Channel {
             return self.enablePeerToPeer as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
             return self.allowLocalEndpointReuse as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            return self.multipathServiceType as! Option.Value
         default:
             fatalError("option \(option) not supported")
         }
@@ -348,6 +355,8 @@ extension NIOTSListenerChannel: StateManagedChannel {
         parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort || self.allowLocalEndpointReuse
 
         parameters.includePeerToPeer = self.enablePeerToPeer
+
+        parameters.multipathServiceType = self.multipathServiceType
 
         let listener: NWListener
         do {
