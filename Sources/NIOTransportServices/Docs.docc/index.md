@@ -69,38 +69,3 @@ SwiftNIO Extras     | Minimum Swift Version
 
 The legacy `swift-nio-transport-services` 0.x is part of the SwiftNIO 1 family of repositories and works with Swift 4.1 and newer. The source code can be found on the [`swift-nio-transport-services-swift-4-maintenance`](https://github.com/apple/swift-nio-transport-services/tree/swift-nio-transport-services-swift-4-maintenance) branch.
 
-## Topics
-
-### Event Loops and Groups
-
-- ``NIOTSEventLoopGroup``
-- ``QoSEventLoop``
-
-### Client Connections
-
-- ``NIOTSConnectionBootstrap``
-- ``NIOTSClientTLSProvider``
-
-### Server Connections
-
-- ``NIOTSListenerBootstrap``
-
-### Configuring Channels
-
-- ``NIOTSChannelOptions``
-- ``NIOTSEnablePeerToPeerOption``
-- ``NIOTSWaitForActivityOption``
-
-### Managing Channels
-
-- ``NIOTSNetworkEvents``
-- ``NIOTSNetworkEvent``
-
-### Errors
-
-- ``NIOTSErrors``
-- ``NIOTSError``
-
-### Channel Handlers
-
-- ``NIOFilterEmptyWritesHandler``
