@@ -13,11 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-#if swift(>=5.6)
 @preconcurrency import Network
-#else
-import Network
-#endif
 import NIOCore
 
 /// A tag protocol that can be used to cover all network events emitted by `NIOTransportServices`.
@@ -105,8 +101,6 @@ public enum NIOTSNetworkEvents {
 
 // Network.framework has not adopted `Sendable` yet.
 // We therefore need to import it with `@preconcurrency`.
-// `@preconcurrency` is only available in Swift 5.6.
-#if swift(>=5.6)
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSNetworkEvents.BetterPathAvailable: Sendable {}
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -119,6 +113,5 @@ extension NIOTSNetworkEvents.ConnectToNWEndpoint: Sendable {}
 extension NIOTSNetworkEvents.BindToNWEndpoint: Sendable {}
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSNetworkEvents.WaitingForConnectivity: Sendable {}
-#endif
 
 #endif
