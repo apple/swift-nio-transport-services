@@ -57,7 +57,7 @@ final class HTTP1ClientHandler: ChannelInboundHandler {
     }
 }
 
-if #available(OSX 10.14, *) {
+if #available(OSX 10.14, iOS 12.0, *) {
     let group = NIOTSEventLoopGroup()
     let channel = try! NIOTSConnectionBootstrap(group: group)
         .connectTimeout(.hours(1))

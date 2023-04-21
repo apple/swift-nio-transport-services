@@ -22,12 +22,12 @@ import Network
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal extension NWProtocolUDP.Options {
     /// Apply a given channel `SocketOption` to this protocol options state.
-    func applyChannelOption(option: SocketOption, value: SocketOptionValue) throws {
+    func applyChannelOption(option: ChannelOptions.Types.SocketOption, value: SocketOptionValue) throws {
         throw NIOTSErrors.UnsupportedSocketOption(optionValue: option)
     }
 
     /// Obtain the given `SocketOption` value for this protocol options state.
-    func valueFor(socketOption option: SocketOption) throws -> SocketOptionValue {
+    func valueFor(socketOption option: ChannelOptions.Types.SocketOption) throws -> SocketOptionValue {
         throw NIOTSErrors.UnsupportedSocketOption(optionValue: option)
     }
 }

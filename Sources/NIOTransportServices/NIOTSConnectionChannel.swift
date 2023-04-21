@@ -25,7 +25,7 @@ import Atomics
 
 /// Channel options for the connection channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-private struct ConnectionChannelOptions {
+struct TransportServicesChannelOptions {
     /// Whether autoRead is enabled for this channel.
     internal var autoRead: Bool = true
 
@@ -36,10 +36,6 @@ private struct ConnectionChannelOptions {
     /// Whether this channel should wait for the connection to become active.
     internal var waitForActivity: Bool = true
 }
-
-
-private typealias PendingWrite = (data: ByteBuffer, promise: EventLoopPromise<Void>?)
-
 
 internal struct AddressCache {
     // deliberately lets because they must always be updated together (so forcing `init` is useful).
@@ -55,7 +51,7 @@ internal struct AddressCache {
 
 /// A structure that manages backpressure signaling on this channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-private struct BackpressureManager {
+internal struct BackpressureManager {
     /// Whether the channel is writable, given the current watermark state.
     ///
     /// This is an atomic only because the channel writability flag needs to be safe to access from multiple
@@ -131,7 +127,7 @@ private struct BackpressureManager {
 
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-internal final class NIOTSConnectionChannel {
+internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// The `ByteBufferAllocator` for this `Channel`.
     public let allocator = ByteBufferAllocator()
 
@@ -146,19 +142,23 @@ internal final class NIOTSConnectionChannel {
     /// The `EventLoop` this `Channel` belongs to.
     internal let tsEventLoop: NIOTSEventLoop
 
-    private var _pipeline: ChannelPipeline! = nil  // this is really a constant (set in .init) but needs `self` to be constructed and therefore a `var`. Do not change as this needs to accessed from arbitrary threads.
+    private(set) var _pipeline: ChannelPipeline! = nil  // this is really a constant (set in .init) but needs `self` to be constructed and therefore a `var`. Do not change as this needs to accessed from arbitrary threads.
 
     internal let closePromise: EventLoopPromise<Void>
 
     /// The underlying `NWConnection` that this `Channel` wraps. This is only non-nil
     /// after the initial connection attempt has been made.
-    private var nwConnection: NWConnection?
+    internal var connection: NWConnection?
 
     /// The `DispatchQueue` that socket events for this connection will be dispatched onto.
-    private let connectionQueue: DispatchQueue
+    internal let connectionQueue: DispatchQueue
 
     /// An `EventLoopPromise` that will be succeeded or failed when a connection attempt succeeds or fails.
-    private var connectPromise: EventLoopPromise<Void>?
+    internal var connectPromise: EventLoopPromise<Void>?
+
+    internal var parameters: NWParameters {
+        NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
+    }
 
     /// The TCP options for this connection.
     private var tcpOptions: NWProtocolTCP.Options
@@ -177,34 +177,47 @@ internal final class NIOTSConnectionChannel {
 
     /// Whether a call to NWConnection.receive has been made, but the completion
     /// handler has not yet been invoked.
-    private var outstandingRead: Bool = false
+    internal var outstandingRead: Bool = false
 
     /// The options for this channel.
-    private var options: ConnectionChannelOptions = ConnectionChannelOptions()
+    internal var options = TransportServicesChannelOptions()
 
     /// Any pending writes that have yet to be delivered to the network stack.
-    private var pendingWrites = CircularBuffer<PendingWrite>(initialCapacity: 8)
+    internal var _pendingWrites = CircularBuffer<PendingWrite>(initialCapacity: 8)
 
     /// An object to keep track of pending writes and manage our backpressure signaling.
-    private var backpressureManager = BackpressureManager()
+    internal var _backpressureManager = BackpressureManager()
 
     /// The value of SO_REUSEADDR.
-    private var reuseAddress = false
+    internal var reuseAddress = false
 
     /// The value of SO_REUSEPORT.
-    private var reusePort = false
+    internal var reusePort = false
     
     /// The value of the allowLocalEndpointReuse option.
-    private var allowLocalEndpointReuse = false
+    internal var allowLocalEndpointReuse = false
 
     /// Whether to use peer-to-peer connectivity when connecting to Bonjour services.
-    private var enablePeerToPeer = false
+    internal var enablePeerToPeer = false
 
     /// The default multipath service type.
-    private var multipathServiceType = NWParameters.MultipathServiceType.disabled
+    internal var multipathServiceType = NWParameters.MultipathServiceType.disabled
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
     private var _addressCache = AddressCache(local: nil, remote: nil)
+
+    internal var addressCache: AddressCache {
+        get {
+            return self._addressCacheLock.withLock {
+                return self._addressCache
+            }
+        }
+        set {
+            return self._addressCacheLock.withLock {
+                self._addressCache = newValue
+            }
+        }
+    }
 
     /// A lock that guards the _addressCache.
     private let _addressCacheLock = NIOLock()
@@ -240,7 +253,7 @@ internal final class NIOTSConnectionChannel {
                   qos: qos,
                   tcpOptions: tcpOptions,
                   tlsOptions: tlsOptions)
-        self.nwConnection = connection
+        self.connection = connection
     }
 }
 
@@ -248,28 +261,9 @@ internal final class NIOTSConnectionChannel {
 // MARK:- NIOTSConnectionChannel implementation of Channel
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel: Channel {
-    /// The `ChannelPipeline` for this `Channel`.
-    public var pipeline: ChannelPipeline {
-        return self._pipeline
-    }
-
-    /// The local address for this channel.
-    public var localAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.local
-        }
-    }
-
-    /// The remote address for this channel.
-    public var remoteAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.remote
-        }
-    }
-
     /// Whether this channel is currently writable.
     public var isWritable: Bool {
-        return self.backpressureManager.writable.load(ordering: .relaxed)
+        return self._backpressureManager.writable.load(ordering: .relaxed)
     }
 
     public var _channelCore: ChannelCore {
@@ -310,14 +304,14 @@ extension NIOTSConnectionChannel: Channel {
                 try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
         case _ as ChannelOptions.Types.WriteBufferWaterMarkOption:
-            if self.backpressureManager.writabilityChanges(whenUpdatingWaterMarks: value as! ChannelOptions.Types.WriteBufferWaterMark) {
+            if self._backpressureManager.writabilityChanges(whenUpdatingWaterMarks: value as! ChannelOptions.Types.WriteBufferWaterMark) {
                 self.pipeline.fireChannelWritabilityChanged()
             }
         case _ as NIOTSChannelOptions.Types.NIOTSWaitForActivityOption:
             let newValue = value as! Bool
             self.options.waitForActivity = newValue
 
-            if let state = self.nwConnection?.state, case .waiting(let err) = state, !newValue {
+            if let state = self.connection?.state, case .waiting(let err) = state, !newValue {
                 // We're in waiting now, so we should drop the connection.
                 self.close0(error: err, mode: .all, promise: nil)
             }
@@ -365,7 +359,7 @@ extension NIOTSConnectionChannel: Channel {
                 return try self.tcpOptions.valueFor(socketOption: optionValue) as! Option.Value
             }
         case _ as ChannelOptions.Types.WriteBufferWaterMarkOption:
-            return self.backpressureManager.waterMarks as! Option.Value
+            return self._backpressureManager.waterMarks as! Option.Value
         case _ as NIOTSChannelOptions.Types.NIOTSWaitForActivityOption:
             return self.options.waitForActivity as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
@@ -373,16 +367,16 @@ extension NIOTSConnectionChannel: Channel {
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
             return self.allowLocalEndpointReuse as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSCurrentPathOption:
-            guard let currentPath = self.nwConnection?.currentPath else {
+            guard let currentPath = self.connection?.currentPath else {
                 throw NIOTSErrors.NoCurrentPath()
             }
             return currentPath as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSMetadataOption:
             let optionValue = option as! NIOTSChannelOptions.Types.NIOTSMetadataOption
-            guard let nwConnection = self.nwConnection else {
+            guard let connection = self.connection else {
                 throw NIOTSErrors.NoCurrentConnection()
             }
-            return nwConnection.metadata(definition: optionValue.definition) as! Option.Value
+            return connection.metadata(definition: optionValue.definition) as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
             return self.multipathServiceType as! Option.Value
         default:
@@ -390,19 +384,19 @@ extension NIOTSConnectionChannel: Channel {
             if #available(OSX 10.15, iOS 13.0, tvOS 13.0, *) {
                 switch option {
                 case is NIOTSChannelOptions.Types.NIOTSEstablishmentReportOption:
-                    guard let nwConnection = self.nwConnection else {
+                    guard let connection = self.connection else {
                         throw NIOTSErrors.NoCurrentConnection()
                     }
                     let promise: EventLoopPromise<NWConnection.EstablishmentReport?> = eventLoop.makePromise()
-                    nwConnection.requestEstablishmentReport(queue: connectionQueue) { report in
+                    connection.requestEstablishmentReport(queue: connectionQueue) { report in
                         promise.succeed(report)
                     }
                     return promise.futureResult as! Option.Value
                 case is NIOTSChannelOptions.Types.NIOTSDataTransferReportOption:
-                    guard let nwConnection = self.nwConnection else {
+                    guard let connection = self.connection else {
                         throw NIOTSErrors.NoCurrentConnection()
                     }
-                    return nwConnection.startDataTransferReport() as! Option.Value
+                    return connection.startDataTransferReport() as! Option.Value
                 default:
                     break
                 }
@@ -424,7 +418,7 @@ extension NIOTSConnectionChannel: StateManagedChannel {
     /// data.
     ///
     /// We keep track of this to manage the half-closure state of the TCP connection.
-    enum TCPSubstate: ActiveChannelSubstate {
+    enum TCPSubstate: NWConnectionSubstate {
         /// Both peers may send.
         case open
 
@@ -442,10 +436,36 @@ extension NIOTSConnectionChannel: StateManagedChannel {
         init() {
             self = .open
         }
+
+        static func closeInput(state: inout ChannelState<NIOTSConnectionChannel.TCPSubstate>) throws {
+            switch state {
+            case .active(.open):
+                state = .active(.halfClosedRemote)
+            case .active(.halfClosedLocal):
+                state = .active(.closed)
+            case .idle, .registered, .activating, .active(.halfClosedRemote), .active(.closed), .inactive:
+                throw NIOTSErrors.InvalidChannelStateTransition()
+            }
+        }
+
+        static func closeOutput(state: inout ChannelState<NIOTSConnectionChannel.TCPSubstate>) throws {
+            switch state {
+            case .active(.open):
+                state = .active(.halfClosedLocal)
+            case .active(.halfClosedRemote):
+                state = .active(.closed)
+            case .active(.halfClosedLocal), .active(.closed):
+                // This is a special case for closing the output, as it's user-controlled. If they already
+                // closed it, we want to throw a special error to tell them.
+                throw ChannelError.outputClosed
+            case .idle, .registered, .activating, .inactive:
+                throw NIOTSErrors.InvalidChannelStateTransition()
+            }
+        }
     }
 
     public func localAddress0() throws -> SocketAddress {
-        guard let localEndpoint = self.nwConnection?.currentPath?.localEndpoint else {
+        guard let localEndpoint = self.connection?.currentPath?.localEndpoint else {
             throw NIOTSErrors.NoCurrentPath()
         }
         // TODO: Support wider range of address types.
@@ -453,223 +473,11 @@ extension NIOTSConnectionChannel: StateManagedChannel {
     }
 
     public func remoteAddress0() throws -> SocketAddress {
-        guard let remoteEndpoint = self.nwConnection?.currentPath?.remoteEndpoint else {
+        guard let remoteEndpoint = self.connection?.currentPath?.remoteEndpoint else {
             throw NIOTSErrors.NoCurrentPath()
         }
         // TODO: Support wider range of address types.
         return try SocketAddress(fromNWEndpoint: remoteEndpoint)
-    }
-
-    internal func alreadyConfigured0(promise: EventLoopPromise<Void>?) {
-        guard let connection = nwConnection else {
-            promise?.fail(NIOTSErrors.NotPreConfigured())
-            return
-        }
-
-        guard case .setup = connection.state else {
-            promise?.fail(NIOTSErrors.NotPreConfigured())
-            return
-        }
-        self.connectPromise = promise
-        connection.stateUpdateHandler = self.stateUpdateHandler(newState:)
-        connection.betterPathUpdateHandler = self.betterPathHandler
-        connection.pathUpdateHandler = self.pathChangedHandler(newPath:)
-        connection.start(queue: self.connectionQueue)
-    }
-
-    internal func beginActivating0(to target: NWEndpoint, promise: EventLoopPromise<Void>?) {
-        assert(self.nwConnection == nil)
-        assert(self.connectPromise == nil)
-
-        // Before we start, we validate that the target won't cause a crash: see
-        // https://github.com/apple/swift-nio/issues/1617.
-        if case .hostPort(host: let host, port: _) = target, host == "" {
-            // We don't pass the promise in here because we'll actually not complete it. We complete it manually ourselves.
-            self.close0(error: NIOTSErrors.InvalidHostname(), mode: .all, promise: nil)
-            promise?.fail(NIOTSErrors.InvalidHostname())
-            return
-        }
-
-        self.connectPromise = promise
-
-        let parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
-
-        // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
-        // either or it's been explicitly set.
-        parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort || self.allowLocalEndpointReuse
-
-        parameters.includePeerToPeer = self.enablePeerToPeer
-
-        parameters.multipathServiceType = self.multipathServiceType
-
-        let connection = NWConnection(to: target, using: parameters)
-        connection.stateUpdateHandler = self.stateUpdateHandler(newState:)
-        connection.betterPathUpdateHandler = self.betterPathHandler
-        connection.pathUpdateHandler = self.pathChangedHandler(newPath:)
-
-        // Ok, state is ready. Let's go!
-        self.nwConnection = connection
-        connection.start(queue: self.connectionQueue)
-    }
-
-    public func write0(_ data: NIOAny, promise: EventLoopPromise<Void>?) {
-        guard self.isActive else {
-            promise?.fail(ChannelError.ioOnClosedChannel)
-            return
-        }
-
-        // TODO: We would ideally support all of IOData here, gotta work out how to do that without HOL blocking
-        // all writes terribly.
-        // My best guess at this time is that Data(contentsOf:) may mmap the file in question, which would let us
-        // at least only block the network stack itself rather than our thread. I'm not certain though, especially
-        // on Linux. Should investigate.
-        let data = self.unwrapData(data, as: ByteBuffer.self)
-        self.pendingWrites.append((data, promise))
-
-
-        /// This may cause our writability state to change.
-        if self.backpressureManager.writabilityChanges(whenQueueingBytes: data.readableBytes) {
-            self.pipeline.fireChannelWritabilityChanged()
-        }
-    }
-
-    public func flush0() {
-        guard self.isActive else {
-            return
-        }
-
-        guard let conn = self.nwConnection else {
-            preconditionFailure("nwconnection cannot be nil while channel is active")
-        }
-
-        func completionCallback(promise: EventLoopPromise<Void>?, sentBytes: Int) -> ((NWError?) -> Void) {
-            return { error in
-                if let error = error {
-                    promise?.fail(error)
-                } else {
-                    promise?.succeed(())
-                }
-
-                if self.backpressureManager.writabilityChanges(whenBytesSent: sentBytes) {
-                    self.pipeline.fireChannelWritabilityChanged()
-                }
-            }
-        }
-
-        conn.batch {
-            while self.pendingWrites.count > 0 {
-                let write = self.pendingWrites.removeFirst()
-                let buffer = write.data
-                let content = buffer.getData(at: buffer.readerIndex, length: buffer.readableBytes)
-                conn.send(content: content, completion: .contentProcessed(completionCallback(promise: write.promise, sentBytes: buffer.readableBytes)))
-            }
-        }
-    }
-
-    /// Perform a read from the network.
-    ///
-    /// This method has a slightly strange semantic, because we do not allow multiple reads at once. As a result, this
-    /// is a *request* to read, and if there is a read already being processed then this method will do nothing.
-    public func read0() {
-        guard self.inboundStreamOpen && !self.outstandingRead else {
-            return
-        }
-
-        guard let conn = self.nwConnection else {
-            preconditionFailure("Connection should not be nil")
-        }
-
-        // TODO: Can we do something sensible with these numbers?
-        self.outstandingRead = true
-        conn.receive(minimumIncompleteLength: 1, maximumLength: 8192, completion: self.dataReceivedHandler(content:context:isComplete:error:))
-    }
-
-    public func doClose0(error: Error) {
-        guard let conn = self.nwConnection else {
-            // We don't have a connection to close here, so we're actually done. Our old state
-            // was idle.
-            assert(self.pendingWrites.count == 0)
-            return
-        }
-
-        // Step 1 is to tell the network stack we're done.
-        // TODO: Does this drop the connection fully, or can we keep receiving data? Must investigate.
-        conn.cancel()
-
-        // Step 2 is to fail all outstanding writes.
-        self.dropOutstandingWrites(error: error)
-
-        // Step 3 is to cancel a pending connect promise, if any.
-        if let pendingConnect = self.connectPromise {
-            self.connectPromise = nil
-            pendingConnect.fail(error)
-        }
-    }
-
-    public func doHalfClose0(error: Error, promise: EventLoopPromise<Void>?) {
-        guard let conn = self.nwConnection else {
-            // We don't have a connection to half close, so fail the promise.
-            promise?.fail(ChannelError.ioOnClosedChannel)
-            return
-        }
-
-
-        do {
-            try self.state.closeOutput()
-        } catch ChannelError.outputClosed {
-            // Here we *only* fail the promise, no need to blow up the connection.
-            promise?.fail(ChannelError.outputClosed)
-            return
-        } catch {
-            // For any other error, this is fatal.
-            self.close0(error: error, mode: .all, promise: promise)
-            return
-        }
-
-        func completionCallback(for promise: EventLoopPromise<Void>?) -> ((NWError?) -> Void) {
-            return { error in
-                if let error = error {
-                    promise?.fail(error)
-                } else {
-                    promise?.succeed(())
-                }
-            }
-        }
-
-        // It should not be possible to have a pending connect promise while we're doing half-closure.
-        assert(self.connectPromise == nil)
-
-        // Step 1 is to tell the network stack we're done.
-        conn.send(content: nil, contentContext: .finalMessage, completion: .contentProcessed(completionCallback(for: promise)))
-
-        // Step 2 is to fail all outstanding writes.
-        self.dropOutstandingWrites(error: error)
-    }
-
-    public func triggerUserOutboundEvent0(_ event: Any, promise: EventLoopPromise<Void>?) {
-        switch event {
-        case let x as NIOTSNetworkEvents.ConnectToNWEndpoint:
-            self.connect0(to: x.endpoint, promise: promise)
-        default:
-            promise?.fail(ChannelError.operationUnsupported)
-        }
-    }
-
-    public func channelRead0(_ data: NIOAny) {
-        // drop the data, do nothing
-        return
-    }
-
-    public func errorCaught0(error: Error) {
-        // Currently we don't do anything with errors that pass through the pipeline
-        return
-    }
-
-    /// A function that will trigger a socket read if necessary.
-    internal func readIfNeeded0() {
-        if self.options.autoRead {
-            self.pipeline.read()
-        }
     }
 }
 
@@ -677,45 +485,6 @@ extension NIOTSConnectionChannel: StateManagedChannel {
 // MARK:- Implementations of the callbacks passed to NWConnection.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel {
-    /// Called by the underlying `NWConnection` when its internal state has changed.
-    private func stateUpdateHandler(newState: NWConnection.State) {
-        switch newState {
-        case .setup:
-            preconditionFailure("Should not be told about this state.")
-        case .waiting(let err):
-            if case .activating = self.state, self.options.waitForActivity {
-                // This means the connection cannot currently be completed. We should notify the pipeline
-                // here, or support this with a channel option or something, but for now for the sake of
-                // demos we will just allow ourselves into this stage.
-                self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.WaitingForConnectivity(transientError: err))
-                break
-            }
-
-            // In this state we've transitioned into waiting, presumably from active or closing. In this
-            // version of NIO this is an error, but we should aim to support this at some stage.
-            self.close0(error: err, mode: .all, promise: nil)
-        case .preparing:
-            // This just means connections are being actively established. We have no specific action
-            // here.
-            break
-        case .ready:
-            // Transitioning to ready means the connection was succeeded. Hooray!
-            self.connectionComplete0()
-        case .cancelled:
-            // This is the network telling us we're closed. We don't need to actually do anything here
-            // other than check our state is ok.
-            assert(self.closed)
-            self.nwConnection = nil
-        case .failed(let err):
-            // The connection has failed for some reason.
-            self.close0(error: err, mode: .all, promise: nil)
-        default:
-            // This clause is here to help the compiler out: it's otherwise not able to
-            // actually validate that the switch is exhaustive. Trust me, it is.
-            fatalError("Unreachable")
-        }
-    }
-
     /// Called by the underlying `NWConnection` when a network receive has completed.
     ///
     /// The state matrix here is large. If `content` is non-nil, some data was received: we need to send it down the pipeline
@@ -779,7 +548,7 @@ extension NIOTSConnectionChannel {
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel {
     /// Whether the inbound side of the connection is still open.
-    private var inboundStreamOpen: Bool {
+    internal var _inboundStreamOpen: Bool {
         switch self.state {
         case .active(.open), .active(.halfClosedLocal):
             return true
@@ -788,42 +557,11 @@ extension NIOTSConnectionChannel {
         }
     }
 
-    /// Make the channel active.
-    private func connectionComplete0() {
-        let promise = self.connectPromise
-        self.connectPromise = nil
-
-        // Before becoming active, update the cached addresses.
-        let localAddress = try? self.localAddress0()
-        let remoteAddress = try? self.remoteAddress0()
-
-        self._addressCacheLock.withLock {
-            self._addressCache = AddressCache(local: localAddress, remote: remoteAddress)
-        }
-
-        self.becomeActive0(promise: promise)
-
-        if let metadata = self.nwConnection?.metadata(definition: NWProtocolTLS.definition) as? NWProtocolTLS.Metadata {
-            // This is a TLS connection, we may need to fire some other events.
-            let securityMetadata = metadata.securityProtocolMetadata
-
-            // The pointer returned by `sec_protocol_metadata_get_negotiated_protocol` is presumably owned by it, so we need
-            // to confirm it's still alive while we copy the data out.
-            let negotiatedProtocol = withExtendedLifetime(securityMetadata) {
-                sec_protocol_metadata_get_negotiated_protocol(metadata.securityProtocolMetadata).map {
-                    String(cString: $0)
-                }
-            }
-
-            self.pipeline.fireUserInboundEventTriggered(TLSUserEvent.handshakeCompleted(negotiatedProtocol: negotiatedProtocol))
-        }
-    }
-
     /// Drop all outstanding writes. Must only be called in the inactive
     /// state.
-    private func dropOutstandingWrites(error: Error) {
-        while self.pendingWrites.count > 0 {
-            self.pendingWrites.removeFirst().promise?.fail(error)
+    private func dropOutNIOTransportServicesTestsstandingWrites(error: Error) {
+        while self._pendingWrites.count > 0 {
+            self._pendingWrites.removeFirst().promise?.fail(error)
         }
     }
 
@@ -835,7 +573,7 @@ extension NIOTSConnectionChannel {
         if self.options.supportRemoteHalfClosure {
             // This is a half-closure, but the connection is still valid.
             do {
-                try self.state.closeInput()
+                try ActiveSubstate.closeInput(state: &self.state)
             } catch {
                 return self.close0(error: error, mode: .all, promise: nil)
             }
@@ -847,38 +585,6 @@ extension NIOTSConnectionChannel {
     }
 }
 
-
-// MARK:- Managing TCP substate.
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-fileprivate extension ChannelState where ActiveSubstate == NIOTSConnectionChannel.TCPSubstate {
-    /// Close the input side of the TCP state machine.
-    mutating func closeInput() throws {
-        switch self {
-        case .active(.open):
-            self = .active(.halfClosedRemote)
-        case .active(.halfClosedLocal):
-            self = .active(.closed)
-        case .idle, .registered, .activating, .active(.halfClosedRemote), .active(.closed), .inactive:
-            throw NIOTSErrors.InvalidChannelStateTransition()
-        }
-    }
-
-    /// Close the output side of the TCP state machine.
-    mutating func closeOutput() throws {
-        switch self {
-        case .active(.open):
-            self = .active(.halfClosedLocal)
-        case .active(.halfClosedRemote):
-            self = .active(.closed)
-        case .active(.halfClosedLocal), .active(.closed):
-            // This is a special case for closing the output, as it's user-controlled. If they already
-            // closed it, we want to throw a special error to tell them.
-            throw ChannelError.outputClosed
-        case .idle, .registered, .activating, .inactive:
-            throw NIOTSErrors.InvalidChannelStateTransition()
-        }
-    }
-}
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel {
@@ -915,10 +621,10 @@ public struct NIOTSChannelIsNotANIOTSConnectionChannel: Error, Hashable {
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel {
     fileprivate func metadata(definition: NWProtocolDefinition) throws -> NWProtocolMetadata? {
-        guard let nwConnection = self.nwConnection else {
+        guard let connection = self.connection else {
             throw NIOTSConnectionNotInitialized()
         }
-        return nwConnection.metadata(definition: definition)
+        return connection.metadata(definition: definition)
     }
 }
 

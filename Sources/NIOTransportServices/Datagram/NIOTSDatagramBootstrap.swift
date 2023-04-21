@@ -22,7 +22,7 @@ public final class NIOTSDatagramBootstrap {
     private let group: EventLoopGroup
     private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)?
     private var connectTimeout: TimeAmount = TimeAmount.seconds(10)
-    private var channelOptions = ChannelOptionsStorage()
+    private var channelOptions = ChannelOptions.Storage()
     private var qos: DispatchQoS?
     private var udpOptions: NWProtocolUDP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
@@ -96,8 +96,8 @@ public final class NIOTSDatagramBootstrap {
     /// To retrieve the UDP options from connected channels, use
     /// `NIOTSChannelOptions.UDPConfiguration`. It is not possible to change the
     /// UDP configuration after `connect` is called.
-    public func udpOptions(_ _options: NWProtocolUDP.Options) -> Self {
-        self.udpOptions = _options
+    public func udpOptions(_ options: NWProtocolUDP.Options) -> Self {
+        self.udpOptions = options
         return self
     }
 
@@ -106,8 +106,8 @@ public final class NIOTSDatagramBootstrap {
     /// To retrieve the TLS options from connected channels, use
     /// `NIOTSChannelOptions.TLSConfiguration`. It is not possible to change the
     /// TLS configuration after `connect` is called.
-    public func tlsOptions(_ _options: NWProtocolTLS.Options) -> Self {
-        self.tlsOptions = _options
+    public func tlsOptions(_ options: NWProtocolTLS.Options) -> Self {
+        self.tlsOptions = options
         return self
     }
 

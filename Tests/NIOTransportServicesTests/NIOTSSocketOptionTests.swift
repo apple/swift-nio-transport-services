@@ -21,14 +21,14 @@ import Network
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
 class NIOTSSocketOptionTests: XCTestCase {
-    private var _options: NWProtocolTCP.Options!
+    private var options: NWProtocolTCP.Options!
 
     override func setUp() {
-        self._options = NWProtocolTCP.Options()
+        self.options = NWProtocolTCP.Options()
     }
 
     override func tearDown() {
-        self._options = nil
+        self.options = nil
     }
 
     private func assertProperty<T: Equatable>(called path: KeyPath<NWProtocolTCP.Options, T>,
@@ -38,18 +38,18 @@ class NIOTSSocketOptionTests: XCTestCase {
                                               canBeSetTo unusualValue: SocketOptionValue,
                                               whichLeadsTo newInnerValue: T) throws {
         // Confirm the default is right.
-        let actualDefaultSocketOptionValue = try self._options.valueFor(socketOption: socketOption)
-        XCTAssertEqual(self._options[keyPath: path], defaultValue)
+        let actualDefaultSocketOptionValue = try self.options.valueFor(socketOption: socketOption)
+        XCTAssertEqual(self.options[keyPath: path], defaultValue)
         XCTAssertEqual(actualDefaultSocketOptionValue, defaultSocketOptionValue)
 
         // Confirm that we can set this to a new value, and that it leads to the right outcome.
-        try self._options.applyChannelOption(option: socketOption, value: unusualValue)
-        XCTAssertEqual(self._options[keyPath: path], newInnerValue)
-        XCTAssertEqual(try self._options.valueFor(socketOption: socketOption), unusualValue)
+        try self.options.applyChannelOption(option: socketOption, value: unusualValue)
+        XCTAssertEqual(self.options[keyPath: path], newInnerValue)
+        XCTAssertEqual(try self.options.valueFor(socketOption: socketOption), unusualValue)
 
         // And confirm that we can set it back to the default.
-        try self._options.applyChannelOption(option: socketOption, value: actualDefaultSocketOptionValue)
-        XCTAssertEqual(self._options[keyPath: path], defaultValue)
+        try self.options.applyChannelOption(option: socketOption, value: actualDefaultSocketOptionValue)
+        XCTAssertEqual(self.options[keyPath: path], defaultValue)
         XCTAssertEqual(actualDefaultSocketOptionValue, defaultSocketOptionValue)
     }
 
@@ -141,7 +141,7 @@ class NIOTSSocketOptionTests: XCTestCase {
         let option = ChannelOptions.Types.SocketOption(level: Int32.max, name: Int32.max)
 
         do {
-            try self._options.applyChannelOption(option: option, value: 0)
+            try self.options.applyChannelOption(option: option, value: 0)
         } catch let err as NIOTSErrors.UnsupportedSocketOption {
             XCTAssertEqual(err.optionValue.level, Int32.max)
             XCTAssertEqual(err.optionValue.name, Int32.max)
@@ -154,7 +154,7 @@ class NIOTSSocketOptionTests: XCTestCase {
         let option = ChannelOptions.Types.SocketOption(level: Int32.max, name: Int32.max)
 
         do {
-            _ = try self._options.valueFor(socketOption: option)
+            _ = try self.options.valueFor(socketOption: option)
         } catch let err as NIOTSErrors.UnsupportedSocketOption {
             XCTAssertEqual(err.optionValue.level, Int32.max)
             XCTAssertEqual(err.optionValue.name, Int32.max)

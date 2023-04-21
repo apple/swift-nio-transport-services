@@ -52,7 +52,7 @@ internal final class NIOTSListenerChannel {
     private let tlsOptions: NWProtocolTLS.Options?
 
     /// The `DispatchQueue` that socket events for this connection will be dispatched onto.
-    private let _connectionQueue: DispatchQueue
+    private let connectionQueue: DispatchQueue
 
     /// An `EventLoopPromise` that will be succeeded or failed when a bind attempt succeeds or fails.
     private var bindPromise: EventLoopPromise<Void>?
@@ -68,13 +68,13 @@ internal final class NIOTSListenerChannel {
 
     /// Whether a call to NWListener.receive has been made, but the completion
     /// handler has not yet been invoked.
-    private var _outstandingRead: Bool = false
+    private var outstandingRead: Bool = false
 
     /// Whether autoRead is enabled for this channel.
     private var autoRead: Bool = true
 
     /// The value of SO_REUSEADDR.
-    private var _reuseAddress = false
+    private var reuseAddress = false
 
     /// The value of SO_REUSEPORT.
     private var reusePort = false
@@ -83,7 +83,7 @@ internal final class NIOTSListenerChannel {
     private var allowLocalEndpointReuse = false
 
     /// Whether to enable peer-to-peer connectivity when using Bonjour services.
-    private var _enablePeerToPeer = false
+    private var enablePeerToPeer = false
 
     /// The default multipath service type.
     private var multipathServiceType = NWParameters.MultipathServiceType.disabled
@@ -101,7 +101,7 @@ internal final class NIOTSListenerChannel {
     private let childTLSOptions: NWProtocolTLS.Options?
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
-    private var _addressCache = AddressCache(local: nil, remote: nil)
+    private var addressCache = AddressCache(local: nil, remote: nil)
 
     /// A lock that guards the _addressCache.
     private let _addressCacheLock = NIOLock()
@@ -120,7 +120,7 @@ internal final class NIOTSListenerChannel {
                   childTLSOptions: NWProtocolTLS.Options?) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
-        self._connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
+        self.connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
         self.tcpOptions = tcpOptions
         self.tlsOptions = tlsOptions
         self.childLoopGroup = childLoopGroup
@@ -165,16 +165,12 @@ extension NIOTSListenerChannel: Channel {
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.local
-        }
+        return self.addressCache.local
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.remote
-        }
+        return self.addressCache.remote
     }
 
     /// Whether this channel is currently writable.
@@ -213,9 +209,9 @@ extension NIOTSListenerChannel: Channel {
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
-                self._reuseAddress = (value as! SocketOptionValue) != Int32(0)
+                self.reuseAddress = (value as! SocketOptionValue) != Int32(0)
             case (SOL_SOCKET, SO_REUSEPORT):
-                self._reusePort = (value as! SocketOptionValue) != Int32(0)
+                self.reusePort = (value as! SocketOptionValue) != Int32(0)
             default:
                 try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
@@ -252,9 +248,9 @@ extension NIOTSListenerChannel: Channel {
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
-                return Int32(self._reuseAddress ? 1 : 0) as! Option.Value
+                return Int32(self.reuseAddress ? 1 : 0) as! Option.Value
             case (SOL_SOCKET, SO_REUSEPORT):
-                return Int32(self._reusePort ? 1 : 0) as! Option.Value
+                return Int32(self.reusePort ? 1 : 0) as! Option.Value
             default:
                 return try self.tcpOptions.valueFor(socketOption: optionValue) as! Option.Value
             }
@@ -354,7 +350,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
         // either or it's been explicitly set.
         parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort || self.allowLocalEndpointReuse
 
-        parameters.includePeerToPeer = self._enablePeerToPeer
+        parameters.includePeerToPeer = self.enablePeerToPeer
 
         parameters.multipathServiceType = self.multipathServiceType
 
@@ -376,7 +372,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
 
         // Ok, state is ready. Let's go!
         self.nwListener = listener
-        listener.start(queue: self._connectionQueue)
+        listener.start(queue: self.connectionQueue)
     }
 
     public func write0(_ data: NIOAny, promise: EventLoopPromise<Void>?) {
@@ -414,7 +410,7 @@ extension NIOTSListenerChannel: StateManagedChannel {
 
     public func triggerUserOutboundEvent0(_ event: Any, promise: EventLoopPromise<Void>?) {
         switch event {
-        case let x as NIOTSNetworkEvents.ConnectToNWEndpoint:
+        case let x as NIOTSNetworkEvents.BindToNWEndpoint:
             self.bind0(to: x.endpoint, promise: promise)
         default:
             promise?.fail(ChannelError.operationUnsupported)
@@ -506,7 +502,7 @@ extension NIOTSListenerChannel {
         let localAddress = try? self.localAddress0()
 
         self._addressCacheLock.withLock {
-            self._addressCache = AddressCache(local: localAddress, remote: nil)
+            self.addressCache = AddressCache(local: localAddress, remote: nil)
         }
 
         self.becomeActive0(promise: promise)

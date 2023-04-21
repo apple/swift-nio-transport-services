@@ -205,12 +205,12 @@ class NIOTSListenerChannelTests: XCTestCase {
     func testCanObserveValueOfEnablePeerToPeer() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .serverChannelInitializer { channel in
-                return channel.getOption(NIOTSChannelOptions._enablePeerToPeer).map { value in
+                return channel.getOption(NIOTSChannelOptions.enablePeerToPeer).map { value in
                     XCTAssertFalse(value)
                 }.flatMap {
-                    channel.setOption(NIOTSChannelOptions._enablePeerToPeer, value: true)
+                    channel.setOption(NIOTSChannelOptions.enablePeerToPeer, value: true)
                 }.flatMap {
-                        channel.getOption(NIOTSChannelOptions._enablePeerToPeer)
+                        channel.getOption(NIOTSChannelOptions.enablePeerToPeer)
                 }.map { value in
                     XCTAssertTrue(value)
                 }
