@@ -2,31 +2,30 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2021 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
 import XCTest
-import NIO
+import NIOCore
 import NIOTransportServices
 import Foundation
 import Network
 
 
-func assertNoThrowWithValue<T>(_ body: @autoclosure () throws -> T, defaultValue: T? = nil, message: String? = nil, file: StaticString = #file, line: UInt = #line) throws -> T {
+func assertNoThrowWithValue<T>(_ body: @autoclosure () throws -> T, defaultValue: T? = nil, message: String? = nil,
+                               file: StaticString = #filePath, line: UInt = #line) throws -> T {
     do {
         return try body()
     } catch {
-        XCTFail("\(message.map { $0 + ": " } ?? "")unexpected error \(error) thrown", file: file, line: line)
+        XCTFail("\(message.map { $0 + ": " } ?? "")unexpected error \(error) thrown", file: (file), line: line)
         if let defaultValue = defaultValue {
             return defaultValue
         } else {
@@ -160,6 +159,27 @@ final class FailOnHalfCloseHandler: ChannelInboundHandler {
 }
 
 
+final class WaitForActiveHandler: ChannelInboundHandler {
+    typealias InboundIn = Any
+
+    private let activePromise: EventLoopPromise<Channel>
+
+    init(_ promise: EventLoopPromise<Channel>) {
+        self.activePromise = promise
+    }
+
+    func handlerAdded(context: ChannelHandlerContext) {
+        if context.channel.isActive {
+            self.activePromise.succeed(context.channel)
+        }
+    }
+
+    func channelActive(context: ChannelHandlerContext) {
+        self.activePromise.succeed(context.channel)
+    }
+}
+
+
 extension Channel {
     /// Expect that the given bytes will be received.
     func expectRead(_ bytes: ByteBuffer) -> EventLoopFuture<Void> {
@@ -206,6 +226,35 @@ class NIOTSEndToEndTests: XCTestCase {
         let buffer = connection.allocator.bufferFor(string: "hello, world!")
         let completeFuture = connection.expectRead(buffer)
         connection.writeAndFlush(buffer, promise: nil)
+        XCTAssertNoThrow(try completeFuture.wait())
+    }
+
+    func testNWExistingListener() throws {
+        let nwListenerTest = try NWListener(
+            using: NWParameters(tls: nil),
+            on: NWEndpoint.Port(rawValue: 0)!)
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
+            .withNWListener(nwListenerTest).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let nwConnectionTest = NWConnection(
+            host: NWEndpoint.Host("localhost"),
+            port: nwListenerTest.port!,
+            using: NWParameters(tls: nil))
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+
+            .withExistingNWConnection(nwConnectionTest).wait()
+        defer {
+            XCTAssertNoThrow(try connection.close().wait())
+        }
+
+        let buffer = connection.allocator.bufferFor(string: "hello, world!")
+        let completeFuture = connection.expectRead(buffer)
+        connection.writeAndFlush(buffer, promise: nil)
+        //        this is the assert that matters to make sure it works & writes data
         XCTAssertNoThrow(try completeFuture.wait())
     }
 
@@ -298,8 +347,10 @@ class NIOTSEndToEndTests: XCTestCase {
         let serverSideConnectionPromise: EventLoopPromise<Channel> = self.group.next().makePromise()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
-                serverSideConnectionPromise.succeed(channel)
-                return channel.pipeline.addHandler(EchoHandler())
+                return channel.pipeline.addHandlers([
+                    WaitForActiveHandler(serverSideConnectionPromise),
+                    EchoHandler()
+                ])
             }
             .bind(host: "localhost", port: 0).wait()
         defer {

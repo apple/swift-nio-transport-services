@@ -2,14 +2,12 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2021 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
@@ -17,7 +15,7 @@
 #if canImport(Network)
 import XCTest
 import Network
-import NIO
+import NIOCore
 import NIOTransportServices
 import Foundation
 
@@ -88,10 +86,23 @@ final class DisableWaitingAfterConnect: ChannelOutboundHandler {
     }
 }
 
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+final class EnableWaitingAfterWaiting: ChannelInboundHandler {
+    typealias InboundIn = Any
+    typealias InboundOut = Any
+
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+        if event is NIOTSNetworkEvents.WaitingForConnectivity {
+            // Note that this is the default value and is set to _true_.
+            try! context.channel.syncOptions!.setOption(NIOTSChannelOptions.waitForActivity, value: true)
+        }
+    }
+}
+
 
 final class PromiseOnActiveHandler: ChannelInboundHandler {
     typealias InboundIn = Any
-    typealias InboudOut = Any
+    typealias InboundOut = Any
 
     private let promise: EventLoopPromise<Void>
 
@@ -101,6 +112,27 @@ final class PromiseOnActiveHandler: ChannelInboundHandler {
 
     func channelActive(context: ChannelHandlerContext) {
         self.promise.succeed(())
+    }
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+final class EventWaiter<Event>: ChannelInboundHandler {
+    typealias InboundIn = Any
+    typealias InboundOut = Any
+
+    private var eventWaiter: EventLoopPromise<Event>?
+
+    init(_ eventWaiter: EventLoopPromise<Event>) {
+        self.eventWaiter = eventWaiter
+    }
+
+    func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+        if let event = event as? Event {
+            var promise = Optional<EventLoopPromise<Event>>.none
+            swap(&promise, &self.eventWaiter)
+            promise?.succeed(event)
+        }
+        context.fireUserInboundEventTriggered(event)
     }
 }
 
@@ -264,7 +296,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             XCTAssertEqual(option.high, 64 * 1024)
             XCTAssertEqual(option.low, 32 * 1024)
 
-            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 1, high: 101))
+            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: ChannelOptions.Types.WriteBufferWaterMark(low: 1, high: 101))
         }.flatMap {
             connection.getOption(ChannelOptions.writeBufferWaterMark)
         }.map {
@@ -291,7 +323,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             .wait()
 
         // We're going to set some helpful watermarks, and allocate a big buffer.
-        XCTAssertNoThrow(try connection.setOption(ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 2, high: 2048)).wait())
+        XCTAssertNoThrow(try connection.setOption(ChannelOptions.writeBufferWaterMark, value: ChannelOptions.Types.WriteBufferWaterMark(low: 2, high: 2048)).wait())
         var buffer = connection.allocator.buffer(capacity: 2048)
         buffer.writeBytes(repeatElement(UInt8(4), count: 2048))
 
@@ -427,36 +459,36 @@ class NIOTSConnectionChannelTests: XCTestCase {
             XCTAssertTrue(connection.isWritable)
         }.wait()
 
-        try connection.setOption(ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 128, high: 256)).flatMap {
+        try connection.setOption(ChannelOptions.writeBufferWaterMark, value: ChannelOptions.Types.WriteBufferWaterMark(low: 128, high: 256)).flatMap {
             // High to 256, low to 128. No writability change.
             XCTAssertEqual(writabilities, [])
             XCTAssertTrue(connection.isWritable)
 
-            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 128, high: 255))
+            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: ChannelOptions.Types.WriteBufferWaterMark(low: 128, high: 255))
         }.flatMap {
             // High to 255, low to 127. Channel becomes not writable.
             XCTAssertEqual(writabilities, [false])
             XCTAssertFalse(connection.isWritable)
 
-            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 128, high: 256))
+            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: ChannelOptions.Types.WriteBufferWaterMark(low: 128, high: 256))
         }.flatMap {
             // High back to 256, low to 128. No writability change.
             XCTAssertEqual(writabilities, [false])
             XCTAssertFalse(connection.isWritable)
 
-            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 256, high: 1024))
+            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: ChannelOptions.Types.WriteBufferWaterMark(low: 256, high: 1024))
         }.flatMap {
             // High to 1024, low to 128. No writability change.
             XCTAssertEqual(writabilities, [false])
             XCTAssertFalse(connection.isWritable)
 
-            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 257, high: 1024))
+            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: ChannelOptions.Types.WriteBufferWaterMark(low: 257, high: 1024))
         }.flatMap {
             // Low to 257, channel becomes writable again.
             XCTAssertEqual(writabilities, [false, true])
             XCTAssertTrue(connection.isWritable)
 
-            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: WriteBufferWaterMark(low: 256, high: 1024))
+            return connection.setOption(ChannelOptions.writeBufferWaterMark, value: ChannelOptions.Types.WriteBufferWaterMark(low: 256, high: 1024))
         }.map {
             // Low back to 256, no writability change.
             XCTAssertEqual(writabilities, [false, true])
@@ -557,6 +589,36 @@ class NIOTSConnectionChannelTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error \(error)")
         }
+    }
+
+    func testSettingWaitForConnectivityDoesntCloseImmediately() throws {
+        enum Reason {
+            case timedClose
+            case autoClose
+        }
+
+        // We want a single loop for all this to enforce serialization.
+        let chosenLoop = self.group.next()
+        let closedPromise = chosenLoop.makePromise(of: Reason.self)
+
+        _ = NIOTSConnectionBootstrap(group: chosenLoop)
+            .channelInitializer { channel in
+                try! channel.pipeline.syncOperations.addHandler(EnableWaitingAfterWaiting())
+
+                channel.eventLoop.scheduleTask(in: .milliseconds(500)) {
+                    channel.close(promise: nil)
+                    closedPromise.succeed(.timedClose)
+                }
+
+                channel.closeFuture.whenComplete { _ in
+                    closedPromise.succeed(.autoClose)
+                }
+
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }.connect(to: try SocketAddress(unixDomainSocketPath: "/this/path/definitely/doesnt/exist"))
+
+        let result = try closedPromise.futureResult.wait()
+        XCTAssertEqual(result, .timedClose)
     }
 
     func testCanObserveValueOfDisableWaiting() throws {
@@ -710,8 +772,98 @@ class NIOTSConnectionChannelTests: XCTestCase {
         XCTAssertNoThrow(try connection.eventLoop.submit {
             XCTAssertEqual(testHandler.readCount, 2)
         }.wait())
+    }
 
-        
+    func testLoadingAddressesInMultipleQueues() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let ourSyncQueue = DispatchQueue(label: "ourSyncQueue")
+
+        let workFuture = NIOTSConnectionBootstrap(group: self.group).connect(to: listener.localAddress!).map { channel -> Channel in
+            XCTAssertTrue(channel.eventLoop.inEventLoop)
+
+            ourSyncQueue.sync {
+                XCTAssertFalse(channel.eventLoop.inEventLoop)
+
+                // These will crash before we apply our fix.
+                XCTAssertNotNil(channel.localAddress)
+                XCTAssertNotNil(channel.remoteAddress)
+            }
+
+            return channel
+        }.flatMap { $0.close() }
+
+        XCTAssertNoThrow(try workFuture.wait())
+    }
+
+    func testConnectingInvolvesWaiting() throws {
+        let loop = self.group.next()
+        let eventPromise = loop.makePromise(of: NIOTSNetworkEvents.WaitingForConnectivity.self)
+        let eventRecordingHandler = EventWaiter<NIOTSNetworkEvents.WaitingForConnectivity>(eventPromise)
+
+        let connectBootstrap = NIOTSConnectionBootstrap(group: loop)
+            .channelInitializer { channel in channel.pipeline.addHandler(eventRecordingHandler) }
+            .connectTimeout(.seconds(5))  // This is the worst-case test time: normally it'll be faster as we don't wait for this.
+
+        // We choose 443 here to avoid triggering Private Relay, which can do all kinds of weird stuff to this test.
+        let target = NWEndpoint.hostPort(host: "example.invalid", port: 443)
+
+        // We don't wait here, as the connect attempt should timeout. If it doesn't, we'll close it.
+        connectBootstrap.connect(endpoint: target).whenSuccess { conn in
+            XCTFail("DNS resolution should have returned NXDOMAIN but did not: DNS hijacking forces this test to fail")
+            conn.close(promise: nil)
+        }
+
+        // We don't actually investigate this because the error is going to be very OS specific. It just mustn't
+        // throw
+        XCTAssertNoThrow(try eventPromise.futureResult.wait())
+    }
+
+    func testConnectingToEmptyStringErrors() throws {
+        let connectBootstrap = NIOTSConnectionBootstrap(group: self.group)
+        XCTAssertThrowsError(try connectBootstrap.connect(host: "", port: 80).wait()) { error in
+            XCTAssertTrue(error is NIOTSErrors.InvalidHostname)
+        }
+    }
+
+    func testSyncOptionsAreSupported() throws {
+        func testSyncOptions(_ channel: Channel) {
+            if let sync = channel.syncOptions {
+                do {
+                    let autoRead = try sync.getOption(ChannelOptions.autoRead)
+                    try sync.setOption(ChannelOptions.autoRead, value: !autoRead)
+                    XCTAssertNotEqual(autoRead, try sync.getOption(ChannelOptions.autoRead))
+                } catch {
+                    XCTFail("Could not get/set autoRead: \(error)")
+                }
+            } else {
+                XCTFail("\(channel) unexpectedly returned nil syncOptions")
+            }
+        }
+
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .childChannelInitializer { channel in
+                testSyncOptions(channel)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .bind(host: "localhost", port: 0)
+            .wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                testSyncOptions(channel)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .connect(to: listener.localAddress!)
+            .wait()
+        XCTAssertNoThrow(try connection.close().wait())
     }
 }
 #endif

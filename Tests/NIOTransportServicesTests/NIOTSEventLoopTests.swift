@@ -2,21 +2,20 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2021 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
+import Atomics
 import XCTest
-import NIO
+import NIOCore
 import NIOConcurrencyHelpers
 import NIOTransportServices
 
@@ -103,11 +102,11 @@ class NIOTSEventLoopTest: XCTestCase {
             weakELG = group
             weakEL = group.next()
 
-            let counter = Atomic<Int>(value: 0)
+            let counter = ManagedAtomic(0)
             let acceptedChan = group.next().makePromise(of: Channel.self)
             let server = try NIOTSListenerBootstrap(group: group)
                 .childChannelInitializer { channel in
-                    XCTAssertEqual(0, counter.add(1))
+                    XCTAssertEqual(0, counter.loadThenWrappingIncrement(ordering: .relaxed))
                     acceptedChan.succeed(channel)
                     return channel.eventLoop.makeSucceededFuture(())
                 }

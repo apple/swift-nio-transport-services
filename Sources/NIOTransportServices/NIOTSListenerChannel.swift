@@ -2,25 +2,24 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2021 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
 import Foundation
-import NIO
+import NIOCore
 import NIOFoundationCompat
 import NIOConcurrencyHelpers
 import Dispatch
 import Network
+import Atomics
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal final class NIOTSListenerChannel {
@@ -65,7 +64,7 @@ internal final class NIOTSListenerChannel {
     internal let supportedActivationType: ActivationType = .bind
 
     /// The active state, used for safely reporting the channel state across threads.
-    internal var isActive0: Atomic<Bool> = Atomic(value: false)
+    internal var isActive0 = ManagedAtomic(false)
 
     /// Whether a call to NWListener.receive has been made, but the completion
     /// handler has not yet been invoked.
@@ -78,10 +77,16 @@ internal final class NIOTSListenerChannel {
     private var _reuseAddress = false
 
     /// The value of SO_REUSEPORT.
-    private var _reusePort = false
+    private var reusePort = false
+    
+    /// The value of the allowLocalEndpointReuse option.
+    private var allowLocalEndpointReuse = false
 
     /// Whether to enable peer-to-peer connectivity when using Bonjour services.
     private var _enablePeerToPeer = false
+
+    /// The default multipath service type.
+    private var multipathServiceType = NWParameters.MultipathServiceType.disabled
 
     /// The event loop group to use for child channels.
     private let childLoopGroup: EventLoopGroup
@@ -94,6 +99,12 @@ internal final class NIOTSListenerChannel {
 
     /// The TLS options to use for child channels.
     private let childTLSOptions: NWProtocolTLS.Options?
+
+    /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
+    private var _addressCache = AddressCache(local: nil, remote: nil)
+
+    /// A lock that guards the _addressCache.
+    private let _addressCacheLock = NIOLock()
 
 
     /// Create a `NIOTSListenerChannel` on a given `NIOTSEventLoop`.
@@ -120,8 +131,29 @@ internal final class NIOTSListenerChannel {
         // Must come last, as it requires self to be completely initialized.
         self._pipeline = ChannelPipeline(channel: self)
     }
-}
 
+    /// Create a `NIOTSListenerChannel` with an already-established `NWListener`.
+    internal convenience init(wrapping listener: NWListener,
+                              on eventLoop: NIOTSEventLoop,
+                              qos: DispatchQoS? = nil,
+                              tcpOptions: NWProtocolTCP.Options,
+                              tlsOptions: NWProtocolTLS.Options?,
+                              childLoopGroup: EventLoopGroup,
+                              childChannelQoS: DispatchQoS?,
+                              childTCPOptions: NWProtocolTCP.Options,
+                              childTLSOptions: NWProtocolTLS.Options?) {
+        self.init(eventLoop: eventLoop,
+                  qos: qos,
+                  tcpOptions: tcpOptions,
+                  tlsOptions: tlsOptions,
+                  childLoopGroup: childLoopGroup,
+                  childChannelQoS: childChannelQoS,
+                  childTCPOptions: childTCPOptions,
+                  childTLSOptions: childTLSOptions
+        )
+        self.nwListener = listener
+    }
+}
 
 // MARK:- NIOTSListenerChannel implementation of Channel
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -133,19 +165,15 @@ extension NIOTSListenerChannel: Channel {
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        if self.eventLoop.inEventLoop {
-            return try? self.localAddress0()
-        } else {
-            return self._connectionQueue.sync { try? self.localAddress0() }
+        return self._addressCacheLock.withLock {
+            return self._addressCache.local
         }
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        if self.eventLoop.inEventLoop {
-            return try? self.remoteAddress0()
-        } else {
-            return self._connectionQueue.sync { try? self.remoteAddress0() }
+        return self._addressCacheLock.withLock {
+            return self._addressCache.remote
         }
     }
 
@@ -160,17 +188,15 @@ extension NIOTSListenerChannel: Channel {
     }
 
     public func setOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> EventLoopFuture<Void> {
-        if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<Void> = eventLoop.makePromise()
-            executeAndComplete(promise) { try setOption0(option: option, value: value) }
-            return promise.futureResult
+        if self.eventLoop.inEventLoop {
+            return self.eventLoop.makeCompletedFuture(Result { try setOption0(option: option, value: value) })
         } else {
-            return eventLoop.submit { try self.setOption0(option: option, value: value) }
+            return self.eventLoop.submit { try self.setOption0(option: option, value: value) }
         }
     }
 
-    private func setOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws {
-        self.eventLoop.assertInEventLoop()
+    fileprivate func setOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws {
+        self.eventLoop.preconditionInEventLoop()
 
         guard !self.closed else {
             throw ChannelError.ioOnClosedChannel
@@ -178,12 +204,12 @@ extension NIOTSListenerChannel: Channel {
 
         // TODO: Many more channel options, both from NIO and Network.framework.
         switch option {
-        case is AutoReadOption:
+        case is ChannelOptions.Types.AutoReadOption:
             // AutoRead is currently mandatory for TS listeners.
-            if value as! AutoReadOption.Value == false {
+            if value as! ChannelOptions.Types.AutoReadOption.Value == false {
                 throw ChannelError.operationUnsupported
             }
-        case let optionValue as SocketOption:
+        case let optionValue as ChannelOptions.Types.SocketOption:
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
@@ -193,8 +219,12 @@ extension NIOTSListenerChannel: Channel {
             default:
                 try self.tcpOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
-        case is NIOTSEnablePeerToPeerOption:
-            self._enablePeerToPeer = value as! NIOTSEnablePeerToPeerOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
+            self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
+            self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            self.multipathServiceType = value as! NIOTSChannelOptions.Types.NIOTSMultipathOption.Value
         default:
             fatalError("option \(option) not supported")
         }
@@ -202,25 +232,23 @@ extension NIOTSListenerChannel: Channel {
 
     public func getOption<Option: ChannelOption>(_ option: Option) -> EventLoopFuture<Option.Value> {
         if eventLoop.inEventLoop {
-            let promise: EventLoopPromise<Option.Value> = eventLoop.makePromise()
-            executeAndComplete(promise) { try getOption0(option: option) }
-            return promise.futureResult
+            return self.eventLoop.makeCompletedFuture(Result { try getOption0(option: option) })
         } else {
             return eventLoop.submit { try self.getOption0(option: option) }
         }
     }
 
-    func getOption0<Option: ChannelOption>(option: Option) throws -> Option.Value {
-        self.eventLoop.assertInEventLoop()
+    fileprivate func getOption0<Option: ChannelOption>(option: Option) throws -> Option.Value {
+        self.eventLoop.preconditionInEventLoop()
 
         guard !self.closed else {
             throw ChannelError.ioOnClosedChannel
         }
 
         switch option {
-        case is AutoReadOption:
+        case is ChannelOptions.Types.AutoReadOption:
             return autoRead as! Option.Value
-        case let optionValue as SocketOption:
+        case let optionValue as ChannelOptions.Types.SocketOption:
             // SO_REUSEADDR and SO_REUSEPORT are handled here.
             switch (optionValue.level, optionValue.name) {
             case (SOL_SOCKET, SO_REUSEADDR):
@@ -230,8 +258,12 @@ extension NIOTSListenerChannel: Channel {
             default:
                 return try self.tcpOptions.valueFor(socketOption: optionValue) as! Option.Value
             }
-        case is NIOTSEnablePeerToPeerOption:
-            return self._enablePeerToPeer as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
+            return self.enablePeerToPeer as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
+            return self.allowLocalEndpointReuse as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            return self.multipathServiceType as! Option.Value
         default:
             fatalError("option \(option) not supported")
         }
@@ -253,9 +285,20 @@ extension NIOTSListenerChannel: StateManagedChannel {
             self = .active
         }
     }
+    internal func alreadyConfigured0(promise: EventLoopPromise<Void>?) {
+        guard let listener = nwListener else {
+            promise?.fail(NIOTSErrors.NotPreConfigured())
+            return
+        }
 
-    func alreadyConfigured0(promise: EventLoopPromise<Void>?) {
-        fatalError("Not implemented")
+        guard case .setup = listener.state else {
+            promise?.fail(NIOTSErrors.NotPreConfigured())
+            return
+        }
+        self.bindPromise = promise
+        listener.stateUpdateHandler = self.stateUpdateHandler(newState:)
+        listener.newConnectionHandler = self.newConnectionHandler(connection:)
+        listener.start(queue: self.connectionQueue)
     }
 
     public func localAddress0() throws -> SocketAddress {
@@ -286,7 +329,6 @@ extension NIOTSListenerChannel: StateManagedChannel {
     }
 
     internal func beginActivating0(to target: NWEndpoint, promise: EventLoopPromise<Void>?) {
-        assert(self.nwListener == nil)
         assert(self.bindPromise == nil)
         self.bindPromise = promise
 
@@ -309,10 +351,12 @@ extension NIOTSListenerChannel: StateManagedChannel {
         }
 
         // Network.framework munges REUSEADDR and REUSEPORT together, so we turn this on if we need
-        // either.
-        parameters.allowLocalEndpointReuse = self._reuseAddress || self._reusePort
+        // either or it's been explicitly set.
+        parameters.allowLocalEndpointReuse = self.reuseAddress || self.reusePort || self.allowLocalEndpointReuse
 
         parameters.includePeerToPeer = self._enablePeerToPeer
+
+        parameters.multipathServiceType = self.multipathServiceType
 
         let listener: NWListener
         do {
@@ -457,7 +501,42 @@ extension NIOTSListenerChannel {
     private func bindComplete0() {
         let promise = self.bindPromise
         self.bindPromise = nil
+
+        // Before becoming active, update the cached addresses. Remote is always nil.
+        let localAddress = try? self.localAddress0()
+
+        self._addressCacheLock.withLock {
+            self._addressCache = AddressCache(local: localAddress, remote: nil)
+        }
+
         self.becomeActive0(promise: promise)
     }
 }
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSListenerChannel {
+    internal struct SynchronousOptions: NIOSynchronousChannelOptions {
+        private let channel: NIOTSListenerChannel
+
+        fileprivate init(channel: NIOTSListenerChannel) {
+            self.channel = channel
+        }
+
+        public func setOption<Option: ChannelOption>(_ option: Option, value: Option.Value) throws {
+            try self.channel.setOption0(option: option, value: value)
+        }
+
+        public func getOption<Option: ChannelOption>(_ option: Option) throws -> Option.Value {
+            return try self.channel.getOption0(option: option)
+        }
+    }
+
+    public var syncOptions: NIOSynchronousChannelOptions? {
+        return SynchronousOptions(channel: self)
+    }
+}
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSListenerChannel: @unchecked Sendable {}
+
 #endif

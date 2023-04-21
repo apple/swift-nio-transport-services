@@ -1,8 +1,10 @@
-# NIO Transport Services
+# ``NIOTransportServices``
 
-Extensions for [SwiftNIO](https://github.com/apple/swift-nio) to support Apple platforms as first-class citizens.
+Extensions for SwiftNIO to support Apple platforms as first-class citizens.
 
-## About NIO Transport Services
+## Overview
+
+### About NIO Transport Services
 
 NIO Transport Services is an extension to SwiftNIO that provides first-class support for Apple platforms by using [Network.framework](https://developer.apple.com/documentation/network) to provide network connectivity, and [Dispatch](https://developer.apple.com/documentation/dispatch) to provide concurrency. NIOTS provides an alternative [EventLoop](https://swiftpackageindex.com/apple/swift-nio/main/documentation/niocore/eventloop), [EventLoopGroup](https://swiftpackageindex.com/apple/swift-nio/main/documentation/niocore/eventloopgroup), and several alternative [Channels](https://swiftpackageindex.com/apple/swift-nio/main/documentation/niocore/channel) and Bootstraps.
 
@@ -10,11 +12,11 @@ In addition to providing first-class support for Apple platforms, NIO Transport 
 
 All regular NIO applications should work just fine with NIO Transport Services, simply by changing the event loops and bootstraps in use.
 
-## Why Transport Services?
+### Why Transport Services?
 
 Network.framework is Apple's reference implementation of the [proposed post-sockets API](https://datatracker.ietf.org/wg/taps/charter/) that is currently being worked on by the Transport Services Working Group (taps) of the IETF. To indicate the proposed long-term future of interfaces like Network.framework, we decided to call this module NIOTransportServices. Also, NIONetworkFramework didn't appeal to us much as a name.
 
-## How to Use?
+### How to Use NIO Transport Services
 
 NIO Transport Services primarily uses SwiftPM as its build tool, so we recommend using that as well. If you want to depend on NIO Transport Services in your own project, it's as simple as adding a dependencies clause to your Package.swift:
 
@@ -24,11 +26,11 @@ dependencies: [
 ]
 ```
 
-and then adding the NIOTransportServices module to your target dependencies.
+and then adding the `NIOTransportServices` module to your target dependencies.
 
 If your project is set up as an Xcode project and you're using Xcode 11+, you can add NIO Transport Services as a dependency to your Xcode project by clicking File -> Swift Packages -> Add Package Dependency. In the upcoming dialog, please enter `https://github.com/apple/swift-nio-transport-services.git` and click Next twice. Finally, make sure `NIOTransportServices` is selected and click finish. Now will be able to `import NIOTransportServices` in your project.
 
-### Supported Platforms
+#### Supported Platforms
 
 NIOTransportServices is supported where Network.framework is supported: macOS
 10.14+, iOS 12+, tvOS 12+, and watchOS 6+.
@@ -41,12 +43,12 @@ NIOTransportServices can be built on macOS 10.12+, iOS 10+, tvOS 10+, watchOS
 6+ and Linux but is only functionally useful on macOS 10.14+, iOS 12+, tvOS 12+
 and watchOS 6+.
 
-## Versioning
+### Versioning
 
 Just like the rest of the SwiftNIO family, `swift-nio-transport-services` follows [SemVer 2.0.0](https://semver.org/#semantic-versioning-200) with a separate document
 declaring [SwiftNIO's Public API](https://github.com/apple/swift-nio/blob/main/docs/public-api.md).
 
-### `swift-nio-transport-services ` 1.x
+#### NIO Transport Services 1.x
 
 `swift-nio-transport-services` versions 1.x is part of the SwiftNIO 2 family of repositories and does not have any dependencies besides [`swift-nio`](https://github.com/apple/swift-nio), Swift 5.6, and an Apple OS supporting `Network.framework`. As the latest version, it lives on the [`main`](https://github.com/apple/swift-nio-transport-services) branch.
 
@@ -60,17 +62,11 @@ SwiftNIO Extras     | Minimum Swift Version
 --------------------|----------------------
 `1.0.0 ..< 1.11.0`  | 5.0
 `1.11.0 ..< 1.12.0` | 5.2
-`1.12.0 ..< 1.15.0` | 5.4
+`1.12.0 ..< 1.14.0` | 5.4
 `1.15.0 ..< 1.17.0` | 5.5.2
 `1.17.0 ...`        | 5.6
 
-### `swift-nio-transport-services ` 0.x
+#### NIO Transport Services 0.x
 
 The legacy `swift-nio-transport-services` 0.x is part of the SwiftNIO 1 family of repositories and works with Swift 4.1 and newer. The source code can be found on the [`swift-nio-transport-services-swift-4-maintenance`](https://github.com/apple/swift-nio-transport-services/tree/swift-nio-transport-services-swift-4-maintenance) branch.
-
-## Developing NIO Transport Services
-
-For the most part, NIO Transport Services development is as straightforward as any other SwiftPM project. With that said, we do have a few processes that are worth understanding before you contribute. For details, please see `CONTRIBUTING.md` in this repository.
-
-Please note that all work on NIO Transport Services is covered by the [SwiftNIO Code of Conduct](https://github.com/apple/swift-nio/blob/main/CODE_OF_CONDUCT.md).
 

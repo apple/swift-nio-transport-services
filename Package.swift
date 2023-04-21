@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.6
 //===----------------------------------------------------------------------===//
 //
 // This source file is part of the SwiftNIO open source project
@@ -19,20 +19,43 @@ let package = Package(
     name: "swift-nio-transport-services",
     products: [
         .library(name: "NIOTransportServices", targets: ["NIOTransportServices"]),
-        .executable(name: "NIOTSHTTPClient", targets: ["NIOTSHTTPClient"]),
-        .executable(name: "NIOTSHTTPServer", targets: ["NIOTSHTTPServer"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-nio.git", from: "2.0.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.42.0"),
+        .package(url: "https://github.com/apple/swift-atomics.git", from: "1.0.2"),
+        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
     ],
     targets: [
-        .target(name: "NIOTransportServices",
-            dependencies: ["NIO", "NIOFoundationCompat", "NIOConcurrencyHelpers", "NIOTLS"]),
-        .target(name: "NIOTSHTTPClient",
-            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1"]),
-        .target(name: "NIOTSHTTPServer",
-            dependencies: ["NIO", "NIOTransportServices", "NIOHTTP1"]),
-        .testTarget(name: "NIOTransportServicesTests",
-            dependencies: ["NIO", "NIOTransportServices", "NIOConcurrencyHelpers"]),
+        .target(
+            name: "NIOTransportServices",
+            dependencies: [
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOFoundationCompat", package: "swift-nio"),
+                .product(name: "NIOTLS", package: "swift-nio"),
+                .product(name: "Atomics", package: "swift-atomics"),
+            ]),
+        .executableTarget(
+            name: "NIOTSHTTPClient",
+            dependencies: [
+                "NIOTransportServices",
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+            ]),
+        .executableTarget(
+            name: "NIOTSHTTPServer",
+            dependencies: [
+                "NIOTransportServices",
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+            ]),
+        .testTarget(
+            name: "NIOTransportServicesTests",
+            dependencies: [
+                "NIOTransportServices",
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOEmbedded", package: "swift-nio"),
+                .product(name: "Atomics", package: "swift-atomics"),
+            ]),
     ]
 )

@@ -2,25 +2,24 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2021 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
 import Foundation
-import NIO
+import NIOCore
 import NIOFoundationCompat
 import NIOConcurrencyHelpers
 import Dispatch
 import Network
+import Atomics
 
 
 /// An object that conforms to this protocol represents the substate of a channel in the
@@ -104,7 +103,7 @@ internal protocol StateManagedChannel: Channel, ChannelCore {
 
     var state: ChannelState<ActiveSubstate> { get set }
 
-    var isActive0: Atomic<Bool> { get set }
+    var isActive0: ManagedAtomic<Bool> { get set }
 
     var tsEventLoop: NIOTSEventLoop { get }
 
@@ -133,7 +132,7 @@ extension StateManagedChannel {
 
     /// Whether this channel is currently active.
     public var isActive: Bool {
-        return self.isActive0.load()
+        return self.isActive0.load(ordering: .relaxed)
     }
 
     /// Whether this channel is currently closed. This is not necessary for the public
@@ -164,7 +163,6 @@ extension StateManagedChannel {
             try self.state.register(eventLoop: self.tsEventLoop, channel: self)
             self.pipeline.fireChannelRegistered()
             try self.state.beginActivating()
-            promise?.succeed(())
         } catch {
             promise?.fail(error)
             self.close0(error: error, mode: .all, promise: nil)
@@ -203,7 +201,7 @@ extension StateManagedChannel {
                 return
             }
 
-            self.isActive0.store(false)
+            self.isActive0.store(false, ordering: .relaxed)
 
             self.doClose0(error: error)
 
@@ -227,7 +225,7 @@ extension StateManagedChannel {
             // Now we schedule our final cleanup. We need to keep the channel pipeline alive for at least one more event
             // loop tick, as more work might be using it.
             self.eventLoop.execute {
-                self.removeHandlers(channel: self)
+                self.removeHandlers(pipeline: self.pipeline)
                 self.closePromise.succeed(())
             }
 
@@ -249,7 +247,7 @@ extension StateManagedChannel {
             return
         }
 
-        self.isActive0.store(true)
+        self.isActive0.store(true, ordering: .relaxed)
         promise?.succeed(())
         self.pipeline.fireChannelActive()
         self.readIfNeeded0()

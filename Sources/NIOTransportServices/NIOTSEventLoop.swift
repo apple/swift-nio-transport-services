@@ -2,14 +2,12 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2021 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
@@ -19,12 +17,12 @@ import Dispatch
 import Foundation
 import Network
 
-import NIO
+import NIOCore
 import NIOConcurrencyHelpers
 
 /// An `EventLoop` that interacts with `DispatchQoS` to help schedule upcoming work.
 ///
-/// `EventLoop`s that implement `QoSEventLoop` can interact with `Dispatch` to propagate information
+/// `EventLoop`s that implement ``QoSEventLoop`` can interact with `Dispatch` to propagate information
 /// about the QoS required for a specific task block. This allows tasks to be dispatched onto an
 /// event loop with a different priority than the majority of tasks on that loop.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -32,7 +30,7 @@ public protocol QoSEventLoop: EventLoop {
     /// Submit a given task to be executed by the `EventLoop` at a given `qos`.
     func execute(qos: DispatchQoS, _ task: @escaping () -> Void) -> Void
 
-    /// Schedule a `task` that is executed by this `SelectableEventLoop` after the given amount of time at the
+    /// Schedule a `task` that is executed by this `NIOTSEventLoop` after the given amount of time at the
     /// given `qos`.
     func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T>
 }
@@ -51,7 +49,6 @@ fileprivate enum LifecycleState {
     case closing
     case closed
 }
-
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal class NIOTSEventLoop: QoSEventLoop {
@@ -83,6 +80,18 @@ internal class NIOTSEventLoop: QoSEventLoop {
     /// implementation *could* return `true`, but this version will be unable to prove that and will return `false`.
     /// If you need to write an assertion about being in the event loop that must be correct, use SwiftNIO 1.11 or
     /// later and call `preconditionInEventLoop` and `assertInEventLoop`.
+    ///
+    /// Further detail: The use of `DispatchQueue.sync(execute:)` to submit a block to a queue synchronously has the
+    /// effect of creating a state where the currently executing code is on two queues simultaneously - the one which
+    /// submitted the block, and the one on which the block runs. If another synchronous block is dispatched to a
+    /// third queue, that block is effectively running all three at once. Unfortunately, libdispatch maintains only
+    /// one "current" queue at a time as far as `DispatchQueue.getSpecific(key:)` is concerned, and it's always the
+    /// one actually executing code at the time. Therefore the queue belonging to the original event loop can't be
+    /// detected using its queue-specific data. No alternative API for the purpose exists (aside from assertions via
+    /// `dispatchPrecondition(condition:)`). Under these circumstances, `inEventLoop` will incorrectly be `false`,
+    /// even though the current code _is_ actually on the loop's queue. The only way to avoid this is to ensure no
+    /// callers ever use synchronous dispatch (which is impossible to enforce), or to hope that a future version of
+    /// libdispatch will provide a solution.
     public var inEventLoop: Bool {
         return DispatchQueue.getSpecific(key: self.inQueueKey) == self.loopID
     }
@@ -112,16 +121,15 @@ internal class NIOTSEventLoop: QoSEventLoop {
     public func scheduleTask<T>(deadline: NIODeadline, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T> {
         let p: EventLoopPromise<T> = self.makePromise()
 
-        guard self.state != .closed else {
-            p.fail(EventLoopError.shutdown)
-            return Scheduled(promise: p, cancellationTask: { } )
-        }
-
         // Dispatch support for cancellation exists at the work-item level, so we explicitly create one here.
         // We set the QoS on this work item and explicitly enforce it when the block runs.
         let timerSource = DispatchSource.makeTimerSource(queue: self.taskQueue)
         timerSource.schedule(deadline: DispatchTime(uptimeNanoseconds: deadline.uptimeNanoseconds))
         timerSource.setEventHandler(qos: qos, flags: .enforceQoS) {
+            guard self.state != .closed else {
+                p.fail(EventLoopError.shutdown)
+                return
+            }
             do {
                 p.succeed(try task())
             } catch {
@@ -129,6 +137,12 @@ internal class NIOTSEventLoop: QoSEventLoop {
             }
         }
         timerSource.resume()
+
+        // Create a retain cycle between the future and the timer source. This will be broken when the promise is
+        // completed by the event handler and this callback is run.
+        p.futureResult.whenComplete { _ in
+            timerSource.cancel()
+        }
 
         return Scheduled(promise: p, cancellationTask: {
             timerSource.cancel()
@@ -151,8 +165,14 @@ internal class NIOTSEventLoop: QoSEventLoop {
         }
     }
 
-    func preconditionInEventLoop(file: StaticString, line: UInt) {
+    @inlinable
+    public func preconditionInEventLoop(file: StaticString, line: UInt) {
         dispatchPrecondition(condition: .onQueue(self.loop))
+    }
+
+    @inlinable
+    public func preconditionNotInEventLoop(file: StaticString, line: UInt) {
+        dispatchPrecondition(condition: .notOnQueue(self.loop))
     }
 }
 

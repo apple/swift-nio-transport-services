@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+
+  runtime-setup:
+    image: swift-nio-transport-services:22.04-5.8
+    build:
+      args:
+        ubuntu_version: "jammy"
+        swift_version: "5.8"
+
+  documentation-check:
+    image: swift-nio-transport-services:22.04-5.8
+
+  test:
+    image: swift-nio-transport-services:22.04-5.8
+
+  shell:
+    image: swift-nio-transport-services:22.04-5.8

@@ -2,21 +2,19 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2021 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
 // See CONTRIBUTORS.txt for the list of SwiftNIO project authors
-// swift-tools-version:4.0
 //
-// swift-tools-version:4.0
 // SPDX-License-Identifier: Apache-2.0
 //
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
 import XCTest
-import NIO
+import NIOCore
 import Network
 @testable import NIOTransportServices
 
@@ -34,7 +32,7 @@ class NIOTSSocketOptionTests: XCTestCase {
     }
 
     private func assertProperty<T: Equatable>(called path: KeyPath<NWProtocolTCP.Options, T>,
-                                              correspondsTo socketOption: SocketOption,
+                                              correspondsTo socketOption: ChannelOptions.Types.SocketOption,
                                               defaultsTo defaultValue: T,
                                               and defaultSocketOptionValue: SocketOptionValue,
                                               canBeSetTo unusualValue: SocketOptionValue,
@@ -57,90 +55,90 @@ class NIOTSSocketOptionTests: XCTestCase {
 
     func testReadingAndSettingNoDelay() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.noDelay,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_NODELAY),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_NODELAY),
                                 defaultsTo: false, and: 0,
                                 canBeSetTo: 1, whichLeadsTo: true)
     }
 
     func testReadingAndSettingNoPush() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.noPush,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_NOPUSH),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_NOPUSH),
                                 defaultsTo: false, and: 0,
                                 canBeSetTo: 1, whichLeadsTo: true)
     }
 
     func testReadingAndSettingNoOpt() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.noOptions,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_NOOPT),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_NOOPT),
                                 defaultsTo: false, and: 0,
                                 canBeSetTo: 1, whichLeadsTo: true)
     }
 
     func testReadingAndSettingKeepaliveCount() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.keepaliveCount,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_KEEPCNT),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_KEEPCNT),
                                 defaultsTo: 0, and: 0,
                                 canBeSetTo: 5, whichLeadsTo: 5)
     }
 
     func testReadingAndSettingKeepaliveIdle() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.keepaliveIdle,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_KEEPALIVE),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_KEEPALIVE),
                                 defaultsTo: 0, and: 0,
                                 canBeSetTo: 5, whichLeadsTo: 5)
     }
 
     func testReadingAndSettingKeepaliveInterval() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.keepaliveInterval,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_KEEPINTVL),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_KEEPINTVL),
                                 defaultsTo: 0, and: 0,
                                 canBeSetTo: 5, whichLeadsTo: 5)
     }
 
     func testReadingAndSettingMaxSeg() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.maximumSegmentSize,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_MAXSEG),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_MAXSEG),
                                 defaultsTo: 0, and: 0,
                                 canBeSetTo: 5, whichLeadsTo: 5)
     }
 
     func testReadingAndSettingConnectTimeout() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.connectionTimeout,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_CONNECTIONTIMEOUT),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_CONNECTIONTIMEOUT),
                                 defaultsTo: 0, and: 0,
                                 canBeSetTo: 5, whichLeadsTo: 5)
     }
 
     func testReadingAndSettingConnectDropTime() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.connectionDropTime,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_RXT_CONNDROPTIME),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_RXT_CONNDROPTIME),
                                 defaultsTo: 0, and: 0,
                                 canBeSetTo: 5, whichLeadsTo: 5)
     }
 
     func testReadingAndSettingFinDrop() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.retransmitFinDrop,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_RXT_FINDROP),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_RXT_FINDROP),
                                 defaultsTo: false, and: 0,
                                 canBeSetTo: 1, whichLeadsTo: true)
     }
 
     func testReadingAndSettingAckStretching() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.disableAckStretching,
-                                correspondsTo: SocketOption(level: IPPROTO_TCP, name: TCP_SENDMOREACKS),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: IPPROTO_TCP, name: TCP_SENDMOREACKS),
                                 defaultsTo: false, and: 0,
                                 canBeSetTo: 1, whichLeadsTo: true)
     }
 
     func testReadingAndSettingKeepalive() throws {
         try self.assertProperty(called: \NWProtocolTCP.Options.enableKeepalive,
-                                correspondsTo: SocketOption(level: SOL_SOCKET, name: SO_KEEPALIVE),
+                                correspondsTo: ChannelOptions.Types.SocketOption(level: SOL_SOCKET, name: SO_KEEPALIVE),
                                 defaultsTo: false, and: 0,
                                 canBeSetTo: 1, whichLeadsTo: true)
     }
 
     func testWritingNonexistentSocketOption() {
-        let option = SocketOption(level: Int32.max, name: Int32.max)
+        let option = ChannelOptions.Types.SocketOption(level: Int32.max, name: Int32.max)
 
         do {
             try self._options.applyChannelOption(option: option, value: 0)
@@ -153,7 +151,7 @@ class NIOTSSocketOptionTests: XCTestCase {
     }
 
     func testReadingNonexistentSocketOption() {
-        let option = SocketOption(level: Int32.max, name: Int32.max)
+        let option = ChannelOptions.Types.SocketOption(level: Int32.max, name: Int32.max)
 
         do {
             _ = try self._options.valueFor(socketOption: option)
