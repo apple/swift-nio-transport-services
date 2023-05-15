@@ -37,7 +37,7 @@ final class HTTP1ServerHandler: ChannelInboundHandler {
     }
 }
 
-if #available(OSX 10.14, iOS 12.0, *) {
+if #available(OSX 10.14, *) {
     let group = NIOTSEventLoopGroup()
     let channel = try! NIOTSListenerBootstrap(group: group)
         .childChannelInitializer { channel in

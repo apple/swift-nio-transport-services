@@ -30,9 +30,21 @@ protocol NWConnectionSubstate: ActiveChannelSubstate {
 
 internal typealias PendingWrite = (data: ByteBuffer, promise: EventLoopPromise<Void>?)
 
+protocol NWOptionsProtocol {
+    /// Apply a given channel `SocketOption` to this protocol options state.
+    func applyChannelOption(option: ChannelOptions.Types.SocketOption, value: SocketOptionValue) throws
+
+    /// Obtain the given `SocketOption` value for this protocol options state.
+    func valueFor(socketOption option: ChannelOptions.Types.SocketOption) throws -> SocketOptionValue
+}
+
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal protocol StateManagedNWConnectionChannel: StateManagedChannel where ActiveSubstate: NWConnectionSubstate {
+    associatedtype NWOptions: NWOptionsProtocol
+
     var parameters: NWParameters { get }
+
+    var nwOptions: NWOptions { get }
     
     var connection: NWConnection? { get set }
 
@@ -63,6 +75,10 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
     var allowLocalEndpointReuse: Bool { get }
 
     var multipathServiceType: NWParameters.MultipathServiceType { get }
+
+    func setChannelSpecificOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws
+
+    func getChannelSpecificOption0<Option: ChannelOption>(option: Option) throws -> Option.Value
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -465,6 +481,136 @@ extension StateManagedNWConnectionChannel {
     private func dropOutstandingWrites(error: Error) {
         while self._pendingWrites.count > 0 {
             self._pendingWrites.removeFirst().promise?.fail(error)
+        }
+    }
+
+    public func setOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> EventLoopFuture<Void> {
+        if self.eventLoop.inEventLoop {
+            return self.eventLoop.makeCompletedFuture(Result { try setOption0(option: option, value: value) })
+        } else {
+            return self.eventLoop.submit { try self.setOption0(option: option, value: value) }
+        }
+    }
+
+    func setOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws {
+        self.eventLoop.assertInEventLoop()
+
+        guard !self.closed else {
+            throw ChannelError.ioOnClosedChannel
+        }
+
+        switch option {
+        case _ as ChannelOptions.Types.AutoReadOption:
+            self.options.autoRead = value as! Bool
+            self.readIfNeeded0()
+        case _ as ChannelOptions.Types.SocketOption:
+            let optionValue = option as! ChannelOptions.Types.SocketOption
+
+            // SO_REUSEADDR and SO_REUSEPORT are handled here.
+            switch (optionValue.level, optionValue.name) {
+            case (SOL_SOCKET, SO_REUSEADDR):
+                self.reuseAddress = (value as! SocketOptionValue) != Int32(0)
+            case (SOL_SOCKET, SO_REUSEPORT):
+                self.reusePort = (value as! SocketOptionValue) != Int32(0)
+            default:
+                try self.nwOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
+            }
+        case _ as ChannelOptions.Types.WriteBufferWaterMarkOption:
+            if self._backpressureManager.writabilityChanges(whenUpdatingWaterMarks: value as! ChannelOptions.Types.WriteBufferWaterMark) {
+                self.pipeline.fireChannelWritabilityChanged()
+            }
+        case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
+            self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+        case _ as NIOTSChannelOptions.Types.NIOTSWaitForActivityOption:
+            let newValue = value as! Bool
+            self.options.waitForActivity = newValue
+
+            if let state = self.connection?.state, case .waiting(let err) = state, !newValue {
+                // We're in waiting now, so we should drop the connection.
+                self.close0(error: err, mode: .all, promise: nil)
+            }
+        default:
+            try self.setChannelSpecificOption0(option: option, value: value)
+        }
+    }
+
+    public func getOption<Option: ChannelOption>(_ option: Option) -> EventLoopFuture<Option.Value> {
+        if self.eventLoop.inEventLoop {
+            return self.eventLoop.makeCompletedFuture(Result { try getOption0(option: option) })
+        } else {
+            return eventLoop.submit { try self.getOption0(option: option) }
+        }
+    }
+
+    func getOption0<Option: ChannelOption>(option: Option) throws -> Option.Value {
+        self.eventLoop.assertInEventLoop()
+
+        guard !self.closed else {
+            throw ChannelError.ioOnClosedChannel
+        }
+
+        switch option {
+        case _ as ChannelOptions.Types.AutoReadOption:
+            return self.options.autoRead as! Option.Value
+        case _ as ChannelOptions.Types.SocketOption:
+            let optionValue = option as! ChannelOptions.Types.SocketOption
+
+            // SO_REUSEADDR and SO_REUSEPORT are handled here.
+            switch (optionValue.level, optionValue.name) {
+            case (SOL_SOCKET, SO_REUSEADDR):
+                return Int32(self.reuseAddress ? 1 : 0) as! Option.Value
+            case (SOL_SOCKET, SO_REUSEPORT):
+                return Int32(self.reusePort ? 1 : 0) as! Option.Value
+            default:
+                return try self.nwOptions.valueFor(socketOption: optionValue) as! Option.Value
+            }
+        case _ as ChannelOptions.Types.WriteBufferWaterMarkOption:
+            return self._backpressureManager.waterMarks as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
+            return self.enablePeerToPeer as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
+            return self.allowLocalEndpointReuse as! Option.Value
+        case _ as ChannelOptions.Types.AllowRemoteHalfClosureOption:
+            return self.options.supportRemoteHalfClosure as! Option.Value
+        case _ as NIOTSChannelOptions.Types.NIOTSWaitForActivityOption:
+            return self.options.waitForActivity as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSCurrentPathOption:
+            guard let currentPath = self.connection?.currentPath else {
+                throw NIOTSErrors.NoCurrentPath()
+            }
+            return currentPath as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSMetadataOption:
+            let optionValue = option as! NIOTSChannelOptions.Types.NIOTSMetadataOption
+            guard let connection = self.connection else {
+                throw NIOTSErrors.NoCurrentConnection()
+            }
+            return connection.metadata(definition: optionValue.definition) as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            return self.multipathServiceType as! Option.Value
+        default:
+            // watchOS 6.0 availability is covered by the @available on this extension.
+            if #available(OSX 10.15, iOS 13.0, tvOS 13.0, *) {
+                switch option {
+                case is NIOTSChannelOptions.Types.NIOTSEstablishmentReportOption:
+                    guard let connection = self.connection else {
+                        throw NIOTSErrors.NoCurrentConnection()
+                    }
+                    let promise: EventLoopPromise<NWConnection.EstablishmentReport?> = eventLoop.makePromise()
+                    connection.requestEstablishmentReport(queue: connectionQueue) { report in
+                        promise.succeed(report)
+                    }
+                    return promise.futureResult as! Option.Value
+                case is NIOTSChannelOptions.Types.NIOTSDataTransferReportOption:
+                    guard let connection = self.connection else {
+                        throw NIOTSErrors.NoCurrentConnection()
+                    }
+                    return connection.startDataTransferReport() as! Option.Value
+                default:
+                    break
+                }
+            }
+
+            return try getChannelSpecificOption0(option: option)
         }
     }
 }
