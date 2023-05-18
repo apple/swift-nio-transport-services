@@ -60,7 +60,7 @@ internal enum ChannelState<ActiveSubstate: ActiveChannelSubstate> {
         self = .activating
     }
 
-    mutating func becomeActive() throws {
+    fileprivate mutating func becomeActive() throws {
         guard case .activating = self else {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
