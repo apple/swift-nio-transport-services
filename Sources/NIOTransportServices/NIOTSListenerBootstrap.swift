@@ -342,7 +342,7 @@ public final class NIOTSListenerBootstrap {
                 serverChannelInit(serverChannel)
             }.flatMap {
                 eventLoop.assertInEventLoop()
-                return serverChannel.pipeline.addHandler(AcceptHandler(childChannelInitializer: childChannelInit,
+                return serverChannel.pipeline.addHandler(AcceptHandler<NIOTSConnectionChannel>(childChannelInitializer: childChannelInit,
                                                                        childChannelOptions: childChannelOptions))
             }.flatMap {
                 if shouldRegister{
