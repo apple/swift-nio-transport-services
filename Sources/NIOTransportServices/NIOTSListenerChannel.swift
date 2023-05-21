@@ -165,16 +165,12 @@ extension NIOTSListenerChannel: Channel {
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.local
-        }
+        return self.addressCache.local
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.remote
-        }
+        return self.addressCache.remote
     }
 
     /// Whether this channel is currently writable.
@@ -506,7 +502,7 @@ extension NIOTSListenerChannel {
         let localAddress = try? self.localAddress0()
 
         self._addressCacheLock.withLock {
-            self._addressCache = AddressCache(local: localAddress, remote: nil)
+            self.addressCache = AddressCache(local: localAddress, remote: nil)
         }
 
         self.becomeActive0(promise: promise)

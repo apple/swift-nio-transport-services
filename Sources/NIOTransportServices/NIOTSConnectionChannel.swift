@@ -208,6 +208,19 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
     internal var _addressCache = AddressCache(local: nil, remote: nil)
 
+    internal var addressCache: AddressCache {
+        get {
+            return self._addressCacheLock.withLock {
+                return self._addressCache
+            }
+        }
+        set {
+            return self._addressCacheLock.withLock {
+                self._addressCache = newValue
+            }
+        }
+    }
+
     /// A lock that guards the _addressCache.
     internal let _addressCacheLock = NIOLock()
 
@@ -411,9 +424,9 @@ extension NIOTSConnectionChannel {
 
     /// Drop all outstanding writes. Must only be called in the inactive
     /// state.
-    private func dropOutstandingWrites(error: Error) {
-        while self.pendingWrites.count > 0 {
-            self.pendingWrites.removeFirst().promise?.fail(error)
+    private func dropOutNIOTransportServicesTestsstandingWrites(error: Error) {
+        while self._pendingWrites.count > 0 {
+            self._pendingWrites.removeFirst().promise?.fail(error)
         }
     }
 
