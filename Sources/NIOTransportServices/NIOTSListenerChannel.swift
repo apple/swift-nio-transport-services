@@ -101,7 +101,7 @@ internal final class NIOTSListenerChannel {
     private let childTLSOptions: NWProtocolTLS.Options?
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
-    private var _addressCache = AddressCache(local: nil, remote: nil)
+    private var addressCache = AddressCache(local: nil, remote: nil)
 
     /// A lock that guards the _addressCache.
     private let _addressCacheLock = NIOLock()
@@ -165,16 +165,12 @@ extension NIOTSListenerChannel: Channel {
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.local
-        }
+        return self.addressCache.local
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.remote
-        }
+        return self.addressCache.remote
     }
 
     /// Whether this channel is currently writable.
@@ -480,12 +476,13 @@ extension NIOTSListenerChannel {
             return
         }
 
-        let newChannel = NIOTSConnectionChannel(wrapping: connection,
-                                                on: self.childLoopGroup.next() as! NIOTSEventLoop,
-                                                parent: self,
-                                                qos: self.childChannelQoS,
-                                                tcpOptions: self.childTCPOptions,
-                                                tlsOptions: self.childTLSOptions)
+        let newChannel = NIOTSConnectionChannel(
+            wrapping: connection,
+            on: self.childLoopGroup.next() as! NIOTSEventLoop,
+            parent: self,
+            qos: self.childChannelQoS,
+            tcpOptions: self.childTCPOptions,
+            tlsOptions: self.childTLSOptions)
 
         self.pipeline.fireChannelRead(NIOAny(newChannel))
         self.pipeline.fireChannelReadComplete()
@@ -505,7 +502,7 @@ extension NIOTSListenerChannel {
         let localAddress = try? self.localAddress0()
 
         self._addressCacheLock.withLock {
-            self._addressCache = AddressCache(local: localAddress, remote: nil)
+            self.addressCache = AddressCache(local: localAddress, remote: nil)
         }
 
         self.becomeActive0(promise: promise)

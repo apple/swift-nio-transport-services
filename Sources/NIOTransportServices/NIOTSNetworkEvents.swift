@@ -20,7 +20,7 @@ import NIOCore
 ///
 /// Users are strongly encouraged not to conform their own types to this protocol.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public protocol NIOTSNetworkEvent: Equatable, NIOPreconcurrencySendable { }
+public protocol NIOTSNetworkEvent: Equatable, _NIOPreconcurrencySendable { }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public enum NIOTSNetworkEvents {
