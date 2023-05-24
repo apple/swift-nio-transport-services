@@ -165,12 +165,16 @@ extension NIOTSListenerChannel: Channel {
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        return self.addressCache.local
+        return self.addressCacheLock.withLock {
+            return self.addressCache.local
+        }
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        return self.addressCache.remote
+        return self.addressCacheLock.withLock {
+            return self.addressCache.remote
+        }
     }
 
     /// Whether this channel is currently writable.

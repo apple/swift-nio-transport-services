@@ -210,14 +210,10 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
 
     internal var addressCache: AddressCache {
         get {
-            return self.addressCacheLock.withLock {
-                return self._addressCache
-            }
+            return self._addressCache
         }
         set {
-            return self.addressCacheLock.withLock {
-                self._addressCache = newValue
-            }
+            self._addressCache = newValue
         }
     }
 
