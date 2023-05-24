@@ -275,14 +275,6 @@ extension NIOTSConnectionChannel: Channel {
         }
 
         switch option {
-        case _ as NIOTSChannelOptions.Types.NIOTSWaitForActivityOption:
-            let newValue = value as! Bool
-            self.options.waitForActivity = newValue
-
-            if let state = self.connection?.state, case .waiting(let err) = state, !newValue {
-                // We're in waiting now, so we should drop the connection.
-                self.close0(error: err, mode: .all, promise: nil)
-            }
         case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
             self.multipathServiceType = value as! NIOTSChannelOptions.Types.NIOTSMultipathOption.Value
         default:
