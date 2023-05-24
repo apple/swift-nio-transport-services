@@ -104,7 +104,7 @@ internal final class NIOTSListenerChannel {
     private var addressCache = AddressCache(local: nil, remote: nil)
 
     /// A lock that guards the _addressCache.
-    private let _addressCacheLock = NIOLock()
+    private let addressCacheLock = NIOLock()
 
 
     /// Create a `NIOTSListenerChannel` on a given `NIOTSEventLoop`.
@@ -501,7 +501,7 @@ extension NIOTSListenerChannel {
         // Before becoming active, update the cached addresses. Remote is always nil.
         let localAddress = try? self.localAddress0()
 
-        self._addressCacheLock.withLock {
+        self.addressCacheLock.withLock {
             self.addressCache = AddressCache(local: localAddress, remote: nil)
         }
 

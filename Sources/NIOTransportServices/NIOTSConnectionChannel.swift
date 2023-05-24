@@ -163,7 +163,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// The TCP options for this connection.
     private var tcpOptions: NWProtocolTCP.Options
 
-    internal var nwOptions: NWProtocolTCP.Options { tcpOptions }
+    internal var nwOptions: NWProtocolTCP.Options { self.tcpOptions }
 
     /// The TLS options for this connection, if any.
     private var tlsOptions: NWProtocolTLS.Options?
@@ -185,7 +185,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     internal var options = TransportServicesChannelOptions()
 
     /// Any pending writes that have yet to be delivered to the network stack.
-    internal var _pendingWrites = CircularBuffer<PendingWrite>(initialCapacity: 8)
+    internal var pendingWrites = CircularBuffer<PendingWrite>(initialCapacity: 8)
 
     /// An object to keep track of pending writes and manage our backpressure signaling.
     internal var _backpressureManager = BackpressureManager()
@@ -210,19 +210,19 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
 
     internal var addressCache: AddressCache {
         get {
-            return self._addressCacheLock.withLock {
+            return self.addressCacheLock.withLock {
                 return self._addressCache
             }
         }
         set {
-            return self._addressCacheLock.withLock {
+            return self.addressCacheLock.withLock {
                 self._addressCache = newValue
             }
         }
     }
 
     /// A lock that guards the _addressCache.
-    private let _addressCacheLock = NIOLock()
+    internal let addressCacheLock = NIOLock()
 
     /// Create a `NIOTSConnectionChannel` on a given `NIOTSEventLoop`.
     ///
@@ -275,8 +275,6 @@ extension NIOTSConnectionChannel: Channel {
         }
 
         switch option {
-        case _ as ChannelOptions.Types.AllowRemoteHalfClosureOption:
-            self.options.supportRemoteHalfClosure = value as! Bool
         case _ as NIOTSChannelOptions.Types.NIOTSWaitForActivityOption:
             let newValue = value as! Bool
             self.options.waitForActivity = newValue
@@ -285,8 +283,6 @@ extension NIOTSConnectionChannel: Channel {
                 // We're in waiting now, so we should drop the connection.
                 self.close0(error: err, mode: .all, promise: nil)
             }
-        case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
-            self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
             self.multipathServiceType = value as! NIOTSChannelOptions.Types.NIOTSMultipathOption.Value
         default:
@@ -431,9 +427,9 @@ extension NIOTSConnectionChannel {
 
     /// Drop all outstanding writes. Must only be called in the inactive
     /// state.
-    private func dropOutNIOTransportServicesTestsstandingWrites(error: Error) {
-        while self._pendingWrites.count > 0 {
-            self._pendingWrites.removeFirst().promise?.fail(error)
+    private func dropOutstandingWrites(error: Error) {
+        while self.pendingWrites.count > 0 {
+            self.pendingWrites.removeFirst().promise?.fail(error)
         }
     }
 

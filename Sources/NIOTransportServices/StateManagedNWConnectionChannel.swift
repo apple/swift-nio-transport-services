@@ -56,7 +56,7 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
 
     var options: TransportServicesChannelOptions { get set }
 
-    var _pendingWrites: CircularBuffer<PendingWrite> { get set }
+    var pendingWrites: CircularBuffer<PendingWrite> { get set }
 
     var _backpressureManager: BackpressureManager { get set }
 
@@ -72,7 +72,9 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
 
     var addressCache: AddressCache { get set }
 
-    var allowLocalEndpointReuse: Bool { get }
+    var addressCacheLock: NIOLock { get }
+
+    var allowLocalEndpointReuse: Bool { get set }
 
     var multipathServiceType: NWParameters.MultipathServiceType { get }
 
@@ -93,12 +95,16 @@ extension StateManagedNWConnectionChannel {
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        return self.addressCache.local
+        return self.addressCacheLock.withLock {
+            return self.addressCache.local
+        }
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        return self.addressCache.remote
+        return self.addressCacheLock.withLock {
+            return self.addressCache.remote
+        }
     }
 
     /// Whether this channel is currently writable.
@@ -153,7 +159,7 @@ extension StateManagedNWConnectionChannel {
         // at least only block the network stack itself rather than our thread. I'm not certain though, especially
         // on Linux. Should investigate.
         let data = self.unwrapData(data, as: ByteBuffer.self)
-        self._pendingWrites.append((data, promise))
+        self.pendingWrites.append((data, promise))
 
 
         /// This may cause our writability state to change.
@@ -186,8 +192,8 @@ extension StateManagedNWConnectionChannel {
         }
 
         conn.batch {
-            while self._pendingWrites.count > 0 {
-                let write = self._pendingWrites.removeFirst()
+            while self.pendingWrites.count > 0 {
+                let write = self.pendingWrites.removeFirst()
                 let buffer = write.data
                 let content = buffer.getData(at: buffer.readerIndex, length: buffer.readableBytes)
                 conn.send(content: content, completion: .contentProcessed(completionCallback(promise: write.promise, sentBytes: buffer.readableBytes)))
@@ -250,7 +256,7 @@ extension StateManagedNWConnectionChannel {
         guard let conn = self.connection else {
             // We don't have a connection to close here, so we're actually done. Our old state
             // was idle.
-            assert(self._pendingWrites.count == 0)
+            assert(self.pendingWrites.count == 0)
             return
         }
 
@@ -479,8 +485,8 @@ extension StateManagedNWConnectionChannel {
     /// Drop all outstanding writes. Must only be called in the inactive
     /// state.
     private func dropOutstandingWrites(error: Error) {
-        while self._pendingWrites.count > 0 {
-            self._pendingWrites.removeFirst().promise?.fail(error)
+        while self.pendingWrites.count > 0 {
+            self.pendingWrites.removeFirst().promise?.fail(error)
         }
     }
 
@@ -529,6 +535,10 @@ extension StateManagedNWConnectionChannel {
                 // We're in waiting now, so we should drop the connection.
                 self.close0(error: err, mode: .all, promise: nil)
             }
+        case _ as ChannelOptions.Types.AllowRemoteHalfClosureOption:
+            self.options.supportRemoteHalfClosure = value as! Bool
+        case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
+            self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         default:
             try self.setChannelSpecificOption0(option: option, value: value)
         }
