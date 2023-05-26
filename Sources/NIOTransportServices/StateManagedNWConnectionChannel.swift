@@ -70,9 +70,9 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
 
     var _pipeline: ChannelPipeline! { get }
 
-    var addressCache: AddressCache { get set }
+    var _addressCache: AddressCache { get set }
 
-    var addressCacheLock: NIOLock { get }
+    var _addressCacheLock: NIOLock { get }
 
     var allowLocalEndpointReuse: Bool { get set }
 
@@ -95,15 +95,15 @@ extension StateManagedNWConnectionChannel {
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        return self.addressCacheLock.withLock {
-            return self.addressCache.local
+        return self._addressCacheLock.withLock {
+            return self._addressCache.local
         }
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        return self.addressCacheLock.withLock {
-            return self.addressCache.remote
+        return self._addressCacheLock.withLock {
+            return self._addressCache.remote
         }
     }
 
@@ -462,7 +462,7 @@ extension StateManagedNWConnectionChannel {
         let localAddress = try? self.localAddress0()
         let remoteAddress = try? self.remoteAddress0()
 
-        self.addressCache = AddressCache(local: localAddress, remote: remoteAddress)
+        self._addressCache = AddressCache(local: localAddress, remote: remoteAddress)
 
         self.becomeActive0(promise: promise)
 
@@ -595,8 +595,6 @@ extension StateManagedNWConnectionChannel {
                 throw NIOTSErrors.NoCurrentConnection()
             }
             return connection.metadata(definition: optionValue.definition) as! Option.Value
-        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
-            return self.multipathServiceType as! Option.Value
         default:
             // watchOS 6.0 availability is covered by the @available on this extension.
             if #available(OSX 10.15, iOS 13.0, tvOS 13.0, *) {

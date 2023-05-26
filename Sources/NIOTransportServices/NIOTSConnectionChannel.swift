@@ -206,19 +206,10 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     internal var multipathServiceType = NWParameters.MultipathServiceType.disabled
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
-    private var _addressCache = AddressCache(local: nil, remote: nil)
-
-    internal var addressCache: AddressCache {
-        get {
-            return self._addressCache
-        }
-        set {
-            self._addressCache = newValue
-        }
-    }
+    internal var _addressCache = AddressCache(local: nil, remote: nil)
 
     /// A lock that guards the _addressCache.
-    internal let addressCacheLock = NIOLock()
+    internal let _addressCacheLock = NIOLock()
 
     /// Create a `NIOTSConnectionChannel` on a given `NIOTSEventLoop`.
     ///
@@ -260,7 +251,12 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel: Channel {
     func getChannelSpecificOption0<Option>(option: Option) throws -> Option.Value where Option : ChannelOption {
-        fatalError("option \(type(of: option)).\(option) not supported")
+        switch option {
+        case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
+            return self.multipathServiceType as! Option.Value
+        default:
+            fatalError("option \(type(of: option)).\(option) not supported")
+        }
     }
 
     func setChannelSpecificOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws {

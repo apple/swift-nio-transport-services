@@ -101,10 +101,10 @@ internal final class NIOTSListenerChannel {
     private let childTLSOptions: NWProtocolTLS.Options?
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
-    private var addressCache = AddressCache(local: nil, remote: nil)
+    internal var _addressCache = AddressCache(local: nil, remote: nil)
 
     /// A lock that guards the _addressCache.
-    private let addressCacheLock = NIOLock()
+    private let _addressCacheLock = NIOLock()
 
 
     /// Create a `NIOTSListenerChannel` on a given `NIOTSEventLoop`.
@@ -165,15 +165,15 @@ extension NIOTSListenerChannel: Channel {
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        return self.addressCacheLock.withLock {
-            return self.addressCache.local
+        return self._addressCacheLock.withLock {
+            return self._addressCache.local
         }
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        return self.addressCacheLock.withLock {
-            return self.addressCache.remote
+        return self._addressCacheLock.withLock {
+            return self._addressCache.remote
         }
     }
 
@@ -505,8 +505,8 @@ extension NIOTSListenerChannel {
         // Before becoming active, update the cached addresses. Remote is always nil.
         let localAddress = try? self.localAddress0()
 
-        self.addressCacheLock.withLock {
-            self.addressCache = AddressCache(local: localAddress, remote: nil)
+        self._addressCacheLock.withLock {
+            self._addressCache = AddressCache(local: localAddress, remote: nil)
         }
 
         self.becomeActive0(promise: promise)
