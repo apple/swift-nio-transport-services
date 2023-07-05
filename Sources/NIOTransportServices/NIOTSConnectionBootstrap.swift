@@ -42,9 +42,9 @@ import Network
 public final class NIOTSConnectionBootstrap {
     private let group: EventLoopGroup
     private var _channelInitializer: ((Channel) -> EventLoopFuture<Void>)
-    private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)? {
+    private var channelInitializer: ((Channel) -> EventLoopFuture<Void>) {
         if let protocolHandlers = self.protocolHandlers {
-            let channelInitializer = _channelInitializer
+            let channelInitializer = self._channelInitializer
             return { channel in
                 channelInitializer(channel).flatMap {
                     channel.pipeline.addHandlers(protocolHandlers(), position: .first)
@@ -229,7 +229,7 @@ public final class NIOTSConnectionBootstrap {
                                                        tcpOptions: self.tcpOptions,
                                                        tlsOptions: self.tlsOptions)
         }
-        let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
+        let initializer = self.channelInitializer
         let channelOptions = self.channelOptions
 
         return conn.eventLoop.flatSubmit {
@@ -294,13 +294,10 @@ extension NIOTSConnectionBootstrap {
         channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
     ) async throws -> Output {
         let validPortRange = Int(UInt16.min)...Int(UInt16.max)
-        guard validPortRange.contains(port) else {
+        guard validPortRange.contains(port), let actualPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
             throw NIOTSErrors.InvalidPort(port: port)
         }
 
-        guard let actualPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
-            throw NIOTSErrors.InvalidPort(port: port)
-        }
         return try await self.connect(
             endpoint: NWEndpoint.hostPort(host: .init(host), port: actualPort),
             channelInitializer: channelInitializer
@@ -435,7 +432,7 @@ extension NIOTSConnectionBootstrap {
             )
         }
         let channelInitializer = { (channel: Channel) -> EventLoopFuture<ChannelInitializerResult> in
-            let initializer = self.channelInitializer ?? { _ in connectionChannel.eventLoop.makeSucceededFuture(()) }
+            let initializer = self.channelInitializer
             return initializer(channel).flatMap { channelInitializer(channel) }
         }
         let channelOptions = self.channelOptions

@@ -313,24 +313,28 @@ public final class NIOTSListenerBootstrap {
 
         let serverChannel: NIOTSListenerChannel
         if let newListener = existingNWListener {
-            serverChannel = NIOTSListenerChannel(wrapping: newListener,
-                                                     on: self.group.next() as! NIOTSEventLoop,
-                                                     qos: self.serverQoS,
-                                                     tcpOptions: self.tcpOptions,
-                                                     tlsOptions: self.tlsOptions,
-                                                     childLoopGroup: self.childGroup,
-                                                     childChannelQoS: self.childQoS,
-                                                     childTCPOptions: self.tcpOptions,
-                                                     childTLSOptions: self.tlsOptions)
+            serverChannel = NIOTSListenerChannel(
+                wrapping: newListener,
+                on: self.group.next() as! NIOTSEventLoop,
+                qos: self.serverQoS,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions,
+                childLoopGroup: self.childGroup,
+                childChannelQoS: self.childQoS,
+                childTCPOptions: self.tcpOptions,
+                childTLSOptions: self.tlsOptions
+            )
         } else {
-            serverChannel = NIOTSListenerChannel(eventLoop: eventLoop,
-                                                     qos: self.serverQoS,
-                                                     tcpOptions: self.tcpOptions,
-                                                     tlsOptions: self.tlsOptions,
-                                                     childLoopGroup: self.childGroup,
-                                                     childChannelQoS: self.childQoS,
-                                                     childTCPOptions: self.tcpOptions,
-                                                     childTLSOptions: self.tlsOptions)
+            serverChannel = NIOTSListenerChannel(
+                eventLoop: eventLoop,
+                qos: self.serverQoS,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions,
+                childLoopGroup: self.childGroup,
+                childChannelQoS: self.childQoS,
+                childTCPOptions: self.tcpOptions,
+                childTLSOptions: self.tlsOptions
+            )
         }
 
         return eventLoop.submit {
