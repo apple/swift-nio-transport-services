@@ -99,7 +99,7 @@ public final class NIOTSConnectionBootstrap {
 
         self.group = group
         self.channelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
-        self._channelInitializer = { channel in channel.eventLoop.makeSucceededFuture(()) }
+        self._channelInitializer = { channel in channel.eventLoop.makeSucceededVoidFuture() }
     }
 
     /// Initialize the connected `NIOTSConnectionChannel` with `initializer`. The most common task in initializer is to add
@@ -643,7 +643,7 @@ extension NIOTSConnectionBootstrap {
     }
 }
 
-// MARK: Async connect methods with arbitrary payload
+// MARK: Async connect methods with protocol negotation
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 extension NIOTSConnectionBootstrap {
