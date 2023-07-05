@@ -41,7 +41,19 @@ import Network
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSConnectionBootstrap {
     private let group: EventLoopGroup
-    private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)?
+    private var _channelInitializer: ((Channel) -> EventLoopFuture<Void>)
+    private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)? {
+        if let protocolHandlers = self.protocolHandlers {
+            let channelInitializer = _channelInitializer
+            return { channel in
+                channelInitializer(channel).flatMap {
+                    channel.pipeline.addHandlers(protocolHandlers(), position: .first)
+                }
+            }
+        } else {
+            return self._channelInitializer
+        }
+    }
     private var connectTimeout: TimeAmount = TimeAmount.seconds(10)
     private var channelOptions = ChannelOptions.Storage()
     private var qos: DispatchQoS?
@@ -87,6 +99,7 @@ public final class NIOTSConnectionBootstrap {
 
         self.group = group
         self.channelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
+        self._channelInitializer = { channel in channel.eventLoop.makeSucceededFuture(()) }
     }
 
     /// Initialize the connected `NIOTSConnectionChannel` with `initializer`. The most common task in initializer is to add
@@ -97,7 +110,7 @@ public final class NIOTSConnectionBootstrap {
     /// - parameters:
     ///     - handler: A closure that initializes the provided `Channel`.
     public func channelInitializer(_ handler: @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
-        self.channelInitializer = handler
+        self._channelInitializer = handler
         return self
     }
 
