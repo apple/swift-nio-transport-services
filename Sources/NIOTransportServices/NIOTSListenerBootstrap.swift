@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-import NIOCore
+@_spi(AsyncChannel) import NIOCore
 import Dispatch
 import Network
 
@@ -313,24 +313,28 @@ public final class NIOTSListenerBootstrap {
 
         let serverChannel: NIOTSListenerChannel
         if let newListener = existingNWListener {
-            serverChannel = NIOTSListenerChannel(wrapping: newListener,
-                                                     on: self.group.next() as! NIOTSEventLoop,
-                                                     qos: self.serverQoS,
-                                                     tcpOptions: self.tcpOptions,
-                                                     tlsOptions: self.tlsOptions,
-                                                     childLoopGroup: self.childGroup,
-                                                     childChannelQoS: self.childQoS,
-                                                     childTCPOptions: self.tcpOptions,
-                                                     childTLSOptions: self.tlsOptions)
+            serverChannel = NIOTSListenerChannel(
+                wrapping: newListener,
+                on: self.group.next() as! NIOTSEventLoop,
+                qos: self.serverQoS,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions,
+                childLoopGroup: self.childGroup,
+                childChannelQoS: self.childQoS,
+                childTCPOptions: self.tcpOptions,
+                childTLSOptions: self.tlsOptions
+            )
         } else {
-            serverChannel = NIOTSListenerChannel(eventLoop: eventLoop,
-                                                     qos: self.serverQoS,
-                                                     tcpOptions: self.tcpOptions,
-                                                     tlsOptions: self.tlsOptions,
-                                                     childLoopGroup: self.childGroup,
-                                                     childChannelQoS: self.childQoS,
-                                                     childTCPOptions: self.tcpOptions,
-                                                     childTLSOptions: self.tlsOptions)
+            serverChannel = NIOTSListenerChannel(
+                eventLoop: eventLoop,
+                qos: self.serverQoS,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions,
+                childLoopGroup: self.childGroup,
+                childChannelQoS: self.childQoS,
+                childTCPOptions: self.tcpOptions,
+                childTLSOptions: self.tlsOptions
+            )
         }
 
         return eventLoop.submit {
@@ -372,6 +376,533 @@ public final class NIOTSListenerBootstrap {
         }
     }
 }
+
+// MARK: Async bind methods with arbitrary payload
+
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+extension NIOTSListenerBootstrap {
+    /// Bind the `NIOTSListenerChannel` to `host` and `port`.
+    ///
+    /// - Parameters:
+    ///   - host: The host to bind on.
+    ///   - port: The port to bind on.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
+    ///     method.
+    /// - Returns: The result of the channel initializer.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func bind<Output: Sendable>(
+        host: String,
+        port: Int,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+    ) async throws -> NIOAsyncChannel<Output, Never> {
+        let validPortRange = Int(UInt16.min)...Int(UInt16.max)
+        guard validPortRange.contains(port) else {
+            throw NIOTSErrors.InvalidPort(port: port)
+        }
+
+        return try await self.bind0(
+            serverBackpressureStrategy: serverBackpressureStrategy,
+            childChannelInitializer: childChannelInitializer,
+            registration: { (serverChannel, promise) in
+                serverChannel.register().whenComplete { result in
+                    switch result {
+                    case .success:
+                        do {
+                            // NWListener does not actually resolve hostname-based NWEndpoints
+                            // for use with requiredLocalEndpoint, so we fall back to
+                            // SocketAddress for this.
+                            let address = try SocketAddress.makeAddressResolvingHost(host, port: port)
+                            serverChannel.bind(to: address, promise: promise)
+                        } catch {
+                            promise.fail(error)
+                        }
+                    case .failure(let error):
+                        promise.fail(error)
+                    }
+                }
+            },
+            postRegisterTransformation: { $1.makeSucceededFuture($0) }
+        ).get()
+    }
+
+    /// Bind the `NIOTSListenerChannel` to `address`.
+    ///
+    /// - Parameters:
+    ///   - address: The `SocketAddress` to bind on.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
+    ///     method.
+    /// - Returns: The result of the channel initializer.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func bind<Output: Sendable>(
+        to address: SocketAddress,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+    ) async throws -> NIOAsyncChannel<Output, Never> {
+        return try await self.bind0(
+            serverBackpressureStrategy: serverBackpressureStrategy,
+            childChannelInitializer: childChannelInitializer,
+            registration: { (serverChannel, promise) in
+                serverChannel.register().whenComplete { result in
+                    switch result {
+                    case .success:
+                        serverChannel.bind(to: address, promise: promise)
+                    case .failure(let error):
+                        promise.fail(error)
+                    }
+                }
+            },
+            postRegisterTransformation: { $1.makeSucceededFuture($0) }
+        ).get()
+    }
+
+    /// Bind the `NIOTSListenerChannel` to a given `NWEndpoint`.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The `NWEndpoint` to bind this channel to.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
+    ///     method.
+    /// - Returns: The result of the channel initializer.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func bind<Output: Sendable>(
+        endpoint: NWEndpoint,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+    ) async throws -> NIOAsyncChannel<Output, Never> {
+        return try await self.bind0(
+            serverBackpressureStrategy: serverBackpressureStrategy,
+            childChannelInitializer: childChannelInitializer,
+            registration: { (serverChannel, promise) in
+                serverChannel.register().whenComplete { result in
+                    switch result {
+                    case .success:
+                        serverChannel.triggerUserOutboundEvent(NIOTSNetworkEvents.BindToNWEndpoint(endpoint: endpoint), promise: promise)
+                    case .failure(let error):
+                        promise.fail(error)
+                    }
+                }
+            },
+            postRegisterTransformation: { $1.makeSucceededFuture($0) }
+        ).get()
+    }
+
+    /// Bind the `NIOTSListenerChannel` to an existing `NWListener`.
+    ///
+    /// - Parameters:
+    ///   - listener: The NWListener to wrap.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
+    ///     method.
+    /// - Returns: The result of the channel initializer.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func withNWListener<Output: Sendable>(
+        _ listener: NWListener,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+    ) async throws -> NIOAsyncChannel<Output, Never> {
+        return try await self.bind0(
+            existingNWListener: listener,
+            serverBackpressureStrategy: serverBackpressureStrategy,
+            childChannelInitializer: childChannelInitializer,
+            registration: { (serverChannel, promise) in
+                serverChannel.registerAlreadyConfigured0(promise: promise)
+            },
+            postRegisterTransformation: { $1.makeSucceededFuture($0) }
+        ).get()
+    }
+
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    private func bind0<ChannelInitializerResult, PostRegistrationTransformationResult>(
+        existingNWListener: NWListener? = nil,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?,
+        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<ChannelInitializerResult>,
+        registration: @escaping (NIOTSListenerChannel, EventLoopPromise<Void>) -> Void,
+        postRegisterTransformation: @escaping @Sendable (ChannelInitializerResult, EventLoop) -> EventLoopFuture<PostRegistrationTransformationResult>
+    ) -> EventLoopFuture<NIOAsyncChannel<PostRegistrationTransformationResult, Never>> {
+        let eventLoop = self.group.next() as! NIOTSEventLoop
+        let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(()) }
+        let childChannelInit = self.childChannelInit
+        let serverChannelOptions = self.serverChannelOptions
+        let childChannelOptions = self.childChannelOptions
+
+        let serverChannel: NIOTSListenerChannel
+        if let newListener = existingNWListener {
+            serverChannel = NIOTSListenerChannel(wrapping: newListener,
+                                                     on: self.group.next() as! NIOTSEventLoop,
+                                                     qos: self.serverQoS,
+                                                     tcpOptions: self.tcpOptions,
+                                                     tlsOptions: self.tlsOptions,
+                                                     childLoopGroup: self.childGroup,
+                                                     childChannelQoS: self.childQoS,
+                                                     childTCPOptions: self.tcpOptions,
+                                                     childTLSOptions: self.tlsOptions)
+        } else {
+            serverChannel = NIOTSListenerChannel(eventLoop: eventLoop,
+                                                     qos: self.serverQoS,
+                                                     tcpOptions: self.tcpOptions,
+                                                     tlsOptions: self.tlsOptions,
+                                                     childLoopGroup: self.childGroup,
+                                                     childChannelQoS: self.childQoS,
+                                                     childTCPOptions: self.tcpOptions,
+                                                     childTLSOptions: self.tlsOptions)
+        }
+
+        return eventLoop.submit {
+            serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
+                serverChannelInit(serverChannel)
+            }.flatMap { (_) -> EventLoopFuture<NIOAsyncChannel<PostRegistrationTransformationResult, Never>> in
+                do {
+                    try serverChannel.pipeline.syncOperations.addHandler(
+                        AcceptHandler(childChannelInitializer: childChannelInit, childChannelOptions: childChannelOptions),
+                        name: "AcceptHandler"
+                    )
+                    let asyncChannel = try NIOAsyncChannel<PostRegistrationTransformationResult, Never>
+                        .wrapAsyncChannelWithTransformations(
+                            synchronouslyWrapping: serverChannel,
+                            backpressureStrategy: serverBackpressureStrategy,
+                            channelReadTransformation: { channel -> EventLoopFuture<(ChannelInitializerResult, EventLoop)> in
+                                // The channelReadTransformation is run on the EL of the server channel
+                                // We have to make sure that we execute child channel initializer on the
+                                // EL of the child channel.
+                                channel.eventLoop.flatSubmit {
+                                    childChannelInitializer(channel).map { ($0, channel.eventLoop) }
+                                }
+                            },
+                            postFireChannelReadTransformation: { result, eventLoop in
+                                eventLoop.flatSubmit {
+                                    postRegisterTransformation(result, eventLoop)
+                                }
+                            }
+                        )
+
+                    let bindPromise = eventLoop.makePromise(of: Void.self)
+                    registration(serverChannel, bindPromise)
+
+                    if let bindTimeout = self.bindTimeout {
+                        let cancelTask = eventLoop.scheduleTask(in: bindTimeout) {
+                            bindPromise.fail(NIOTSErrors.BindTimeout(timeout: bindTimeout))
+                            serverChannel.close(promise: nil)
+                        }
+
+                        bindPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
+                            cancelTask.cancel()
+                        }
+                    }
+
+                    return bindPromise.futureResult
+                        .map { (_) -> NIOAsyncChannel<PostRegistrationTransformationResult, Never> in asyncChannel
+                    }
+                } catch {
+                    return eventLoop.makeFailedFuture(error)
+                }
+            }.flatMapError { error -> EventLoopFuture<NIOAsyncChannel<PostRegistrationTransformationResult, Never>> in
+                serverChannel.close0(error: error, mode: .all, promise: nil)
+                return eventLoop.makeFailedFuture(error)
+            }
+        }.flatMap {
+            $0
+        }
+    }
+}
+
+// MARK: AsyncChannel based bind
+
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+extension NIOTSListenerBootstrap {
+    /// Bind the `NIOTSListenerChannel` to `host` and `port`.
+    ///
+    /// - Parameters:
+    ///   - host: The host to bind on.
+    ///   - port: The port to bind on.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - childChannelBackpressureStrategy: The back pressure strategy used by the child channels.
+    ///   - isChildChannelOutboundHalfClosureEnabled: Indicates if half closure is enabled on the child channels. If half closure is enabled
+    ///   then finishing the ``NIOAsyncChannelWriter`` will lead to half closure.
+    ///   - childChannelInboundType: The child channel's inbound type.
+    ///   - childChannelOutboundType: The child channel's outbound type.
+    /// - Returns: A ``NIOAsyncChannel`` of connection ``NIOAsyncChannel``s.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func bind<ChildChannelInbound: Sendable, ChildChannelOutbound: Sendable>(
+        host: String,
+        port: Int,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        isChildChannelOutboundHalfClosureEnabled: Bool = false,
+        childChannelInboundType: ChildChannelInbound.Type = ChildChannelInbound.self,
+        childChannelOutboundType: ChildChannelOutbound.Type = ChildChannelOutbound.self
+    ) async throws -> NIOAsyncChannel<NIOAsyncChannel<ChildChannelInbound, ChildChannelOutbound>, Never> {
+        return try await self.bind(
+            host: host,
+            port: port,
+            serverBackpressureStrategy: serverBackpressureStrategy
+        ) { channel in
+            channel.eventLoop.makeCompletedFuture {
+                try NIOAsyncChannel(
+                    synchronouslyWrapping: channel,
+                    backpressureStrategy: childChannelBackpressureStrategy,
+                    isOutboundHalfClosureEnabled: isChildChannelOutboundHalfClosureEnabled,
+                    inboundType: childChannelInboundType,
+                    outboundType: childChannelOutboundType
+                )
+            }
+        }
+    }
+
+    /// Bind the `NIOTSListenerChannel` to `address`.
+    ///
+    /// - Parameters:
+    ///   - address: The `SocketAddress` to bind on.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - childChannelBackpressureStrategy: The back pressure strategy used by the child channels.
+    ///   - isChildChannelOutboundHalfClosureEnabled: Indicates if half closure is enabled on the child channels. If half closure is enabled
+    ///   then finishing the ``NIOAsyncChannelWriter`` will lead to half closure.
+    ///   - childChannelInboundType: The child channel's inbound type.
+    ///   - childChannelOutboundType: The child channel's outbound type.
+    /// - Returns: A ``NIOAsyncChannel`` of connection ``NIOAsyncChannel``s.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func bind<ChildChannelInbound: Sendable, ChildChannelOutbound: Sendable>(
+        to address: SocketAddress,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        isChildChannelOutboundHalfClosureEnabled: Bool = false,
+        childChannelInboundType: ChildChannelInbound.Type = ChildChannelInbound.self,
+        childChannelOutboundType: ChildChannelOutbound.Type = ChildChannelOutbound.self
+    ) async throws -> NIOAsyncChannel<NIOAsyncChannel<ChildChannelInbound, ChildChannelOutbound>, Never> {
+        return try await self.bind(
+            to: address,
+            serverBackpressureStrategy: serverBackpressureStrategy
+        ) { channel in
+            channel.eventLoop.makeCompletedFuture {
+                try NIOAsyncChannel(
+                    synchronouslyWrapping: channel,
+                    backpressureStrategy: childChannelBackpressureStrategy,
+                    isOutboundHalfClosureEnabled: isChildChannelOutboundHalfClosureEnabled,
+                    inboundType: childChannelInboundType,
+                    outboundType: childChannelOutboundType
+                )
+            }
+        }
+    }
+
+    /// Bind the `NIOTSListenerChannel` to a given `NWEndpoint`.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The `NWEndpoint` to bind this channel to.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - childChannelBackpressureStrategy: The back pressure strategy used by the child channels.
+    ///   - isChildChannelOutboundHalfClosureEnabled: Indicates if half closure is enabled on the child channels. If half closure is enabled
+    ///   then finishing the ``NIOAsyncChannelWriter`` will lead to half closure.
+    ///   - childChannelInboundType: The child channel's inbound type.
+    ///   - childChannelOutboundType: The child channel's outbound type.
+    /// - Returns: A ``NIOAsyncChannel`` of connection ``NIOAsyncChannel``s.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func bind<ChildChannelInbound: Sendable, ChildChannelOutbound: Sendable>(
+        endpoint: NWEndpoint,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        isChildChannelOutboundHalfClosureEnabled: Bool = false,
+        childChannelInboundType: ChildChannelInbound.Type = ChildChannelInbound.self,
+        childChannelOutboundType: ChildChannelOutbound.Type = ChildChannelOutbound.self
+    ) async throws -> NIOAsyncChannel<NIOAsyncChannel<ChildChannelInbound, ChildChannelOutbound>, Never> {
+        return try await self.bind(
+            endpoint: endpoint,
+            serverBackpressureStrategy: serverBackpressureStrategy
+        ) { channel in
+            channel.eventLoop.makeCompletedFuture {
+                try NIOAsyncChannel(
+                    synchronouslyWrapping: channel,
+                    backpressureStrategy: childChannelBackpressureStrategy,
+                    isOutboundHalfClosureEnabled: isChildChannelOutboundHalfClosureEnabled,
+                    inboundType: childChannelInboundType,
+                    outboundType: childChannelOutboundType
+                )
+            }
+        }
+    }
+
+    /// Bind the `NIOTSListenerChannel` to an existing `NWListener`.
+    ///
+    /// - Parameters:
+    ///   - listener: The NWListener to wrap.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - childChannelBackpressureStrategy: The back pressure strategy used by the child channels.
+    ///   - isChildChannelOutboundHalfClosureEnabled: Indicates if half closure is enabled on the child channels. If half closure is enabled
+    ///   then finishing the ``NIOAsyncChannelWriter`` will lead to half closure.
+    ///   - childChannelInboundType: The child channel's inbound type.
+    ///   - childChannelOutboundType: The child channel's outbound type.
+    /// - Returns: A ``NIOAsyncChannel`` of connection ``NIOAsyncChannel``s.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func withNWListener<ChildChannelInbound: Sendable, ChildChannelOutbound: Sendable>(
+        _ listener: NWListener,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        isChildChannelOutboundHalfClosureEnabled: Bool = false,
+        childChannelInboundType: ChildChannelInbound.Type = ChildChannelInbound.self,
+        childChannelOutboundType: ChildChannelOutbound.Type = ChildChannelOutbound.self
+    ) async throws -> NIOAsyncChannel<NIOAsyncChannel<ChildChannelInbound, ChildChannelOutbound>, Never> {
+        return try await self.withNWListener(
+            listener,
+            serverBackpressureStrategy: serverBackpressureStrategy
+        ) { channel in
+            channel.eventLoop.makeCompletedFuture {
+                try NIOAsyncChannel(
+                    synchronouslyWrapping: channel,
+                    backpressureStrategy: childChannelBackpressureStrategy,
+                    isOutboundHalfClosureEnabled: isChildChannelOutboundHalfClosureEnabled,
+                    inboundType: childChannelInboundType,
+                    outboundType: childChannelOutboundType
+                )
+            }
+        }
+    }
+}
+
+// MARK: Protocol negotiation based bind
+
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+extension NIOTSListenerBootstrap {
+    /// Bind the `NIOTSListenerChannel` to `host` and `port`.
+    ///
+    /// - Parameters:
+    ///   - host: The host to bind on.
+    ///   - port: The port to bind on.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - childChannelInitializer: A closure to initialize the channel which must return the handler that is used for negotiating
+    ///   the protocol.
+    /// - Returns: A ``NIOAsyncChannel`` of  the protocol negotiation results.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func bind<Handler: NIOProtocolNegotiationHandler>(
+        host: String,
+        port: Int,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Handler>
+    ) async throws -> NIOAsyncChannel<Handler.NegotiationResult, Never> {
+        let address = try SocketAddress.makeAddressResolvingHost(host, port: port)
+
+        return try await self.bind(
+            to: address,
+            serverBackpressureStrategy: serverBackpressureStrategy,
+            childChannelInitializer: childChannelInitializer
+        )
+    }
+
+    /// Bind the `NIOTSListenerChannel` to `address`.
+    ///
+    /// - Parameters:
+    ///   - address: The `SocketAddress` to bind on.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - childChannelInitializer: A closure to initialize the channel which must return the handler that is used for negotiating
+    ///   the protocol.
+    /// - Returns: A ``NIOAsyncChannel`` of  the protocol negotiation results.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func bind<Handler: NIOProtocolNegotiationHandler>(
+        to address: SocketAddress,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Handler>
+    ) async throws -> NIOAsyncChannel<Handler.NegotiationResult, Never> {
+        return try await self.bind0(
+            serverBackpressureStrategy: serverBackpressureStrategy,
+            childChannelInitializer: childChannelInitializer,
+            registration: { (serverChannel, promise) in
+                serverChannel.register().whenComplete { result in
+                    switch result {
+                    case .success:
+                        serverChannel.bind(to: address, promise: promise)
+                    case .failure(let error):
+                        promise.fail(error)
+                    }
+                }
+            },
+            postRegisterTransformation: { handler, eventLoop in
+                eventLoop.assertInEventLoop()
+                return handler.protocolNegotiationResult.flatMap { result in
+                    result.resolve(on: eventLoop)
+                }
+            }
+        ).get()
+    }
+
+    /// Bind the `NIOTSListenerChannel` to a given `NWEndpoint`.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The `NWEndpoint` to bind this channel to.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - childChannelInitializer: A closure to initialize the channel which must return the handler that is used for negotiating
+    ///   the protocol.
+    /// - Returns: A ``NIOAsyncChannel`` of  the protocol negotiation results.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func bind<Handler: NIOProtocolNegotiationHandler>(
+        endpoint: NWEndpoint,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Handler>
+    ) async throws -> NIOAsyncChannel<Handler.NegotiationResult, Never> {
+        return try await self.bind0(
+            serverBackpressureStrategy: serverBackpressureStrategy,
+            childChannelInitializer: childChannelInitializer,
+            registration: { (serverChannel, promise) in
+                serverChannel.register().whenComplete { result in
+                    switch result {
+                    case .success:
+                        serverChannel.triggerUserOutboundEvent(NIOTSNetworkEvents.BindToNWEndpoint(endpoint: endpoint), promise: promise)
+                    case .failure(let error):
+                        promise.fail(error)
+                    }
+                }
+            },
+            postRegisterTransformation: { handler, eventLoop in
+                eventLoop.assertInEventLoop()
+                return handler.protocolNegotiationResult.flatMap { result in
+                    result.resolve(on: eventLoop)
+                }
+            }
+        ).get()
+    }
+
+    /// Bind the `NIOTSListenerChannel` to an existing `NWListener`.
+    ///
+    /// - Parameters:
+    ///   - listener: The NWListener to wrap.
+    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - childChannelInitializer: A closure to initialize the channel which must return the handler that is used for negotiating
+    ///   the protocol.
+    /// - Returns: A ``NIOAsyncChannel`` of  the protocol negotiation results.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    @_spi(AsyncChannel)
+    public func withNWListener<Handler: NIOProtocolNegotiationHandler>(
+        _ listener: NWListener,
+        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Handler>
+    ) async throws -> NIOAsyncChannel<Handler.NegotiationResult, Never> {
+        return try await self.bind0(
+            serverBackpressureStrategy: serverBackpressureStrategy,
+            childChannelInitializer: childChannelInitializer,
+            registration: { (serverChannel, promise) in
+                serverChannel.registerAlreadyConfigured0(promise: promise)
+            },
+            postRegisterTransformation: { handler, eventLoop in
+                eventLoop.assertInEventLoop()
+                return handler.protocolNegotiationResult.flatMap { result in
+                    result.resolve(on: eventLoop)
+                }
+            }
+        ).get()
+    }
+}
+
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 private class AcceptHandler: ChannelInboundHandler {
@@ -430,4 +961,23 @@ private class AcceptHandler: ChannelInboundHandler {
         }
     }
 }
+
+extension NIOProtocolNegotiationResult {
+    func resolve(on eventLoop: EventLoop) -> EventLoopFuture<NegotiationResult> {
+        Self.resolve(on: eventLoop, result: self)
+    }
+
+    static func resolve(on eventLoop: EventLoop, result: Self) -> EventLoopFuture<NegotiationResult> {
+        switch result {
+        case .finished(let negotiationResult):
+            return eventLoop.makeSucceededFuture(negotiationResult)
+
+        case .deferredResult(let future):
+            return future.flatMap { result in
+                return resolve(on: eventLoop, result: result)
+            }
+        }
+    }
+}
+
 #endif
