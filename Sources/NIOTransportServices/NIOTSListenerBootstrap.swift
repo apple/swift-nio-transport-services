@@ -388,7 +388,7 @@ extension NIOTSListenerBootstrap {
     ///   - port: The port to bind on.
     ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
-    ///   method.
+    ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     @_spi(AsyncChannel)
@@ -434,7 +434,7 @@ extension NIOTSListenerBootstrap {
     ///   - address: The `SocketAddress` to bind on.
     ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
-    ///   method.
+    ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     @_spi(AsyncChannel)
@@ -466,7 +466,7 @@ extension NIOTSListenerBootstrap {
     ///   - endpoint: The `NWEndpoint` to bind this channel to.
     ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
-    ///   method.
+    ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     @_spi(AsyncChannel)
@@ -498,7 +498,7 @@ extension NIOTSListenerBootstrap {
     ///   - listener: The NWListener to wrap.
     ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
-    ///   method.
+    ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     @_spi(AsyncChannel)

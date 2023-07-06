@@ -284,7 +284,7 @@ extension NIOTSConnectionBootstrap {
     ///   - host: The host to connect to.
     ///   - port: The port to connect to.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
-    ///   method.
+    ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     @_spi(AsyncChannel)
@@ -309,7 +309,7 @@ extension NIOTSConnectionBootstrap {
     /// - Parameters:
     ///   - address: The address to connect to.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
-    ///   method.
+    ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     @_spi(AsyncChannel)
@@ -338,7 +338,7 @@ extension NIOTSConnectionBootstrap {
     /// - Parameters:
     ///   - unixDomainSocketPath: The _Unix domain socket_ path to connect to.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
-    ///   method.
+    ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     @_spi(AsyncChannel)
@@ -358,7 +358,7 @@ extension NIOTSConnectionBootstrap {
     /// - Parameters:
     ///   - endpoint: The endpoint to connect to.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
-    ///   method.
+    ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     @_spi(AsyncChannel)
@@ -390,7 +390,7 @@ extension NIOTSConnectionBootstrap {
     /// - Parameters:
     ///   - connection: The `NWConnection` to wrap.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
-    ///   method.
+    ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     @_spi(AsyncChannel)
