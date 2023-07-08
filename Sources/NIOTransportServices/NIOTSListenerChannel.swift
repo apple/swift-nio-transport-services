@@ -33,6 +33,14 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
             return options
         }
         set {
+            assert({
+                if case .tcp = protocolOptions {
+                    return true
+                } else {
+                    return false
+                }
+            }(), "The protocol options of this channel were not configured as TCP")
+
             protocolOptions = .tcp(newValue)
         }
     }
@@ -47,6 +55,14 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
             return options
         }
         set {
+            assert({
+                if case .tcp = protocolOptions {
+                    return true
+                } else {
+                    return false
+                }
+            }(), "The protocol options of child channels were not configured as TCP")
+
             childProtocolOptions = .tcp(newValue)
         }
     }
