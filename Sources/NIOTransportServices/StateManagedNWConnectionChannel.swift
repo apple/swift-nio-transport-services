@@ -14,7 +14,7 @@
 
 #if canImport(Network)
 import Foundation
-import NIO
+import NIOCore
 import NIOConcurrencyHelpers
 import NIOFoundationCompat
 import NIOTLS
