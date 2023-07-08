@@ -425,8 +425,8 @@ extension NIOTSConnectionChannel {
     /// Drop all outstanding writes. Must only be called in the inactive
     /// state.
     private func dropOutNIOTransportServicesTestsstandingWrites(error: Error) {
-        while self._pendingWrites.count > 0 {
-            self._pendingWrites.removeFirst().promise?.fail(error)
+        while self.pendingWrites.count > 0 {
+            self.pendingWrites.removeFirst().promise?.fail(error)
         }
     }
 
