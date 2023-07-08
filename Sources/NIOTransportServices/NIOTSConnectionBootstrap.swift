@@ -199,7 +199,7 @@ public final class NIOTSConnectionBootstrap {
 
     /// Specify the `endpoint` to connect to for the TCP `Channel` that will be established.
     public func connect(endpoint: NWEndpoint) -> EventLoopFuture<Channel> {
-        return self.connect(shouldRegister: true) {channel, promise in
+        return self.connect(shouldRegister: true) { channel, promise in
             channel.triggerUserOutboundEvent(NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint),
                                              promise: promise)
         }

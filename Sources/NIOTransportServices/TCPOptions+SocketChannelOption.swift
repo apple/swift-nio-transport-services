@@ -18,7 +18,7 @@ import NIOCore
 import Network
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-internal extension NWProtocolTCP.Options {
+extension NWProtocolTCP.Options: NWOptionsProtocol {
     /// Apply a given channel `SocketOption` to this protocol options state.
     func applyChannelOption(option: ChannelOptions.Types.SocketOption, value: SocketOptionValue) throws {
         switch (option.level, option.name) {

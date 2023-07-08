@@ -101,7 +101,7 @@ internal final class NIOTSListenerChannel {
     private let childTLSOptions: NWProtocolTLS.Options?
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
-    private var _addressCache = AddressCache(local: nil, remote: nil)
+    internal var _addressCache = AddressCache(local: nil, remote: nil)
 
     /// A lock that guards the _addressCache.
     private let _addressCacheLock = NIOLock()
@@ -480,12 +480,13 @@ extension NIOTSListenerChannel {
             return
         }
 
-        let newChannel = NIOTSConnectionChannel(wrapping: connection,
-                                                on: self.childLoopGroup.next() as! NIOTSEventLoop,
-                                                parent: self,
-                                                qos: self.childChannelQoS,
-                                                tcpOptions: self.childTCPOptions,
-                                                tlsOptions: self.childTLSOptions)
+        let newChannel = NIOTSConnectionChannel(
+            wrapping: connection,
+            on: self.childLoopGroup.next() as! NIOTSEventLoop,
+            parent: self,
+            qos: self.childChannelQoS,
+            tcpOptions: self.childTCPOptions,
+            tlsOptions: self.childTLSOptions)
 
         self.pipeline.fireChannelRead(NIOAny(newChannel))
         self.pipeline.fireChannelReadComplete()
