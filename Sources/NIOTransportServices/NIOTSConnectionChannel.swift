@@ -208,6 +208,19 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
     internal var _addressCache = AddressCache(local: nil, remote: nil)
 
+    internal var addressCache: AddressCache {
+        get {
+            return self._addressCacheLock.withLock {
+                return self._addressCache
+            }
+        }
+        set {
+            return self._addressCacheLock.withLock {
+                self._addressCache = newValue
+            }
+        }
+    }
+
     /// A lock that guards the _addressCache.
     internal let _addressCacheLock = NIOLock()
 
