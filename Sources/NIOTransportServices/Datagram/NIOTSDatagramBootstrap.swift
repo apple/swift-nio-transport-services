@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-import NIO
+import NIOCore
 import Dispatch
 import Network
 
@@ -37,7 +37,7 @@ import Network
 ///     /* the Channel is now connected */
 /// ```
 ///
-/// The connected `NIOTSDatagramChannel` will operate on `ByteBuffer` as inbound and on `IOData` as outbound messages.
+/// The connected `NIOTSDatagramChannel` will operate on `ByteBuffer` as inbound and outbound messages.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSDatagramBootstrap {
     private let group: EventLoopGroup
@@ -51,7 +51,7 @@ public final class NIOTSDatagramBootstrap {
     /// Create a `NIOTSDatagramConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
     /// This initializer only exists to be more in-line with the NIO core bootstraps, in that they
-    /// may be constructed with an `EventLoopGroup` and by extenstion an `EventLoop`. As such an
+    /// may be constructed with an `EventLoopGroup` and by extension an `EventLoop`. As such an
     /// existing `NIOTSEventLoop` may be used to initialize this bootstrap. Where possible the
     /// initializers accepting `NIOTSEventLoopGroup` should be used instead to avoid the wrong
     /// type being used.
@@ -75,7 +75,7 @@ public final class NIOTSDatagramBootstrap {
     /// Initialize the connected `NIOTSDatagramConnectionChannel` with `initializer`. The most common task in initializer is to add
     /// `ChannelHandler`s to the `ChannelPipeline`.
     ///
-    /// The connected `Channel` will operate on `ByteBuffer` as inbound and `IOData` as outbound messages.
+    /// The connected `Channel` will operate on `ByteBuffer` as inbound and outbound messages.
     ///
     /// - parameters:
     ///     - handler: A closure that initializes the provided `Channel`.

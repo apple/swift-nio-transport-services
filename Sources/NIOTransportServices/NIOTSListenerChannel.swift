@@ -56,7 +56,7 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
         }
         set {
             assert({
-                if case .tcp = protocolOptions {
+                if case .tcp = childProtocolOptions {
                     return true
                 } else {
                     return false

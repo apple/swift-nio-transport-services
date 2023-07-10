@@ -33,6 +33,14 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
             return options
         }
         set {
+            assert({
+                if case .udp = protocolOptions {
+                    return true
+                } else {
+                    return false
+                }
+            }(), "The protocol options of this channel were not configured as UDP")
+
             protocolOptions = .udp(newValue)
         }
     }
@@ -47,6 +55,14 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
             return options
         }
         set {
+            assert({
+                if case .udp = childProtocolOptions {
+                    return true
+                } else {
+                    return false
+                }
+            }(), "The protocol options of child channelss were not configured as UDP")
+
             childProtocolOptions = .udp(newValue)
         }
     }

@@ -172,7 +172,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     internal var state: ChannelState<ActiveSubstate> = .idle
 
     /// The active state, used for safely reporting the channel state across threads.
-    internal var isActive0 = ManagedAtomic(false)
+    internal let isActive0 = ManagedAtomic(false)
 
     /// The kinds of channel activation this channel supports
     internal let supportedActivationType: ActivationType = .connect
@@ -207,19 +207,6 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
     internal var _addressCache = AddressCache(local: nil, remote: nil)
-
-    internal var addressCache: AddressCache {
-        get {
-            return self._addressCacheLock.withLock {
-                return self._addressCache
-            }
-        }
-        set {
-            return self._addressCacheLock.withLock {
-                self._addressCache = newValue
-            }
-        }
-    }
 
     internal var addressCache: AddressCache {
         get {
@@ -438,8 +425,8 @@ extension NIOTSConnectionChannel {
     /// Drop all outstanding writes. Must only be called in the inactive
     /// state.
     private func dropOutNIOTransportServicesTestsstandingWrites(error: Error) {
-        while self._pendingWrites.count > 0 {
-            self._pendingWrites.removeFirst().promise?.fail(error)
+        while self.pendingWrites.count > 0 {
+            self.pendingWrites.removeFirst().promise?.fail(error)
         }
     }
 

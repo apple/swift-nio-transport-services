@@ -15,7 +15,7 @@
 #if canImport(Network)
 import Atomics
 import Foundation
-import NIO
+import NIOCore
 import NIOConcurrencyHelpers
 import NIOFoundationCompat
 import NIOTLS
@@ -75,7 +75,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     internal var connectPromise: EventLoopPromise<Void>?
 
     /// The UDP options for this connection.
-    private var udpOptions: NWProtocolUDP.Options
+    private let udpOptions: NWProtocolUDP.Options
 
     internal var nwOptions: NWProtocolUDP.Options { udpOptions }
 
@@ -96,7 +96,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     internal var options = TransportServicesChannelOptions()
 
     /// Any pending writes that have yet to be delivered to the network stack.
-    internal var _pendingWrites = CircularBuffer<PendingWrite>(initialCapacity: 8)
+    internal var pendingWrites = CircularBuffer<PendingWrite>(initialCapacity: 8)
 
     /// An object to keep track of pending writes and manage our backpressure signaling.
     internal var _backpressureManager = BackpressureManager()
@@ -111,7 +111,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     internal var enablePeerToPeer = false
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
-    private var _addressCache = AddressCache(local: nil, remote: nil)
+    internal var _addressCache = AddressCache(local: nil, remote: nil)
 
     internal var addressCache: AddressCache {
         get {
@@ -127,7 +127,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     }
 
     /// A lock that guards the _addressCache.
-    private let _addressCacheLock = NIOLock()
+    internal let _addressCacheLock = NIOLock()
 
     internal var allowLocalEndpointReuse = false
     internal var multipathServiceType: NWParameters.MultipathServiceType = .disabled
