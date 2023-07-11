@@ -192,8 +192,10 @@ final class AsyncChannelBootstrapTests: XCTestCase {
             .bind(
                 host: "127.0.0.1",
                 port: 0,
-                childChannelInboundType: String.self,
-                childChannelOutboundType: String.self
+                childChannelConfiguration: .init(
+                    inboundType: String.self,
+                    outboundType: String.self
+                )
             )
 
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -512,8 +514,10 @@ final class AsyncChannelBootstrapTests: XCTestCase {
             }
             .connect(
                 to: .init(ipAddress: "127.0.0.1", port: port),
-                inboundType: String.self,
-                outboundType: String.self
+                channelConfiguration: .init(
+                    inboundType: String.self,
+                    outboundType: String.self
+                )
             )
     }
 
@@ -610,11 +614,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 case "string":
                     return channel.eventLoop.makeCompletedFuture {
                         try channel.pipeline.syncOperations.addHandler(ByteBufferToStringHandler())
-                        let asyncChannel = try NIOAsyncChannel(
-                            synchronouslyWrapping: channel,
-                            isOutboundHalfClosureEnabled: true,
-                            inboundType: String.self,
-                            outboundType: String.self
+                        let asyncChannel: NIOAsyncChannel<String, String> = try NIOAsyncChannel(
+                            synchronouslyWrapping: channel
                         )
 
                         return NIOProtocolNegotiationResult.finished(NegotiationResult.string(asyncChannel))
@@ -623,11 +624,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                     return channel.eventLoop.makeCompletedFuture {
                         try channel.pipeline.syncOperations.addHandler(ByteBufferToByteHandler())
 
-                        let asyncChannel = try NIOAsyncChannel(
-                            synchronouslyWrapping: channel,
-                            isOutboundHalfClosureEnabled: true,
-                            inboundType: UInt8.self,
-                            outboundType: UInt8.self
+                        let asyncChannel: NIOAsyncChannel<UInt8, UInt8> = try NIOAsyncChannel(
+                            synchronouslyWrapping: channel
                         )
 
                         return NIOProtocolNegotiationResult.finished(NegotiationResult.byte(asyncChannel))
