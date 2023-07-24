@@ -195,17 +195,17 @@ public final class NIOTSDatagramBootstrap {
                 conn.eventLoop.assertInEventLoop()
                 return conn.register()
             }.flatMap {
-                let bindPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
-                binder(conn, bindPromise)
+                let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
+                binder(conn, connectPromise)
                 let cancelTask = conn.eventLoop.scheduleTask(in: self.connectTimeout) {
-                    bindPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
+                    connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
                     conn.close(promise: nil)
                 }
 
-                bindPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
+                connectPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
                     cancelTask.cancel()
                 }
-                return bindPromise.futureResult
+                return connectPromise.futureResult
             }.map { conn }.flatMapErrorThrowing {
                 conn.close(promise: nil)
                 throw $0
