@@ -185,7 +185,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
             .bind(
                 host: "127.0.0.1",
                 port: 0
-            ) { channel in
+            ) { channel -> EventLoopFuture<NIOAsyncChannel<String, String>> in
                 channel.eventLoop.makeCompletedFuture {
                     try channel.pipeline.syncOperations.addHandler(ByteToMessageHandler(LineDelimiterCoder()))
                     try channel.pipeline.syncOperations.addHandler(MessageToByteHandler(LineDelimiterCoder()))
