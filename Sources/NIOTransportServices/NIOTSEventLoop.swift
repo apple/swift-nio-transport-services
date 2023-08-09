@@ -57,6 +57,7 @@ internal class NIOTSEventLoop: QoSEventLoop {
     private let inQueueKey: DispatchSpecificKey<UUID>
     private let loopID: UUID
     private let defaultQoS: DispatchQoS
+    private let canBeShutDownIndividually: Bool
 
     /// All the channels registered to this event loop.
     ///
@@ -96,12 +97,17 @@ internal class NIOTSEventLoop: QoSEventLoop {
         return DispatchQueue.getSpecific(key: self.inQueueKey) == self.loopID
     }
 
-    public init(qos: DispatchQoS) {
+    public convenience init(qos: DispatchQoS) {
+        self.init(qos: qos, canBeShutDownIndividually: true)
+    }
+
+    internal init(qos: DispatchQoS, canBeShutDownIndividually: Bool) {
         self.loop = DispatchQueue(label: "nio.transportservices.eventloop.loop", qos: qos, autoreleaseFrequency: .workItem)
         self.taskQueue = DispatchQueue(label: "nio.transportservices.eventloop.taskqueue", target: self.loop)
         self.loopID = UUID()
         self.inQueueKey = DispatchSpecificKey()
         self.defaultQoS = qos
+        self.canBeShutDownIndividually = canBeShutDownIndividually
         loop.setSpecific(key: inQueueKey, value: self.loopID)
     }
 
@@ -158,6 +164,15 @@ internal class NIOTSEventLoop: QoSEventLoop {
     }
 
     public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping (Error?) -> Void) {
+        guard self.canBeShutDownIndividually else {
+            // The loops cannot be shut down by individually. They need to be shut down as a group and
+            // `NIOTSEventLoopGroup` calls `closeGently` not this method.
+            queue.async {
+                callback(EventLoopError.unsupportedOperation)
+            }
+            return
+        }
+
         self.closeGently().map {
             queue.async { callback(nil) }
         }.whenFailure { error in

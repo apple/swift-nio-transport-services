@@ -129,5 +129,25 @@ class NIOTSEventLoopTest: XCTestCase {
         XCTAssertNil(weakELG)
         XCTAssertNil(weakEL)
     }
+
+    func testGroupCanBeShutDown() async throws {
+        try await NIOTSEventLoopGroup(loopCount: 3).shutdownGracefully()
+    }
+
+    func testIndividualLoopsCannotBeShutDownWhenPartOfGroup() async throws {
+        let group = NIOTSEventLoopGroup(loopCount: 3)
+        defer {
+            try! group.syncShutdownGracefully()
+        }
+
+        for loop in group.makeIterator() {
+            do {
+                try await loop.shutdownGracefully()
+                XCTFail("this shouldn't work")
+            } catch {
+                XCTAssertEqual(.unsupportedOperation, error as? EventLoopError)
+            }
+        }
+    }
 }
 #endif
