@@ -249,7 +249,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 try await withThrowingTaskGroup(of: Void.self) { group in
                     for try await negotiationResult in channel.inboundStream {
                         group.addTask {
-                            switch try await negotiationResult.get().waitForFinalResult() {
+                            switch try await negotiationResult.getResult() {
                             case .string(let channel):
                                 for try await value in channel.inboundStream {
                                     continuation.yield(.string(value))
@@ -269,7 +269,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 port: channel.channel.localAddress!.port!,
                 proposedALPN: .string
             )
-            switch try await stringNegotiationResult.get().waitForFinalResult() {
+            switch try await stringNegotiationResult.getResult() {
             case .string(let stringChannel):
                 // This is the actual content
                 try await stringChannel.outboundWriter.write("hello")
@@ -283,7 +283,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 port: channel.channel.localAddress!.port!,
                 proposedALPN: .byte
             )
-            switch try await byteNegotiationResult.get().waitForFinalResult() {
+            switch try await byteNegotiationResult.getResult() {
             case .string:
                 preconditionFailure()
             case .byte(let byteChannel):
@@ -322,7 +322,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 try await withThrowingTaskGroup(of: Void.self) { group in
                     for try await negotiationResult in channel.inboundStream {
                         group.addTask {
-                            switch try await negotiationResult.get().waitForFinalResult() {
+                            switch try await negotiationResult.getResult() {
                             case .string(let channel):
                                 for try await value in channel.inboundStream {
                                     continuation.yield(.string(value))
@@ -343,7 +343,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 proposedOuterALPN: .string,
                 proposedInnerALPN: .string
             )
-            switch try await stringStringNegotiationResult.get().waitForFinalResult() {
+            switch try await stringStringNegotiationResult.getResult() {
             case .string(let stringChannel):
                 // This is the actual content
                 try await stringChannel.outboundWriter.write("hello")
@@ -358,7 +358,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 proposedOuterALPN: .byte,
                 proposedInnerALPN: .string
             )
-            switch try await byteStringNegotiationResult.get().waitForFinalResult() {
+            switch try await byteStringNegotiationResult.getResult() {
             case .string(let stringChannel):
                 // This is the actual content
                 try await stringChannel.outboundWriter.write("hello")
@@ -373,7 +373,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 proposedOuterALPN: .byte,
                 proposedInnerALPN: .byte
             )
-            switch try await byteByteNegotiationResult.get().waitForFinalResult() {
+            switch try await byteByteNegotiationResult.getResult() {
             case .string:
                 preconditionFailure()
             case .byte(let byteChannel):
@@ -388,7 +388,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 proposedOuterALPN: .string,
                 proposedInnerALPN: .byte
             )
-            switch try await stringByteNegotiationResult.get().waitForFinalResult() {
+            switch try await stringByteNegotiationResult.getResult() {
             case .string:
                 preconditionFailure()
             case .byte(let byteChannel):
@@ -450,7 +450,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 try await withThrowingTaskGroup(of: Void.self) { group in
                     for try await negotiationResult in channel.inboundStream {
                         group.addTask {
-                            switch try await negotiationResult.get().waitForFinalResult() {
+                            switch try await negotiationResult.getResult() {
                             case .string(let channel):
                                 for try await value in channel.inboundStream {
                                     continuation.yield(.string(value))
@@ -471,7 +471,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 proposedALPN: .unknown
             )
             await XCTAssertThrowsError(
-                try await failedProtocolNegotiation.get().waitForFinalResult()
+                try await failedProtocolNegotiation.getResult()
             )
 
             // Let's check that we can still open a new connection
@@ -480,7 +480,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 port: channel.channel.localAddress!.port!,
                 proposedALPN: .string
             )
-            switch try await stringNegotiationResult.get().waitForFinalResult() {
+            switch try await stringNegotiationResult.getResult() {
             case .string(let stringChannel):
                 // This is the actual content
                 try await stringChannel.outboundWriter.write("hello")
@@ -579,7 +579,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
         try channel.pipeline.syncOperations.addHandler(ByteToMessageHandler(LineDelimiterCoder()))
         try channel.pipeline.syncOperations.addHandler(MessageToByteHandler(LineDelimiterCoder()))
         try channel.pipeline.syncOperations.addHandler(TLSUserEventHandler(proposedALPN: proposedOuterALPN))
-        let negotiationHandler = NIOTypedApplicationProtocolNegotiationHandler<NegotiationResult>(eventLoop: channel.eventLoop) { alpnResult, channel in
+        let negotiationHandler = NIOTypedApplicationProtocolNegotiationHandler<NegotiationResult> { alpnResult, channel in
             switch alpnResult {
             case .negotiated(let alpn):
                 switch alpn {
@@ -610,7 +610,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
 
     @discardableResult
     private func addTypedApplicationProtocolNegotiationHandler(to channel: Channel) throws -> NIOTypedApplicationProtocolNegotiationHandler<NegotiationResult> {
-        let negotiationHandler = NIOTypedApplicationProtocolNegotiationHandler<NegotiationResult>(eventLoop: channel.eventLoop) { alpnResult, channel in
+        let negotiationHandler = NIOTypedApplicationProtocolNegotiationHandler<NegotiationResult> { alpnResult, channel in
             switch alpnResult {
             case .negotiated(let alpn):
                 switch alpn {
