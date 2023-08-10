@@ -311,7 +311,7 @@ public final class NIOTSDatagramListenerBootstrap {
         let serverChannel: NIOTSDatagramListenerChannel
         if let newListener = existingNWListener {
             serverChannel = NIOTSDatagramListenerChannel(wrapping: newListener,
-                                                         on: self.group.next() as! NIOTSEventLoop,
+                                                         on: eventLoop,
                                                          qos: self.serverQoS,
                                                          udpOptions: self.udpOptions,
                                                          tlsOptions: self.tlsOptions,
