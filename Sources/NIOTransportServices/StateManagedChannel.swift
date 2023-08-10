@@ -103,7 +103,7 @@ internal protocol StateManagedChannel: Channel, ChannelCore {
 
     var state: ChannelState<ActiveSubstate> { get set }
 
-    var isActive0: ManagedAtomic<Bool> { get set }
+    var isActive0: ManagedAtomic<Bool> { get }
 
     var tsEventLoop: NIOTSEventLoop { get }
 

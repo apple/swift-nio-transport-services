@@ -2,7 +2,7 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2021 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2023 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -54,7 +54,7 @@ import Network
 ///
 /// Accepted `NIOTSConnectionChannel`s operate on `ByteBuffer` as inbound data, and `IOData` as outbound data.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public final class NIOTSListenerBootstrap {
+public final class NIOTSDatagramListenerBootstrap {
     private let group: EventLoopGroup
     private let childGroup: EventLoopGroup
     private var serverChannelInit: ((Channel) -> EventLoopFuture<Void>)?
@@ -63,7 +63,7 @@ public final class NIOTSListenerBootstrap {
     private var childChannelOptions = ChannelOptions.Storage()
     private var serverQoS: DispatchQoS?
     private var childQoS: DispatchQoS?
-    private var tcpOptions: NWProtocolTCP.Options = .init()
+    private var udpOptions: NWProtocolUDP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
     private var bindTimeout: TimeAmount?
 
@@ -130,9 +130,6 @@ public final class NIOTSListenerBootstrap {
 
         self.group = group
         self.childGroup = childGroup
-
-        self.serverChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
-        self.childChannelOptions.append(key: ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
     }
 
     /// Create a ``NIOTSListenerBootstrap``.
@@ -224,8 +221,8 @@ public final class NIOTSListenerBootstrap {
     }
 
     /// Specifies the TCP options to use on the child `Channel`s.
-    public func tcpOptions(_ options: NWProtocolTCP.Options) -> Self {
-        self.tcpOptions = options
+    public func udpOptions(_ options: NWProtocolUDP.Options) -> Self {
+        self.udpOptions = options
         return self
     }
 
@@ -304,37 +301,33 @@ public final class NIOTSListenerBootstrap {
         }
     }
 
-    private func bind0(existingNWListener: NWListener? = nil, shouldRegister: Bool, _ binder: @escaping (NIOTSListenerChannel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
+    private func bind0(existingNWListener: NWListener? = nil, shouldRegister: Bool, _ binder: @escaping (NIOTSDatagramListenerChannel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
         let eventLoop = self.group.next() as! NIOTSEventLoop
         let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(()) }
         let childChannelInit = self.childChannelInit
         let serverChannelOptions = self.serverChannelOptions
         let childChannelOptions = self.childChannelOptions
 
-        let serverChannel: NIOTSListenerChannel
+        let serverChannel: NIOTSDatagramListenerChannel
         if let newListener = existingNWListener {
-            serverChannel = NIOTSListenerChannel(
-                wrapping: newListener,
-                on: self.group.next() as! NIOTSEventLoop,
-                qos: self.serverQoS,
-                tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions,
-                childLoopGroup: self.childGroup,
-                childChannelQoS: self.childQoS,
-                childTCPOptions: self.tcpOptions,
-                childTLSOptions: self.tlsOptions
-            )
+            serverChannel = NIOTSDatagramListenerChannel(wrapping: newListener,
+                                                         on: eventLoop,
+                                                         qos: self.serverQoS,
+                                                         udpOptions: self.udpOptions,
+                                                         tlsOptions: self.tlsOptions,
+                                                         childLoopGroup: self.childGroup,
+                                                         childChannelQoS: self.childQoS,
+                                                         childUDPOptions: self.udpOptions,
+                                                         childTLSOptions: self.tlsOptions)
         } else {
-            serverChannel = NIOTSListenerChannel(
-                eventLoop: eventLoop,
-                qos: self.serverQoS,
-                tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions,
-                childLoopGroup: self.childGroup,
-                childChannelQoS: self.childQoS,
-                childTCPOptions: self.tcpOptions,
-                childTLSOptions: self.tlsOptions
-            )
+            serverChannel = NIOTSDatagramListenerChannel(eventLoop: eventLoop,
+                                                         qos: self.serverQoS,
+                                                         udpOptions: self.udpOptions,
+                                                         tlsOptions: self.tlsOptions,
+                                                         childLoopGroup: self.childGroup,
+                                                         childChannelQoS: self.childQoS,
+                                                         childUDPOptions: self.udpOptions,
+                                                         childTLSOptions: self.tlsOptions)
         }
 
         return eventLoop.submit {
@@ -342,11 +335,11 @@ public final class NIOTSListenerBootstrap {
                 serverChannelInit(serverChannel)
             }.flatMap {
                 eventLoop.assertInEventLoop()
-                return serverChannel.pipeline.addHandler(AcceptHandler<NIOTSConnectionChannel>(childChannelInitializer: childChannelInit,
+                return serverChannel.pipeline.addHandler(AcceptHandler<NIOTSDatagramChannel>(childChannelInitializer: childChannelInit,
                                                                        childChannelOptions: childChannelOptions))
             }.flatMap {
                 if shouldRegister{
-                     return serverChannel.register()
+                    return serverChannel.register()
                 } else {
                     return eventLoop.makeSucceededVoidFuture()
                 }
@@ -376,5 +369,4 @@ public final class NIOTSListenerBootstrap {
         }
     }
 }
-
 #endif
