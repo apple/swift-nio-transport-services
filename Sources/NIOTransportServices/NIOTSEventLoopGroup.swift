@@ -50,15 +50,32 @@ import Atomics
 public final class NIOTSEventLoopGroup: EventLoopGroup {
     private let index = ManagedAtomic(0)
     private let eventLoops: [NIOTSEventLoop]
+    private let canBeShutDown: Bool
+
+    private init(eventLoops: [NIOTSEventLoop], canBeShutDown: Bool) {
+        self.eventLoops = eventLoops
+        self.canBeShutDown = canBeShutDown
+    }
 
     /// Construct a ``NIOTSEventLoopGroup`` with a specified number of loops and QoS.
     ///
     /// - parameters:
     ///     - loopCount: The number of independent loops to use. Defaults to `1`.
     ///     - defaultQoS: The default QoS for tasks enqueued on this loop. Defaults to `.default`.
-    public init(loopCount: Int = 1, defaultQoS: DispatchQoS = .default) {
+    public convenience init(loopCount: Int = 1, defaultQoS: DispatchQoS = .default) {
+        self.init(loopCount: loopCount, defaultQoS: defaultQoS, canBeShutDown: true)
+    }
+
+    internal convenience init(loopCount: Int, defaultQoS: DispatchQoS, canBeShutDown: Bool) {
         precondition(loopCount > 0)
-        self.eventLoops = (0..<loopCount).map { _ in NIOTSEventLoop(qos: defaultQoS) }
+        let eventLoops = (0..<loopCount).map { _ in
+            NIOTSEventLoop(qos: defaultQoS, canBeShutDownIndividually: false)
+        }
+        self.init(eventLoops: eventLoops, canBeShutDown: canBeShutDown)
+    }
+
+    public static func _makePerpetualGroup(loopCount: Int, defaultQoS: DispatchQoS) -> Self {
+        self.init(loopCount: loopCount, defaultQoS: defaultQoS, canBeShutDown: false)
     }
 
     public func next() -> EventLoop {
@@ -67,6 +84,12 @@ public final class NIOTSEventLoopGroup: EventLoopGroup {
 
     /// Shuts down all of the event loops, rendering them unable to perform further work.
     public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping (Error?) -> Void) {
+        guard self.canBeShutDown else {
+            queue.async {
+                callback(EventLoopError.unsupportedOperation)
+            }
+            return
+        }
         let g = DispatchGroup()
         let q = DispatchQueue(label: "nio.transportservices.shutdowngracefullyqueue", target: queue)
         var error: Error? = nil
