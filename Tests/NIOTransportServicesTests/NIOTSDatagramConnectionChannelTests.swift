@@ -67,10 +67,13 @@ final class ReadRecorder<DataType>: ChannelInboundHandler {
     var readWaiters: [Int: EventLoopPromise<[DataType]>] = [:]
     var readCompleteCount = 0
 
+    func handlerAdded(context: ChannelHandlerContext) {
+        self.loop = context.eventLoop
+    }
+
     func channelRegistered(context: ChannelHandlerContext) {
         XCTAssertEqual(.fresh, self.state)
         self.state = .registered
-        self.loop = context.eventLoop
     }
 
     func channelActive(context: ChannelHandlerContext) {
