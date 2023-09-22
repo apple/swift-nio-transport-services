@@ -240,7 +240,7 @@ extension StateManagedListenerChannel {
         case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
             self.enablePeerToPeer = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
-            self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+            self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse.Value
         case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
             self.multipathServiceType = value as! NIOTSChannelOptions.Types.NIOTSMultipathOption.Value
         default:
