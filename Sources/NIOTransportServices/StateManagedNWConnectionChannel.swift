@@ -538,7 +538,7 @@ extension StateManagedNWConnectionChannel {
         case _ as ChannelOptions.Types.AllowRemoteHalfClosureOption:
             self.options.supportRemoteHalfClosure = value as! Bool
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
-            self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption.Value
+            self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse.Value
         default:
             try self.setChannelSpecificOption0(option: option, value: value)
         }
