@@ -865,5 +865,26 @@ class NIOTSConnectionChannelTests: XCTestCase {
             .wait()
         XCTAssertNoThrow(try connection.close().wait())
     }
+
+    func testErrorIsForwardedFromFailedConnectionState() throws {
+        final class ForwardErrorHandler: ChannelDuplexHandler {
+            typealias OutboundIn = ByteBuffer
+            typealias InboundIn = ByteBuffer
+            
+            func errorCaught(context: ChannelHandlerContext, error: Error) {
+                let error =  error as? ChannelError
+                XCTAssertNotEqual(error, ChannelError.eof)
+                XCTAssertEqual(error, ChannelError.ioOnClosedChannel)
+            }
+        }
+        
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                channel.pipeline.addHandler(ForwardErrorHandler())
+            }
+            .connect(host: "127.0.0.1", port: 8080)
+            .wait()
+        XCTAssertNoThrow(try connection.close().wait())
+    }
 }
 #endif
