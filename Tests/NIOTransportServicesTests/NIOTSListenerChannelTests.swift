@@ -210,7 +210,7 @@ class NIOTSListenerChannelTests: XCTestCase {
                 }.flatMap {
                     channel.setOption(NIOTSChannelOptions.enablePeerToPeer, value: true)
                 }.flatMap {
-                        channel.getOption(NIOTSChannelOptions.enablePeerToPeer)
+                    channel.getOption(NIOTSChannelOptions.enablePeerToPeer)
                 }.map { value in
                     XCTAssertTrue(value)
                 }
@@ -219,6 +219,80 @@ class NIOTSListenerChannelTests: XCTestCase {
         do {
             XCTAssertNoThrow(try listener.close().wait())
         }
+    }
+
+    func testCanObserveValueOfServiceTXTRecordObject() throws {
+        if #available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *) {
+            let txtRecordObjectToSet = NWTXTRecord(["key": "value"])
+            let listener = try NIOTSListenerBootstrap(group: self.group)
+                .serverChannelInitializer { channel in
+                    return channel.getOption(NIOTSChannelOptions.serviceTXTRecordObject).map { value in
+                        XCTAssertNil(value)
+                    }.flatMap {
+                        channel.setOption(NIOTSChannelOptions.serviceTXTRecordObject, value: txtRecordObjectToSet)
+                    }.flatMap {
+                        channel.getOption(NIOTSChannelOptions.serviceTXTRecordObject)
+                    }.map { value in
+                        XCTAssertEqual(value, txtRecordObjectToSet)
+                    }
+                }
+                .bind(host: "localhost", port: 0).wait()
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+    }
+
+    func testCanObserveValueOfServiceTXTRecord() throws {
+        let txtRecordToSet = Data([0x00, 0x01])
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .serverChannelInitializer { channel in
+                return channel.getOption(NIOTSChannelOptions.serviceTXTRecord).map { value in
+                    XCTAssertNil(value)
+                }.flatMap {
+                    channel.setOption(NIOTSChannelOptions.serviceTXTRecord, value: txtRecordToSet)
+                }.flatMap {
+                    channel.getOption(NIOTSChannelOptions.serviceTXTRecord)
+                }.map { value in
+                    XCTAssertEqual(value, txtRecordToSet)
+                }
+            }
+            .bind(host: "localhost", port: 0).wait()
+        XCTAssertNoThrow(try listener.close().wait())
+    }
+
+    func testCanUpdateServiceTXTRecordObject() throws
+    {
+        if #available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *) {
+            let listener = try NWListener(using: .tcp)
+            listener.service = NWListener.Service(type: "_http._tcp")
+            XCTAssertNil(listener.service?.txtRecordObject)
+
+            let txtRecordObjectToSet = NWTXTRecord(["key": "value"])
+            let bootstrap = try NIOTSListenerBootstrap(group: self.group)
+                .serverChannelOption(NIOTSChannelOptions.serviceTXTRecordObject, value: txtRecordObjectToSet)
+                .withNWListener(listener).wait()
+            defer {
+                XCTAssertNoThrow(try bootstrap.close().wait())
+            }
+
+            XCTAssertEqual(listener.service?.txtRecordObject, txtRecordObjectToSet)
+        }
+    }
+
+    func testCanUpdateServiceTXTRecord() throws
+    {
+        let listener = try NWListener(using: .tcp)
+        listener.service = NWListener.Service(type: "_http._tcp")
+        XCTAssertNil(listener.service?.txtRecord)
+
+        let txtRecordToSet = Data([0x00, 0x01])
+        let bootstrap = try NIOTSListenerBootstrap(group: self.group)
+            .serverChannelOption(NIOTSChannelOptions.serviceTXTRecord, value: txtRecordToSet)
+            .withNWListener(listener).wait()
+        defer {
+            XCTAssertNoThrow(try bootstrap.close().wait())
+        }
+
+        XCTAssertEqual(listener.service?.txtRecord, txtRecordToSet)
     }
 
     func testChannelEmitsChannels() throws {

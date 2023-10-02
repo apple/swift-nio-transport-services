@@ -102,6 +102,35 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     /// The default multipath service type.
     internal var multipathServiceType = NWParameters.MultipathServiceType.disabled
 
+    /// Storage for `serviceTXTRecordObject`. This property has its type erased because the property is only available
+    /// on later OS versions, and stored properties can't be marked as unavailable on unsupported OS versions.
+    private var _serviceTXTRecordObject: Any?
+
+    /// The TXT record object to use with the NWListener.Service
+    @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    internal var serviceTXTRecordObject: NWTXTRecord?
+    {
+        get {
+            return self._serviceTXTRecordObject.map({ $0 as! NWTXTRecord })
+        }
+        set {
+            self._serviceTXTRecordObject = newValue
+            self.nwListener?.service?.txtRecordObject = newValue
+        }
+    }
+
+    internal var serviceTXTRecord: Data?
+    {
+        didSet {
+            if let listener = self.nwListener, let service = listener.service {
+                listener.service = NWListener.Service(name: service.name,
+                                                      type: service.type,
+                                                      domain: service.domain,
+                                                      txtRecord: self.serviceTXTRecord)
+            }
+        }
+    }
+
     /// The event loop group to use for child channels.
     internal let childLoopGroup: EventLoopGroup
 
@@ -243,8 +272,19 @@ extension StateManagedListenerChannel {
             self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse.Value
         case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
             self.multipathServiceType = value as! NIOTSChannelOptions.Types.NIOTSMultipathOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSServiceTXTRecordOption:
+            self.serviceTXTRecord = value as! NIOTSChannelOptions.Types.NIOTSServiceTXTRecordOption.Value
         default:
-            fatalError("option \(option) not supported")
+            if #available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *) {
+                if option is NIOTSChannelOptions.Types.NIOTSServiceTXTRecordObjectOption {
+                    self.serviceTXTRecordObject = value as! NIOTSChannelOptions.Types.NIOTSServiceTXTRecordObjectOption.Value
+                }
+                else {
+                    fatalError("option \(option) not supported")
+                }
+            } else {
+                fatalError("option \(option) not supported")
+            }
         }
     }
 
@@ -287,7 +327,14 @@ extension StateManagedListenerChannel {
             return self.allowLocalEndpointReuse as! Option.Value
         case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
             return self.multipathServiceType as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSServiceTXTRecordOption:
+            return self.serviceTXTRecord as! Option.Value
         default:
+            if #available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *) {
+                if option is NIOTSChannelOptions.Types.NIOTSServiceTXTRecordObjectOption {
+                    return self.serviceTXTRecordObject as! Option.Value
+                }
+            }
             fatalError("option \(option) not supported")
         }
     }
@@ -385,7 +432,13 @@ extension StateManagedListenerChannel {
 
         if case .service(let name, let type, let domain, _) = target {
             // Ok, now we deal with Bonjour.
-            listener.service = NWListener.Service(name: name, type: type, domain: domain)
+            var service = NWListener.Service(name: name, type: type, domain: domain, txtRecord: self.serviceTXTRecord)
+            if #available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *) {
+                if let txtRecordObject = self.serviceTXTRecordObject {
+                    service.txtRecordObject = txtRecordObject
+                }
+            }
+            listener.service = service
         }
 
         listener.stateUpdateHandler = self.stateUpdateHandler(newState:)
