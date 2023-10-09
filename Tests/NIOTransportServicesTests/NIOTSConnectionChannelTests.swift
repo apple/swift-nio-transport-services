@@ -871,20 +871,55 @@ class NIOTSConnectionChannelTests: XCTestCase {
             typealias OutboundIn = ByteBuffer
             typealias InboundIn = ByteBuffer
             
+            private let testCompletePromise: EventLoopPromise<Error>
+            let listenerChannel: Channel
+            
+            init(testCompletePromise: EventLoopPromise<Error>, listenerChannel: Channel) {
+                self.testCompletePromise = testCompletePromise
+                self.listenerChannel = listenerChannel
+            }
+            func channelActive(context: ChannelHandlerContext) {
+                let listentPromise = self.listenerChannel.eventLoop.next().makePromise(of: Error.self)
+                listenerChannel
+                    .close()
+                    .whenSuccess { _ in
+                        context.channel.write(ByteBuffer(data: Data()))
+                            .whenFailure({ error in
+                                listentPromise.succeed(error)
+                            })
+                    }
+            }
+            
             func errorCaught(context: ChannelHandlerContext, error: Error) {
-                let error =  error as? ChannelError
+                let error = error as? ChannelError
                 XCTAssertNotEqual(error, ChannelError.eof)
                 XCTAssertEqual(error, ChannelError.ioOnClosedChannel)
+                XCTAssertNotNil(error)
+                testCompletePromise.succeed(error!)
             }
         }
         
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .childChannelInitializer { channel in
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .bind(host: "127.0.0.1", port: 8080)
+            .wait()
+        
+        let testCompletePromise = self.group.next().makePromise(of: Error.self)
         let connection = try NIOTSConnectionBootstrap(group: self.group)
             .channelInitializer { channel in
-                channel.pipeline.addHandler(ForwardErrorHandler())
+                channel.pipeline.addHandler(
+                    ForwardErrorHandler(
+                        testCompletePromise: testCompletePromise,
+                        listenerChannel: listener
+                    )
+                )
             }
             .connect(host: "127.0.0.1", port: 8080)
             .wait()
         XCTAssertNoThrow(try connection.close().wait())
+        XCTAssertNoThrow(try testCompletePromise.futureResult.wait())
     }
 }
 #endif
