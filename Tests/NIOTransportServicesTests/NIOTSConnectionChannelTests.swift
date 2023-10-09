@@ -879,13 +879,13 @@ class NIOTSConnectionChannelTests: XCTestCase {
                 self.listenerChannel = listenerChannel
             }
             func channelActive(context: ChannelHandlerContext) {
-                let listentPromise = self.listenerChannel.eventLoop.next().makePromise(of: Error.self)
+                let listenerErrorPromise = self.listenerChannel.eventLoop.next().makePromise(of: Error.self)
                 listenerChannel
                     .close()
                     .whenSuccess { _ in
                         context.channel.write(ByteBuffer(data: Data()))
                             .whenFailure({ error in
-                                listentPromise.succeed(error)
+                                listenerErrorPromise.succeed(error)
                             })
                     }
             }
