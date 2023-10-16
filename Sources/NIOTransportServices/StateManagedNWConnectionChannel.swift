@@ -259,20 +259,20 @@ extension StateManagedNWConnectionChannel {
             assert(self.pendingWrites.count == 0)
             return
         }
-        
+
         // Step 1 is to tell the network stack we're done.
         // TODO: Does this drop the connection fully, or can we keep receiving data? Must investigate.
         conn.cancel()
-        
+
         // Step 2 is to fail all outstanding writes.
         self.dropOutstandingWrites(error: error)
-        
+
         // Step 3 is to cancel a pending connect promise, if any.
         if let pendingConnect = self.connectPromise {
             self.connectPromise = nil
             pendingConnect.fail(error)
         }
-        
+
         // Step 4 Forward the connection state failed Error
         let channelError = error as? ChannelError
         if channelError != .eof {
