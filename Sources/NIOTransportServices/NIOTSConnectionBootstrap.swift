@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-@_spi(AsyncChannel) import NIOCore
+import NIOCore
 import Dispatch
 import Network
 
@@ -287,7 +287,6 @@ extension NIOTSConnectionBootstrap {
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(AsyncChannel)
     public func connect<Output: Sendable>(
         host: String,
         port: Int,
@@ -312,7 +311,6 @@ extension NIOTSConnectionBootstrap {
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(AsyncChannel)
     public func connect<Output: Sendable>(
         to address: SocketAddress,
         channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
@@ -340,7 +338,6 @@ extension NIOTSConnectionBootstrap {
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(AsyncChannel)
     public func connect<Output: Sendable>(
         unixDomainSocketPath: String,
         channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
@@ -360,7 +357,6 @@ extension NIOTSConnectionBootstrap {
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(AsyncChannel)
     public func connect<Output: Sendable>(
         endpoint: NWEndpoint,
         channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
@@ -391,7 +387,6 @@ extension NIOTSConnectionBootstrap {
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(AsyncChannel)
     public func withExistingNWConnection<Output: Sendable>(
         _ connection: NWConnection,
         channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>

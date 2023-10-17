@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-@_spi(AsyncChannel) import NIOCore
+import NIOCore
 import Dispatch
 import Network
 
@@ -391,7 +391,6 @@ extension NIOTSListenerBootstrap {
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(AsyncChannel)
     public func bind<Output: Sendable>(
         host: String,
         port: Int,
@@ -436,7 +435,6 @@ extension NIOTSListenerBootstrap {
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(AsyncChannel)
     public func bind<Output: Sendable>(
         to address: SocketAddress,
         serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
@@ -467,7 +465,6 @@ extension NIOTSListenerBootstrap {
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(AsyncChannel)
     public func bind<Output: Sendable>(
         endpoint: NWEndpoint,
         serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
@@ -498,7 +495,6 @@ extension NIOTSListenerBootstrap {
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    @_spi(AsyncChannel)
     public func withNWListener<Output: Sendable>(
         _ listener: NWListener,
         serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
@@ -559,9 +555,9 @@ extension NIOTSListenerBootstrap {
                         name: "AcceptHandler"
                     )
                     let asyncChannel = try NIOAsyncChannel<ChannelInitializerResult, Never>
-                        .wrapAsyncChannelWithTransformations(
+                        ._wrapAsyncChannelWithTransformations(
                             synchronouslyWrapping: serverChannel,
-                            backpressureStrategy: serverBackpressureStrategy,
+                            backPressureStrategy: serverBackpressureStrategy,
                             channelReadTransformation: { channel -> EventLoopFuture<(ChannelInitializerResult)> in
                                 // The channelReadTransformation is run on the EL of the server channel
                                 // We have to make sure that we execute child channel initializer on the
