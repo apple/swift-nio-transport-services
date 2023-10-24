@@ -878,15 +878,12 @@ class NIOTSConnectionChannelTests: XCTestCase {
                 self.testCompletePromise = testCompletePromise
                 self.listenerChannel = listenerChannel
             }
+            
             func channelActive(context: ChannelHandlerContext) {
-                let listenerErrorPromise = self.listenerChannel.eventLoop.next().makePromise(of: Error.self)
                 listenerChannel
                     .close()
                     .whenSuccess { _ in
-                        context.channel.write(ByteBuffer(data: Data()))
-                            .whenFailure({ error in
-                                listenerErrorPromise.succeed(error)
-                            })
+                        _ = context.channel.write(ByteBuffer(data: Data()))
                     }
             }
             
@@ -903,7 +900,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             .childChannelInitializer { channel in
                 return channel.eventLoop.makeSucceededVoidFuture()
             }
-            .bind(host: "127.0.0.1", port: 8080)
+            .bind(host: "localhost", port: 0)
             .wait()
         
         let testCompletePromise = self.group.next().makePromise(of: Error.self)
@@ -916,7 +913,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
                     )
                 )
             }
-            .connect(host: "127.0.0.1", port: 8080)
+            .connect(to: listener.localAddress!)
             .wait()
         XCTAssertNoThrow(try connection.close().wait())
         XCTAssertNoThrow(try testCompletePromise.futureResult.wait())
