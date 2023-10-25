@@ -274,6 +274,183 @@ public final class NIOTSConnectionBootstrap {
     }
 }
 
+// MARK: Async connect methods with arbitrary payload
+
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+extension NIOTSConnectionBootstrap {
+    /// Specify the `host` and `port` to connect to for the TCP `Channel` that will be established.
+    ///
+    /// - Parameters:
+    ///   - host: The host to connect to.
+    ///   - port: The port to connect to.
+    ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
+    ///     method.
+    /// - Returns: The result of the channel initializer.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    public func connect<Output: Sendable>(
+        host: String,
+        port: Int,
+        channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+    ) async throws -> Output {
+        let validPortRange = Int(UInt16.min)...Int(UInt16.max)
+        guard validPortRange.contains(port), let actualPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
+            throw NIOTSErrors.InvalidPort(port: port)
+        }
+
+        return try await self.connect(
+            endpoint: NWEndpoint.hostPort(host: .init(host), port: actualPort),
+            channelInitializer: channelInitializer
+        )
+    }
+
+    /// Specify the `address` to connect to for the TCP `Channel` that will be established.
+    ///
+    /// - Parameters:
+    ///   - address: The address to connect to.
+    ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
+    ///     method.
+    /// - Returns: The result of the channel initializer.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    public func connect<Output: Sendable>(
+        to address: SocketAddress,
+        channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+    ) async throws -> Output {
+        try await self.connect0(
+            channelInitializer: channelInitializer,
+            registration: { connectionChannel, promise in
+                connectionChannel.register().whenComplete { result in
+                    switch result {
+                    case .success:
+                        connectionChannel.connect(to: address, promise: promise)
+                    case .failure(let error):
+                        promise.fail(error)
+                    }
+                }
+            }
+        ).get()
+    }
+
+    /// Specify the `unixDomainSocket` path to connect to for the UDS `Channel` that will be established.
+    ///
+    /// - Parameters:
+    ///   - unixDomainSocketPath: The _Unix domain socket_ path to connect to.
+    ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
+    ///     method.
+    /// - Returns: The result of the channel initializer.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    public func connect<Output: Sendable>(
+        unixDomainSocketPath: String,
+        channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+    ) async throws -> Output {
+        let address = try SocketAddress(unixDomainSocketPath: unixDomainSocketPath)
+        return try await self.connect(
+            to: address,
+            channelInitializer: channelInitializer
+        )
+    }
+
+    /// Specify the `endpoint` to connect to for the TCP `Channel` that will be established.
+    ///
+    /// - Parameters:
+    ///   - endpoint: The endpoint to connect to.
+    ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
+    ///     method.
+    /// - Returns: The result of the channel initializer.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    public func connect<Output: Sendable>(
+        endpoint: NWEndpoint,
+        channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+    ) async throws -> Output {
+        try await self.connect0(
+            channelInitializer: channelInitializer,
+            registration: { connectionChannel, promise in
+                connectionChannel.register().whenComplete { result in
+                    switch result {
+                    case .success:
+                        connectionChannel.triggerUserOutboundEvent(
+                            NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint),
+                            promise: promise
+                        )
+                    case .failure(let error):
+                        promise.fail(error)
+                    }
+                }
+            }
+        ).get()
+    }
+
+    /// Use a pre-existing `NWConnection` to connect a `Channel`.
+    ///
+    /// - Parameters:
+    ///   - connection: The `NWConnection` to wrap.
+    ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `connect`
+    ///     method.
+    /// - Returns: The result of the channel initializer.
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    public func withExistingNWConnection<Output: Sendable>(
+        _ connection: NWConnection,
+        channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
+    ) async throws -> Output {
+        try await self.connect0(
+            existingNWConnection: connection,
+            channelInitializer: channelInitializer,
+            registration: { connectionChannel, promise in
+                connectionChannel.registerAlreadyConfigured0(promise: promise)
+            }
+        ).get()
+    }
+
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
+    private func connect0<ChannelInitializerResult>(
+        existingNWConnection: NWConnection? = nil,
+        channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<ChannelInitializerResult>,
+        registration: @escaping (NIOTSConnectionChannel, EventLoopPromise<Void>) -> Void
+    ) -> EventLoopFuture<ChannelInitializerResult> {
+        let connectionChannel: NIOTSConnectionChannel
+        if let newConnection = existingNWConnection {
+            connectionChannel = NIOTSConnectionChannel(
+                wrapping: newConnection,
+                on: self.group.next() as! NIOTSEventLoop,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions
+            )
+        } else {
+            connectionChannel = NIOTSConnectionChannel(
+                eventLoop: self.group.next() as! NIOTSEventLoop,
+                qos: self.qos,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions
+            )
+        }
+        let channelInitializer = { (channel: Channel) -> EventLoopFuture<ChannelInitializerResult> in
+            let initializer = self.channelInitializer
+            return initializer(channel).flatMap { channelInitializer(channel) }
+        }
+        let channelOptions = self.channelOptions
+
+        return connectionChannel.eventLoop.flatSubmit {
+            return channelOptions.applyAllChannelOptions(to: connectionChannel).flatMap {
+                channelInitializer(connectionChannel)
+            }.flatMap { result -> EventLoopFuture<ChannelInitializerResult> in
+                let connectPromise: EventLoopPromise<Void> = connectionChannel.eventLoop.makePromise()
+                registration(connectionChannel, connectPromise)
+                let cancelTask = connectionChannel.eventLoop.scheduleTask(in: self.connectTimeout) {
+                    connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
+                    connectionChannel.close(promise: nil)
+                }
+
+                connectPromise.futureResult.whenComplete { (_: Result<Void, Error>) in
+                    cancelTask.cancel()
+                }
+                return connectPromise.futureResult.map { result }
+            }.flatMapErrorThrowing {
+                connectionChannel.close(promise: nil)
+                throw $0
+            }
+        }
+    }
+}
+
 @available(*, unavailable)
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionBootstrap: Sendable {}
