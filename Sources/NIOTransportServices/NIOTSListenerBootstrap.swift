@@ -386,7 +386,7 @@ extension NIOTSListenerBootstrap {
     /// - Parameters:
     ///   - host: The host to bind on.
     ///   - port: The port to bind on.
-    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - serverBackPressureStrategy: The back pressure strategy used by the server socket channel.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
     ///     method.
     /// - Returns: The result of the channel initializer.
@@ -394,7 +394,7 @@ extension NIOTSListenerBootstrap {
     public func bind<Output: Sendable>(
         host: String,
         port: Int,
-        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        serverBackPressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
         childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
     ) async throws -> NIOAsyncChannel<Output, Never> {
         let validPortRange = Int(UInt16.min)...Int(UInt16.max)
@@ -403,7 +403,7 @@ extension NIOTSListenerBootstrap {
         }
 
         return try await self.bind0(
-            serverBackpressureStrategy: serverBackpressureStrategy,
+            serverBackPressureStrategy: serverBackPressureStrategy,
             childChannelInitializer: childChannelInitializer,
             registration: { (serverChannel, promise) in
                 serverChannel.register().whenComplete { result in
@@ -430,18 +430,18 @@ extension NIOTSListenerBootstrap {
     ///
     /// - Parameters:
     ///   - address: The `SocketAddress` to bind on.
-    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - serverBackPressureStrategy: The back pressure strategy used by the server socket channel.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public func bind<Output: Sendable>(
         to address: SocketAddress,
-        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        serverBackPressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
         childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
     ) async throws -> NIOAsyncChannel<Output, Never> {
         return try await self.bind0(
-            serverBackpressureStrategy: serverBackpressureStrategy,
+            serverBackPressureStrategy: serverBackPressureStrategy,
             childChannelInitializer: childChannelInitializer,
             registration: { (serverChannel, promise) in
                 serverChannel.register().whenComplete { result in
@@ -460,18 +460,18 @@ extension NIOTSListenerBootstrap {
     ///
     /// - Parameters:
     ///   - endpoint: The `NWEndpoint` to bind this channel to.
-    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - serverBackPressureStrategy: The back pressure strategy used by the server socket channel.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public func bind<Output: Sendable>(
         endpoint: NWEndpoint,
-        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        serverBackPressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
         childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
     ) async throws -> NIOAsyncChannel<Output, Never> {
         return try await self.bind0(
-            serverBackpressureStrategy: serverBackpressureStrategy,
+            serverBackPressureStrategy: serverBackPressureStrategy,
             childChannelInitializer: childChannelInitializer,
             registration: { (serverChannel, promise) in
                 serverChannel.register().whenComplete { result in
@@ -490,19 +490,19 @@ extension NIOTSListenerBootstrap {
     ///
     /// - Parameters:
     ///   - listener: The NWListener to wrap.
-    ///   - serverBackpressureStrategy: The back pressure strategy used by the server socket channel.
+    ///   - serverBackPressureStrategy: The back pressure strategy used by the server socket channel.
     ///   - channelInitializer: A closure to initialize the channel. The return value of this closure is returned from the `bind`
     ///     method.
     /// - Returns: The result of the channel initializer.
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     public func withNWListener<Output: Sendable>(
         _ listener: NWListener,
-        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
+        serverBackPressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark? = nil,
         childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<Output>
     ) async throws -> NIOAsyncChannel<Output, Never> {
         return try await self.bind0(
             existingNWListener: listener,
-            serverBackpressureStrategy: serverBackpressureStrategy,
+            serverBackPressureStrategy: serverBackPressureStrategy,
             childChannelInitializer: childChannelInitializer,
             registration: { (serverChannel, promise) in
                 serverChannel.registerAlreadyConfigured0(promise: promise)
@@ -513,7 +513,7 @@ extension NIOTSListenerBootstrap {
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     private func bind0<ChannelInitializerResult>(
         existingNWListener: NWListener? = nil,
-        serverBackpressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?,
+        serverBackPressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?,
         childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<ChannelInitializerResult>,
         registration: @escaping (NIOTSListenerChannel, EventLoopPromise<Void>) -> Void
     ) -> EventLoopFuture<NIOAsyncChannel<ChannelInitializerResult, Never>> {
@@ -525,24 +525,28 @@ extension NIOTSListenerBootstrap {
 
         let serverChannel: NIOTSListenerChannel
         if let newListener = existingNWListener {
-            serverChannel = NIOTSListenerChannel(wrapping: newListener,
-                                                     on: self.group.next() as! NIOTSEventLoop,
-                                                     qos: self.serverQoS,
-                                                     tcpOptions: self.tcpOptions,
-                                                     tlsOptions: self.tlsOptions,
-                                                     childLoopGroup: self.childGroup,
-                                                     childChannelQoS: self.childQoS,
-                                                     childTCPOptions: self.tcpOptions,
-                                                     childTLSOptions: self.tlsOptions)
+            serverChannel = NIOTSListenerChannel(
+                wrapping: newListener,
+                on: self.group.next() as! NIOTSEventLoop,
+                qos: self.serverQoS,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions,
+                childLoopGroup: self.childGroup,
+                childChannelQoS: self.childQoS,
+                childTCPOptions: self.tcpOptions,
+                childTLSOptions: self.tlsOptions
+            )
         } else {
-            serverChannel = NIOTSListenerChannel(eventLoop: eventLoop,
-                                                     qos: self.serverQoS,
-                                                     tcpOptions: self.tcpOptions,
-                                                     tlsOptions: self.tlsOptions,
-                                                     childLoopGroup: self.childGroup,
-                                                     childChannelQoS: self.childQoS,
-                                                     childTCPOptions: self.tcpOptions,
-                                                     childTLSOptions: self.tlsOptions)
+            serverChannel = NIOTSListenerChannel(
+                eventLoop: eventLoop,
+                qos: self.serverQoS,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions,
+                childLoopGroup: self.childGroup,
+                childChannelQoS: self.childQoS,
+                childTCPOptions: self.tcpOptions,
+                childTLSOptions: self.tlsOptions
+            )
         }
 
         return eventLoop.submit {
@@ -557,7 +561,7 @@ extension NIOTSListenerBootstrap {
                     let asyncChannel = try NIOAsyncChannel<ChannelInitializerResult, Never>
                         ._wrapAsyncChannelWithTransformations(
                             synchronouslyWrapping: serverChannel,
-                            backPressureStrategy: serverBackpressureStrategy,
+                            backPressureStrategy: serverBackPressureStrategy,
                             channelReadTransformation: { channel -> EventLoopFuture<(ChannelInitializerResult)> in
                                 // The channelReadTransformation is run on the EL of the server channel
                                 // We have to make sure that we execute child channel initializer on the
