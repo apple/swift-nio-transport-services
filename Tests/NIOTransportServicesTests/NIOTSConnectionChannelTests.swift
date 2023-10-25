@@ -865,5 +865,58 @@ class NIOTSConnectionChannelTests: XCTestCase {
             .wait()
         XCTAssertNoThrow(try connection.close().wait())
     }
+
+    func testErrorIsForwardedFromFailedConnectionState() throws {
+        final class ForwardErrorHandler: ChannelDuplexHandler {
+            typealias OutboundIn = ByteBuffer
+            typealias InboundIn = ByteBuffer
+            
+            private let testCompletePromise: EventLoopPromise<Error>
+            let listenerChannel: Channel
+            
+            init(testCompletePromise: EventLoopPromise<Error>, listenerChannel: Channel) {
+                self.testCompletePromise = testCompletePromise
+                self.listenerChannel = listenerChannel
+            }
+            
+            func channelActive(context: ChannelHandlerContext) {
+                listenerChannel
+                    .close()
+                    .whenSuccess { _ in
+                        _ = context.channel.write(ByteBuffer(data: Data()))
+                    }
+            }
+            
+            func errorCaught(context: ChannelHandlerContext, error: Error) {
+                let error = error as? ChannelError
+                XCTAssertNotEqual(error, ChannelError.eof)
+                XCTAssertEqual(error, ChannelError.ioOnClosedChannel)
+                XCTAssertNotNil(error)
+                testCompletePromise.succeed(error!)
+            }
+        }
+        
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .childChannelInitializer { channel in
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .bind(host: "localhost", port: 0)
+            .wait()
+        
+        let testCompletePromise = self.group.next().makePromise(of: Error.self)
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                channel.pipeline.addHandler(
+                    ForwardErrorHandler(
+                        testCompletePromise: testCompletePromise,
+                        listenerChannel: listener
+                    )
+                )
+            }
+            .connect(to: listener.localAddress!)
+            .wait()
+        XCTAssertNoThrow(try connection.close().wait())
+        XCTAssertNoThrow(try testCompletePromise.futureResult.wait())
+    }
 }
 #endif

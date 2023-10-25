@@ -272,6 +272,12 @@ extension StateManagedNWConnectionChannel {
             self.connectPromise = nil
             pendingConnect.fail(error)
         }
+
+        // Step 4 Forward the connection state failed Error
+        let channelError = error as? ChannelError
+        if channelError != .eof {
+            self.pipeline.fireErrorCaught(error)
+        }
     }
 
     public func doHalfClose0(error: Error, promise: EventLoopPromise<Void>?) {
