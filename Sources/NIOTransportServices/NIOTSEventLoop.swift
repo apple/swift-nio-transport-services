@@ -262,4 +262,21 @@ extension NIOTSEventLoop {
         assert(oldChannel != nil)
     }
 }
+
+// MARK: SerialExecutor conformance
+#if compiler(>=5.9)
+@available(macOS 14.0, *)
+extension NIOTSEventLoop: NIOSerialEventLoopExecutor {
+    func enqueue(_ job: consuming ExecutorJob) {
+        let unownedJob = UnownedJob(job)
+        if let executorQueue = self.taskQueue as? _DispatchSerialExecutorQueue {
+            executorQueue.enqueue(unownedJob)
+        } else {
+            self.execute {
+                unownedJob.runSynchronously(on: self.asUnownedSerialExecutor())
+            }
+        }
+    }
+}
+#endif
 #endif

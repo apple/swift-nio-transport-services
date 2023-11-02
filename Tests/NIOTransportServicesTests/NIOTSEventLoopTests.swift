@@ -19,9 +19,20 @@ import NIOCore
 import NIOConcurrencyHelpers
 import NIOTransportServices
 
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+private final actor CustomActor {
+    let executor = NIOTSEventLoopGroup(loopCount: 1).next().executor
+    nonisolated var unownedExecutor: UnownedSerialExecutor {
+        return executor.asUnownedSerialExecutor()
+    }
+
+    func foo() -> String {
+        return "foo"
+    }
+}
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
-class NIOTSEventLoopTest: XCTestCase {
+final class NIOTSEventLoopTest: XCTestCase {
     func testIsInEventLoopWorks() throws {
         let group = NIOTSEventLoopGroup()
         let loop = group.next()
@@ -148,6 +159,13 @@ class NIOTSEventLoopTest: XCTestCase {
                 XCTAssertEqual(.unsupportedOperation, error as? EventLoopError)
             }
         }
+    }
+
+    @available(macOS 14.0, iOS 17.0, tvOS 17.0, *)
+    func testSerialExecutor() async {
+        let actor = CustomActor()
+        let result = await actor.foo()
+        XCTAssertEqual(result, "foo")
     }
 }
 #endif
