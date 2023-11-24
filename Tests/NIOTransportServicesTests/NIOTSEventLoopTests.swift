@@ -130,10 +130,12 @@ class NIOTSEventLoopTest: XCTestCase {
         XCTAssertNil(weakEL)
     }
 
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     func testGroupCanBeShutDown() async throws {
         try await NIOTSEventLoopGroup(loopCount: 3).shutdownGracefully()
     }
 
+    @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
     func testIndividualLoopsCannotBeShutDownWhenPartOfGroup() async throws {
         let group = NIOTSEventLoopGroup(loopCount: 3)
         defer {

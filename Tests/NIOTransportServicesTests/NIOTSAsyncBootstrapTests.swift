@@ -160,6 +160,7 @@ private final class AddressedEnvelopingHandler: ChannelDuplexHandler {
     }
 }
 
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 final class AsyncChannelBootstrapTests: XCTestCase {
     enum NegotiationResult {
         case string(NIOAsyncChannel<String, String>)
@@ -191,7 +192,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                     try channel.pipeline.syncOperations.addHandler(MessageToByteHandler(LineDelimiterCoder()))
                     try channel.pipeline.syncOperations.addHandler(ByteBufferToStringHandler())
                     return try NIOAsyncChannel(
-                        synchronouslyWrapping: channel,
+                        wrappingChannelSynchronously: channel,
                         configuration: .init(
                             inboundType: String.self,
                             outboundType: String.self
@@ -206,16 +207,22 @@ final class AsyncChannelBootstrapTests: XCTestCase {
 
             group.addTask {
                 try await withThrowingTaskGroup(of: Void.self) { _ in
-                    for try await childChannel in channel.inbound {
-                        for try await value in childChannel.inbound {
-                            continuation.yield(.string(value))
+                    try await channel.executeThenClose { inbound in
+                        for try await childChannel in inbound {
+                            try await childChannel.executeThenClose { childChannelInbound, _ in
+                                for try await value in childChannelInbound {
+                                    continuation.yield(.string(value))
+                                }
+                            }
                         }
                     }
                 }
             }
 
             let stringChannel = try await self.makeClientChannel(eventLoopGroup: eventLoopGroup, port: channel.channel.localAddress!.port!)
-            try await stringChannel.outbound.write("hello")
+            try await stringChannel.executeThenClose { _, outbound in
+                try await outbound.write("hello")
+            }
 
             await XCTAsyncAssertEqual(await iterator.next(), .string("hello"))
 
@@ -247,16 +254,22 @@ final class AsyncChannelBootstrapTests: XCTestCase {
 
             group.addTask {
                 try await withThrowingTaskGroup(of: Void.self) { group in
-                    for try await negotiationResult in channel.inbound {
-                        group.addTask {
-                            switch try await negotiationResult.get() {
-                            case .string(let channel):
-                                for try await value in channel.inbound {
-                                    continuation.yield(.string(value))
-                                }
-                            case .byte(let channel):
-                                for try await value in channel.inbound {
-                                    continuation.yield(.byte(value))
+                    try await channel.executeThenClose { inbound in
+                        for try await negotiationResult in inbound {
+                            group.addTask {
+                                switch try await negotiationResult.get() {
+                                case .string(let channel):
+                                    try await channel.executeThenClose { inbound, _ in
+                                        for try await value in inbound {
+                                            continuation.yield(.string(value))
+                                        }
+                                    }
+                                case .byte(let channel):
+                                    try await channel.executeThenClose { inbound, _ in
+                                        for try await value in inbound {
+                                            continuation.yield(.byte(value))
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -272,7 +285,9 @@ final class AsyncChannelBootstrapTests: XCTestCase {
             switch try await stringNegotiationResult.get() {
             case .string(let stringChannel):
                 // This is the actual content
-                try await stringChannel.outbound.write("hello")
+                try await stringChannel.executeThenClose { _, outbound in
+                    try await outbound.write("hello")
+                }
                 await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
             case .byte:
                 preconditionFailure()
@@ -288,7 +303,9 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 preconditionFailure()
             case .byte(let byteChannel):
                 // This is the actual content
-                try await byteChannel.outbound.write(UInt8(8))
+                try await byteChannel.executeThenClose { _, outbound in
+                    try await outbound.write(UInt8(8))
+                }
                 await XCTAsyncAssertEqual(await serverIterator.next(), .byte(8))
             }
 
@@ -320,16 +337,22 @@ final class AsyncChannelBootstrapTests: XCTestCase {
 
             group.addTask {
                 try await withThrowingTaskGroup(of: Void.self) { group in
-                    for try await negotiationResult in channel.inbound {
-                        group.addTask {
-                            switch try await negotiationResult.get().get() {
-                            case .string(let channel):
-                                for try await value in channel.inbound {
-                                    continuation.yield(.string(value))
-                                }
-                            case .byte(let channel):
-                                for try await value in channel.inbound {
-                                    continuation.yield(.byte(value))
+                    try await channel.executeThenClose { inbound in
+                        for try await negotiationResult in inbound {
+                            group.addTask {
+                                switch try await negotiationResult.get().get() {
+                                case .string(let channel):
+                                    try await channel.executeThenClose { inbound, _ in
+                                        for try await value in inbound {
+                                            continuation.yield(.string(value))
+                                        }
+                                    }
+                                case .byte(let channel):
+                                    try await channel.executeThenClose { inbound, _ in
+                                        for try await value in inbound {
+                                            continuation.yield(.byte(value))
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -346,7 +369,9 @@ final class AsyncChannelBootstrapTests: XCTestCase {
             switch try await stringStringNegotiationResult.get().get() {
             case .string(let stringChannel):
                 // This is the actual content
-                try await stringChannel.outbound.write("hello")
+                try await stringChannel.executeThenClose { _, outbound in
+                    try await outbound.write("hello")
+                }
                 await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
             case .byte:
                 preconditionFailure()
@@ -361,7 +386,9 @@ final class AsyncChannelBootstrapTests: XCTestCase {
             switch try await byteStringNegotiationResult.get().get() {
             case .string(let stringChannel):
                 // This is the actual content
-                try await stringChannel.outbound.write("hello")
+                try await stringChannel.executeThenClose { _, outbound in
+                    try await outbound.write("hello")
+                }
                 await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
             case .byte:
                 preconditionFailure()
@@ -378,7 +405,9 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 preconditionFailure()
             case .byte(let byteChannel):
                 // This is the actual content
-                try await byteChannel.outbound.write(UInt8(8))
+                try await byteChannel.executeThenClose { _, outbound in
+                    try await outbound.write(UInt8(8))
+                }
                 await XCTAsyncAssertEqual(await serverIterator.next(), .byte(8))
             }
 
@@ -393,7 +422,9 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 preconditionFailure()
             case .byte(let byteChannel):
                 // This is the actual content
-                try await byteChannel.outbound.write(UInt8(8))
+                try await byteChannel.executeThenClose { _, outbound in
+                    try await outbound.write(UInt8(8))
+                }
                 await XCTAsyncAssertEqual(await serverIterator.next(), .byte(8))
             }
 
@@ -448,16 +479,22 @@ final class AsyncChannelBootstrapTests: XCTestCase {
 
             group.addTask {
                 try await withThrowingTaskGroup(of: Void.self) { group in
-                    for try await negotiationResult in channel.inbound {
-                        group.addTask {
-                            switch try await negotiationResult.get() {
-                            case .string(let channel):
-                                for try await value in channel.inbound {
-                                    continuation.yield(.string(value))
-                                }
-                            case .byte(let channel):
-                                for try await value in channel.inbound {
-                                    continuation.yield(.byte(value))
+                    try await channel.executeThenClose { inbound in
+                        for try await negotiationResult in inbound {
+                            group.addTask {
+                                switch try await negotiationResult.get() {
+                                case .string(let channel):
+                                    try await channel.executeThenClose { inbound, _ in
+                                        for try await value in inbound {
+                                            continuation.yield(.string(value))
+                                        }
+                                    }
+                                case .byte(let channel):
+                                    try await channel.executeThenClose { inbound, _ in
+                                        for try await value in inbound {
+                                            continuation.yield(.byte(value))
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -483,7 +520,9 @@ final class AsyncChannelBootstrapTests: XCTestCase {
             switch try await stringNegotiationResult.get() {
             case .string(let stringChannel):
                 // This is the actual content
-                try await stringChannel.outbound.write("hello")
+                try await stringChannel.executeThenClose { _, outbound in
+                    try await outbound.write("hello")
+                }
                 await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
             case .byte:
                 preconditionFailure()
@@ -514,7 +553,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                     try channel.pipeline.syncOperations.addHandler(MessageToByteHandler(LineDelimiterCoder()))
                     try channel.pipeline.syncOperations.addHandler(ByteBufferToStringHandler())
                     return try NIOAsyncChannel(
-                        synchronouslyWrapping: channel,
+                        wrappingChannelSynchronously: channel,
                         configuration: .init(
                             inboundType: String.self,
                             outboundType: String.self
@@ -618,7 +657,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                     return channel.eventLoop.makeCompletedFuture {
                         try channel.pipeline.syncOperations.addHandler(ByteBufferToStringHandler())
                         let asyncChannel: NIOAsyncChannel<String, String> = try NIOAsyncChannel(
-                            synchronouslyWrapping: channel
+                            wrappingChannelSynchronously: channel
                         )
 
                         return NegotiationResult.string(asyncChannel)
@@ -628,7 +667,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                         try channel.pipeline.syncOperations.addHandler(ByteBufferToByteHandler())
 
                         let asyncChannel: NIOAsyncChannel<UInt8, UInt8> = try NIOAsyncChannel(
-                            synchronouslyWrapping: channel
+                            wrappingChannelSynchronously: channel
                         )
 
                         return NegotiationResult.byte(asyncChannel)
@@ -646,6 +685,7 @@ final class AsyncChannelBootstrapTests: XCTestCase {
     }
 }
 
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 extension AsyncStream {
     fileprivate static func makeStream(
         of elementType: Element.Type = Element.self,
