@@ -17,6 +17,7 @@ import XCTest
 import NIOTransportServices
 import NIOCore
 
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 final class NIOSingletonsTests: XCTestCase {
     func testNIOSingletonsTransportServicesEventLoopGroupWorks() async throws {
         let works = try await NIOSingletons.transportServicesEventLoopGroup.any().submit { "yes" }.get()
