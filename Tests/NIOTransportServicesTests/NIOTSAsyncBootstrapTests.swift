@@ -222,9 +222,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
             let stringChannel = try await self.makeClientChannel(eventLoopGroup: eventLoopGroup, port: channel.channel.localAddress!.port!)
             try await stringChannel.executeThenClose { _, outbound in
                 try await outbound.write("hello")
+                await XCTAsyncAssertEqual(await iterator.next(), .string("hello"))
             }
-
-            await XCTAsyncAssertEqual(await iterator.next(), .string("hello"))
 
             group.cancelAll()
         }
@@ -287,8 +286,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 // This is the actual content
                 try await stringChannel.executeThenClose { _, outbound in
                     try await outbound.write("hello")
+                    await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
                 }
-                await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
             case .byte:
                 preconditionFailure()
             }
@@ -305,8 +304,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 // This is the actual content
                 try await byteChannel.executeThenClose { _, outbound in
                     try await outbound.write(UInt8(8))
+                    await XCTAsyncAssertEqual(await serverIterator.next(), .byte(8))
                 }
-                await XCTAsyncAssertEqual(await serverIterator.next(), .byte(8))
             }
 
             group.cancelAll()
@@ -371,8 +370,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 // This is the actual content
                 try await stringChannel.executeThenClose { _, outbound in
                     try await outbound.write("hello")
+                    await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
                 }
-                await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
             case .byte:
                 preconditionFailure()
             }
@@ -388,8 +387,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 // This is the actual content
                 try await stringChannel.executeThenClose { _, outbound in
                     try await outbound.write("hello")
+                    await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
                 }
-                await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
             case .byte:
                 preconditionFailure()
             }
@@ -407,8 +406,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 // This is the actual content
                 try await byteChannel.executeThenClose { _, outbound in
                     try await outbound.write(UInt8(8))
+                    await XCTAsyncAssertEqual(await serverIterator.next(), .byte(8))
                 }
-                await XCTAsyncAssertEqual(await serverIterator.next(), .byte(8))
             }
 
             let stringByteNegotiationResult = try await self.makeClientChannelWithNestedProtocolNegotiation(
@@ -424,8 +423,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 // This is the actual content
                 try await byteChannel.executeThenClose { _, outbound in
                     try await outbound.write(UInt8(8))
+                    await XCTAsyncAssertEqual(await serverIterator.next(), .byte(8))
                 }
-                await XCTAsyncAssertEqual(await serverIterator.next(), .byte(8))
             }
 
             group.cancelAll()
@@ -522,8 +521,8 @@ final class AsyncChannelBootstrapTests: XCTestCase {
                 // This is the actual content
                 try await stringChannel.executeThenClose { _, outbound in
                     try await outbound.write("hello")
+                    await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
                 }
-                await XCTAsyncAssertEqual(await serverIterator.next(), .string("hello"))
             case .byte:
                 preconditionFailure()
             }
