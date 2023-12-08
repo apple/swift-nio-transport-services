@@ -18,7 +18,7 @@ import NIOTransportServices
 import NIOHTTP1
 import Network
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+@available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 final class HTTP1ServerHandler: ChannelInboundHandler {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
@@ -37,7 +37,7 @@ final class HTTP1ServerHandler: ChannelInboundHandler {
     }
 }
 
-if #available(OSX 10.14, *) {
+if #available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *) {
     let group = NIOTSEventLoopGroup()
     let channel = try! NIOTSListenerBootstrap(group: group)
         .childChannelInitializer { channel in
