@@ -19,7 +19,7 @@ import NIOCore
 import NIOTransportServices
 
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 final class BindRecordingHandler: ChannelOutboundHandler {
     typealias OutboundIn = Any
     typealias OutboundOut = Any
@@ -44,7 +44,7 @@ final class BindRecordingHandler: ChannelOutboundHandler {
 }
 
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 class NIOTSListenerChannelTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
 

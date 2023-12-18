@@ -20,7 +20,7 @@ import NIOConcurrencyHelpers
 import NIOTransportServices
 
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 class NIOTSEventLoopTest: XCTestCase {
     func testIsInEventLoopWorks() throws {
         let group = NIOTSEventLoopGroup()
