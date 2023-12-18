@@ -20,7 +20,7 @@ import NIOTransportServices
 import Foundation
 
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 final class ConnectRecordingHandler: ChannelOutboundHandler {
     typealias OutboundIn = Any
     typealias OutboundOut = Any
@@ -70,7 +70,7 @@ final class WritabilityChangedHandler: ChannelInboundHandler {
 }
 
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 final class DisableWaitingAfterConnect: ChannelOutboundHandler {
     typealias OutboundIn = Any
     typealias OutboundOut = Any
@@ -86,7 +86,7 @@ final class DisableWaitingAfterConnect: ChannelOutboundHandler {
     }
 }
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 final class EnableWaitingAfterWaiting: ChannelInboundHandler {
     typealias InboundIn = Any
     typealias InboundOut = Any
@@ -137,7 +137,7 @@ final class EventWaiter<Event>: ChannelInboundHandler {
 }
 
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
+@available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 class NIOTSConnectionChannelTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
 
