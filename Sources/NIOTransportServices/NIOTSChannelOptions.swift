@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 #if canImport(Network)
+import Foundation
 import NIOCore
 @preconcurrency import Network
 
@@ -45,6 +46,13 @@ public struct NIOTSChannelOptions {
 
     /// See: ``Types/NIOTSMultipathOption``
     public static let multipathServiceType = NIOTSChannelOptions.Types.NIOTSMultipathOption()
+
+    /// See: ``Types/NIOTSServiceTXTRecordObjectOption``
+    @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+    public static let serviceTXTRecordObject = NIOTSChannelOptions.Types.NIOTSServiceTXTRecordObjectOption()
+
+    /// See: ``Types/NIOTSServiceTXTRecordOption``
+    public static let serviceTXTRecord = NIOTSChannelOptions.Types.NIOTSServiceTXTRecordOption()
 }
 
 
@@ -140,6 +148,24 @@ extension NIOTSChannelOptions {
         @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
         public struct NIOTSMultipathOption: ChannelOption, Equatable {
             public typealias Value = NWParameters.MultipathServiceType
+
+            public init() {}
+        }
+
+        /// ``NIOTSServiceTXTRecordObjectOption`` gets/sets the TXT record object for the `NWListener.Service`. The TXT
+        /// record is a dictionary of arbitrary metadata that can be included in the advertisement of a Bonjour service.
+        @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
+        public struct NIOTSServiceTXTRecordObjectOption: ChannelOption, Equatable {
+            public typealias Value = NWTXTRecord?
+
+            public init() {}
+        }
+
+        /// ``NIOTSServiceTXTRecordOption`` gets/sets the TXT record data for the `NWListener.Service`. The TXT record
+        /// is a dictionary of arbitrary metadata that can be included in the advertisement of a Bonjour service.
+        @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+        public struct NIOTSServiceTXTRecordOption: ChannelOption, Equatable {
+            public typealias Value = Data?
 
             public init() {}
         }
