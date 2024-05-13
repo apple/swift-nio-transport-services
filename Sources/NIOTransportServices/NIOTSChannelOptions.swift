@@ -45,6 +45,14 @@ public struct NIOTSChannelOptions {
 
     /// See: ``Types/NIOTSMultipathOption``
     public static let multipathServiceType = NIOTSChannelOptions.Types.NIOTSMultipathOption()
+
+    /// See: ``Types/NIOTSConnectionOption``.
+    @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+    public static let connection = NIOTSChannelOptions.Types.NIOTSConnectionOption()
+
+    /// See: ``Types/NIOTSListenerOption``.
+    @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+    public static let listener = NIOTSChannelOptions.Types.NIOTSListenerOption()
 }
 
 
@@ -140,6 +148,34 @@ extension NIOTSChannelOptions {
         @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
         public struct NIOTSMultipathOption: ChannelOption, Equatable {
             public typealias Value = NWParameters.MultipathServiceType
+
+            public init() {}
+        }
+
+        /// ``NIOTSConnectionOption`` accesses the `NWConnection` of the underlying connection.
+        ///
+        /// > Warning: Callers must be extremely careful with this option, as it is easy to break an existing
+        /// > connection that uses it. NIOTS doesn't support arbitrary modifications of the `NWConnection`
+        /// > underlying a `Channel`.
+        ///
+        /// This option is only valid with a `Channel` backed by an `NWConnection`.
+        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+        public struct NIOTSConnectionOption: ChannelOption, Equatable {
+            public typealias Value = NWConnection?
+
+            public init() {}
+        }
+
+        /// ``NIOTSListenerOption`` accesses the `NWListener` of the underlying connection.
+        ///
+        /// > Warning: Callers must be extremely careful with this option, as it is easy to break an existing
+        /// > connection that uses it. NIOTS doesn't support arbitrary modifications of the `NWListener`
+        /// > underlying a `Channel`.
+        ///
+        /// This option is only valid with a `Channel` backed by an `NWListener`.
+        @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
+        public struct NIOTSListenerOption: ChannelOption, Equatable {
+            public typealias Value = NWListener?
 
             public init() {}
         }

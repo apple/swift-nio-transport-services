@@ -204,5 +204,58 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
         _ = try serverHandle.waitForDatagrams(count: 1)
         XCTAssertNoThrow(try connection.close().wait())
     }
+
+    func testCanExtractTheConnection() throws {
+        guard #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) else {
+            throw XCTSkip("Option not available")
+        }
+
+        let listener = try NIOTSDatagramListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        _ = try NIOTSDatagramBootstrap(group: self.group)
+            .channelInitializer { channel in
+                let conn = try! channel.syncOptions!.getOption(NIOTSChannelOptions.connection)
+                XCTAssertNil(conn)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }.connect(to: listener.localAddress!).flatMap {
+                $0.getOption(NIOTSChannelOptions.connection)
+            }.always { result in
+                switch result {
+                case .success(let connection):
+                    // Make sure we unwrap the connection.
+                    XCTAssertNotNil(connection)
+                case .failure(let error):
+                    XCTFail("Unexpected error: \(error)")
+                }
+            }.wait()
+    }
+
+
+    func testCanExtractTheListener() throws {
+        guard #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) else {
+            throw XCTSkip("Option not available")
+        }
+
+        let listener = try NIOTSDatagramListenerBootstrap(group: self.group)
+            .serverChannelInitializer { channel in
+                let underlyingListener = try! channel.syncOptions!.getOption(NIOTSChannelOptions.listener)
+                XCTAssertNil(underlyingListener)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let listenerFuture: EventLoopFuture<NWListener?> = listener.getOption(NIOTSChannelOptions.listener)
+
+        try listenerFuture.map { listener in
+            XCTAssertNotNil(listener)
+        }.wait()
+    }
 }
 #endif

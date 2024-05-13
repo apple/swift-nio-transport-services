@@ -270,6 +270,16 @@ extension StateManagedListenerChannel {
             throw ChannelError.ioOnClosedChannel
         }
 
+        if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
+            switch option {
+            case is NIOTSChannelOptions.Types.NIOTSListenerOption:
+                return self.nwListener as! Option.Value
+            default:
+                // Fallthrough to non-restricted options
+                ()
+            }
+        }
+
         switch option {
         case is ChannelOptions.Types.AutoReadOption:
             return autoRead as! Option.Value
