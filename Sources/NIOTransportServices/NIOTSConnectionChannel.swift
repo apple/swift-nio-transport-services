@@ -264,6 +264,16 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel: Channel {
     func getChannelSpecificOption0<Option>(option: Option) throws -> Option.Value where Option : ChannelOption {
+        if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
+            switch option {
+            case is NIOTSChannelOptions.Types.NIOTSConnectionOption:
+                return self.connection as! Option.Value
+            default:
+                // Fallthrough to non-restricted options.
+                ()
+            }
+        }
+
         switch option {
         case is NIOTSChannelOptions.Types.NIOTSMultipathOption:
             return self.multipathServiceType as! Option.Value

@@ -332,5 +332,28 @@ class NIOTSListenerChannelTests: XCTestCase {
 
         XCTAssertNoThrow(try listener.close().wait())
     }
+
+    func testCanExtractTheListener() throws {
+        guard #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) else {
+            throw XCTSkip("Listener option not available")
+        }
+
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .serverChannelInitializer { channel in
+                let underlyingListener = try! channel.syncOptions!.getOption(NIOTSChannelOptions.listener)
+                XCTAssertNil(underlyingListener)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let listenerFuture: EventLoopFuture<NWListener?> = listener.getOption(NIOTSChannelOptions.listener)
+
+        try listenerFuture.map { listener in
+            XCTAssertNotNil(listener)
+        }.wait()
+    }
 }
 #endif

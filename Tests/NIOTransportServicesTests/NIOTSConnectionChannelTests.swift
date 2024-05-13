@@ -918,5 +918,34 @@ class NIOTSConnectionChannelTests: XCTestCase {
         XCTAssertNoThrow(try connection.close().wait())
         XCTAssertNoThrow(try testCompletePromise.futureResult.wait())
     }
+
+    func testCanExtractTheConnection() throws {
+        guard #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) else {
+            throw XCTSkip("Option not available")
+        }
+
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        _ = try NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                let conn = try! channel.syncOptions!.getOption(NIOTSChannelOptions.connection)
+                XCTAssertNil(conn)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }.connect(to: listener.localAddress!).flatMap {
+                $0.getOption(NIOTSChannelOptions.connection)
+            }.always { result in
+                switch result {
+                case .success(let connection):
+                    // Make sure we unwrap the connection.
+                    XCTAssertNotNil(connection)
+                case .failure(let error):
+                    XCTFail("Unexpected error: \(error)")
+                }
+            }.wait()
+    }
 }
 #endif
