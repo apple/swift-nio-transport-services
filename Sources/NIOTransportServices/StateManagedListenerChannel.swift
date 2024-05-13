@@ -170,6 +170,13 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     func newConnectionHandler(connection: NWConnection) {
         fatalError("This function must be overridden by the subclass")
     }
+
+    // This needs to be declared here to make sure the child classes can override
+    // the behaviour.
+    internal var syncOptions: NIOSynchronousChannelOptions? {
+        return nil
+    }
+
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)

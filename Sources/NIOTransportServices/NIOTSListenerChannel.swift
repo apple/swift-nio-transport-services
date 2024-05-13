@@ -129,10 +129,7 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
         self.pipeline.fireChannelRead(NIOAny(newChannel))
         self.pipeline.fireChannelReadComplete()
     }
-}
 
-@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSListenerChannel {
     internal struct SynchronousOptions: NIOSynchronousChannelOptions {
         private let channel: NIOTSListenerChannel
 
@@ -149,7 +146,7 @@ extension NIOTSListenerChannel {
         }
     }
 
-    public var syncOptions: NIOSynchronousChannelOptions? {
+    public override var syncOptions: NIOSynchronousChannelOptions? {
         return SynchronousOptions(channel: self)
     }
 }

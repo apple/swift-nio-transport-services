@@ -306,5 +306,31 @@ class NIOTSListenerChannelTests: XCTestCase {
 
         XCTAssertNoThrow(try workFuture.wait())
     }
+
+    func testSyncOptionsAreSupported() throws {
+        func testSyncOptions(_ channel: Channel) {
+            if let sync = channel.syncOptions {
+                do {
+                    let endpointReuse = try sync.getOption(NIOTSChannelOptions.allowLocalEndpointReuse)
+                    try sync.setOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: !endpointReuse)
+                    XCTAssertNotEqual(endpointReuse, try sync.getOption(NIOTSChannelOptions.allowLocalEndpointReuse))
+                } catch {
+                    XCTFail("Could not get/set allowLocalEndpointReuse: \(error)")
+                }
+            } else {
+                XCTFail("\(channel) unexpectedly returned nil syncOptions")
+            }
+        }
+
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .serverChannelInitializer { channel in
+                testSyncOptions(channel)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .bind(host: "localhost", port: 0)
+            .wait()
+
+        XCTAssertNoThrow(try listener.close().wait())
+    }
 }
 #endif

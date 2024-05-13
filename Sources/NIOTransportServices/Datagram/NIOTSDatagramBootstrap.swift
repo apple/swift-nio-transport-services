@@ -152,7 +152,7 @@ public final class NIOTSDatagramBootstrap {
     /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
     public func connect(to address: SocketAddress) -> EventLoopFuture<Channel> {
         return self.connect0 { channel, promise in
-            channel.bind(to: address, promise: promise)
+            channel.connect(to: address, promise: promise)
         }
     }
 
