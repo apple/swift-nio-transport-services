@@ -187,4 +187,27 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
         self.connection = connection
     }
 }
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSDatagramChannel {
+    internal struct SynchronousOptions: NIOSynchronousChannelOptions {
+        private let channel: NIOTSDatagramChannel
+
+        fileprivate init(channel: NIOTSDatagramChannel) {
+            self.channel = channel
+        }
+
+        public func setOption<Option: ChannelOption>(_ option: Option, value: Option.Value) throws {
+            try self.channel.setOption0(option: option, value: value)
+        }
+
+        public func getOption<Option: ChannelOption>(_ option: Option) throws -> Option.Value {
+            return try self.channel.getOption0(option: option)
+        }
+    }
+
+    public var syncOptions: NIOSynchronousChannelOptions? {
+        return SynchronousOptions(channel: self)
+    }
+}
 #endif

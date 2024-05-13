@@ -158,5 +158,51 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
         XCTAssertEqual(reads.count, 1)
         XCTAssertEqual(reads[0], buffer)
     }
+
+    func testSyncOptionsAreSupported() throws {
+        func testSyncOptions(_ channel: Channel) {
+            if let sync = channel.syncOptions {
+                do {
+                    let endpointReuse = try sync.getOption(NIOTSChannelOptions.allowLocalEndpointReuse)
+                    try sync.setOption(NIOTSChannelOptions.allowLocalEndpointReuse, value: !endpointReuse)
+                    XCTAssertNotEqual(endpointReuse, try sync.getOption(NIOTSChannelOptions.allowLocalEndpointReuse))
+                } catch {
+                    XCTFail("Could not get/set allowLocalEndpointReuse: \(error)")
+                }
+            } else {
+                XCTFail("\(channel) unexpectedly returned nil syncOptions")
+            }
+        }
+
+        let promise = self.group.any().makePromise(of: Channel.self)
+        let listener = try NIOTSDatagramListenerBootstrap(group: self.group)
+            .serverChannelInitializer { channel in
+                testSyncOptions(channel)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .childChannelInitializer { channel in
+                testSyncOptions(channel)
+                promise.succeed(channel)
+                return channel.pipeline.addHandler(ReadRecorder<ByteBuffer>(), name: "ByteReadRecorder")
+            }
+            .bind(host: "localhost", port: 0)
+            .wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connection = try! NIOTSDatagramBootstrap(group: self.group)
+            .channelInitializer { channel in
+                testSyncOptions(channel)
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .connect(to: listener.localAddress!)
+            .wait()
+        try connection.writeAndFlush(ByteBuffer(string: "hello world")).wait()
+
+        let serverHandle = try promise.futureResult.wait()
+        _ = try serverHandle.waitForDatagrams(count: 1)
+        XCTAssertNoThrow(try connection.close().wait())
+    }
 }
 #endif
