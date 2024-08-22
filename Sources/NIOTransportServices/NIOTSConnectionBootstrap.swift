@@ -154,6 +154,12 @@ public final class NIOTSConnectionBootstrap {
         return self
     }
 
+    /// Specifies a type of Multipath service to use for this connection, instead of the default
+    /// service type for the event loop.
+    public func withMultipath(_ type: NWParameters.MultipathServiceType) -> Self {
+        self.channelOption(NIOTSChannelOptions.multipathServiceType, value: type)
+    }
+
     /// Specify the `host` and `port` to connect to for the TCP `Channel` that will be established.
     ///
     /// - parameters:
