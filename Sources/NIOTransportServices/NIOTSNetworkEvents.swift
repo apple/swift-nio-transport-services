@@ -43,6 +43,20 @@ public enum NIOTSNetworkEvents {
         /// Create a new ``NIOTSNetworkEvents/BetterPathUnavailable`` event.
         public init(){ }
     }
+    
+    /// ``IsViable`` is triggered when the OS informs NIO that communication
+    /// with the remote endpoint is possible, indicating that the connection is viable.
+    public struct IsViable: NIOTSNetworkEvent {
+        /// Create a new ``NIOTSNetworkEvents/IsViable`` event.
+        public init(){ }
+    }
+    
+    /// ``IsNotViable`` is triggered when the OS informs NIO that communication
+    /// with the remote endpoint is not possible, indicating that the connection is non-viable.
+    public struct IsNotViable: NIOTSNetworkEvent {
+        /// Create a new ``NIOTSNetworkEvents/IsNotViable`` event.
+        public init(){ }
+    }
 
     /// ``PathChanged`` is fired whenever the OS has informed NIO that a new path is in use
     /// for this `Channel`.
@@ -105,6 +119,10 @@ public enum NIOTSNetworkEvents {
 extension NIOTSNetworkEvents.BetterPathAvailable: Sendable {}
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSNetworkEvents.BetterPathUnavailable: Sendable {}
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSNetworkEvents.IsViable: Sendable {}
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSNetworkEvents.IsNotViable: Sendable {}
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSNetworkEvents.PathChanged: Sendable {}
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)

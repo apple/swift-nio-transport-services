@@ -409,6 +409,17 @@ extension NIOTSConnectionChannel {
             self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.BetterPathUnavailable())
         }
     }
+    
+    /// Called by the underlying `NWConnection` when a path becomes viable or non-viable
+    ///
+    /// Notifies the channel pipeline of the new viability.
+    private func viabilityUpdateHandler(viable: Bool) {
+        if viable {
+            self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.IsViable())
+        } else {
+            self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.IsNotViable())
+        }
+    }
 
     /// Called by the underlying `NWConnection` when this connection changes its network path.
     ///
