@@ -571,8 +571,7 @@ class NIOTSEndToEndTests: XCTestCase {
             }
 
             func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
-                if event is NIOTSNetworkEvents.ViabilityUpdate {
-                    let update = event as! NIOTSNetworkEvents.ViabilityUpdate
+                if let update = event as? NIOTSNetworkEvents.ViabilityUpdate {
                     testCompletePromise.succeed(update.isViable)
                 }
             }
