@@ -49,7 +49,7 @@ public enum NIOTSNetworkEvents {
     public struct ViabilityUpdate: NIOTSNetworkEvent {
 
         /// The current viability for the connection
-        public let isViable: Bool
+        public var isViable: Bool
         
         /// Create a new ``NIOTSNetworkEvents/ViabilityUpdate`` event.
         public init(isViable: Bool){
