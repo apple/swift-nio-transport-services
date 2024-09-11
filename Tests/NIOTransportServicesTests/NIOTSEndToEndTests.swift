@@ -563,11 +563,9 @@ class NIOTSEndToEndTests: XCTestCase {
             typealias InboundIn = ByteBuffer
             
             private let testCompletePromise: EventLoopPromise<Bool>
-            let listenerChannel: Channel
             
-            init(testCompletePromise: EventLoopPromise<Bool>, listenerChannel: Channel) {
+            init(testCompletePromise: EventLoopPromise<Bool>) {
                 self.testCompletePromise = testCompletePromise
-                self.listenerChannel = listenerChannel
             }
 
             func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
@@ -589,15 +587,20 @@ class NIOTSEndToEndTests: XCTestCase {
             .channelInitializer { channel in
                 channel.pipeline.addHandler(
                     ViabilityHandler(
-                        testCompletePromise: testCompletePromise,
-                        listenerChannel: listener
+                        testCompletePromise: testCompletePromise
                     )
                 )
             }
             .connect(to: listener.localAddress!)
             .wait()
+        
+        do {
+            let result = try testCompletePromise.futureResult.wait()
+            XCTAssertEqual(result, true)
+        } catch {
+            XCTFail("Threw unexpected error \(error)")
+        }
         XCTAssertNoThrow(try connection.close().wait())
-        XCTAssertNoThrow(try testCompletePromise.futureResult.wait())
         XCTAssertNoThrow(try listener.close().wait())
     }
 }

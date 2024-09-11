@@ -52,7 +52,7 @@ public enum NIOTSNetworkEvents {
         public var isViable: Bool
         
         /// Create a new ``NIOTSNetworkEvents/ViabilityUpdate`` event.
-        public init(isViable: Bool){
+        public init(isViable: Bool) {
             self.isViable = isViable
         }
     }
