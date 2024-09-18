@@ -235,6 +235,16 @@ public final class NIOTSListenerBootstrap {
         return self
     }
 
+    /// Specifies a type of Multipath service to use for this listener, instead of the default
+    /// service type for the event loop.
+    ///
+    /// Warning: Multipath service doesn't seem supported on the listener side yet, as
+    /// described on https://www.mptcp.dev/macOS.html. Note that enabling Multipath
+    /// may then generate unexpected errors, use this function with caution.
+    public func withMultipath(_ type: NWParameters.MultipathServiceType) -> Self {
+        self.serverChannelOption(NIOTSChannelOptions.multipathServiceType, value: type)
+    }
+
     /// Bind the `NIOTSListenerChannel` to `host` and `port`.
     ///
     /// - parameters:

@@ -336,6 +336,25 @@ final class NIOTSBootstrapTests: XCTestCase {
             try? connectionChannel?.close().wait()
         }
     }
+
+    func testBootstrapsMultipath() throws {
+        let group = NIOTSEventLoopGroup()
+        defer {
+            try! group.syncShutdownGracefully()
+        }
+
+        let listenerBootstrap = NIOTSListenerBootstrap(group: group).withMultipath(.handover)
+        let connectionBootstrap = NIOTSConnectionBootstrap(group: group).withMultipath(.handover)
+
+        let listenerChannel: Channel = try listenerBootstrap.bind(host: "localhost", port: 0).wait()
+        let connectionChannel: Channel = try connectionBootstrap.connect(to: listenerChannel.localAddress!).wait()
+        defer{
+            try? listenerChannel.close().wait()
+            try? connectionChannel.close().wait()
+        }
+        XCTAssertEqual(try listenerChannel.getOption(NIOTSChannelOptions.multipathServiceType).wait(), .handover)
+        XCTAssertEqual(try connectionChannel.getOption(NIOTSChannelOptions.multipathServiceType).wait(), .handover)
+    }
 }
 
 extension Channel {
