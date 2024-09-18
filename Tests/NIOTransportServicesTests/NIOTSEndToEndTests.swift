@@ -557,5 +557,51 @@ class NIOTSEndToEndTests: XCTestCase {
                 print(error)
         }
     }
+    
+    func testViabilityUpdate() throws {
+        final class ViabilityHandler: ChannelInboundHandler {
+            typealias InboundIn = ByteBuffer
+            
+            private let testCompletePromise: EventLoopPromise<Bool>
+            
+            init(testCompletePromise: EventLoopPromise<Bool>) {
+                self.testCompletePromise = testCompletePromise
+            }
+
+            func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
+                if let update = event as? NIOTSNetworkEvents.ViabilityUpdate {
+                    testCompletePromise.succeed(update.isViable)
+                }
+            }
+        }
+        
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .childChannelInitializer { channel in
+                return channel.eventLoop.makeSucceededVoidFuture()
+            }
+            .bind(host: "localhost", port: 0)
+            .wait()
+        
+        let testCompletePromise = self.group.next().makePromise(of: Bool.self)
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .channelInitializer { channel in
+                channel.pipeline.addHandler(
+                    ViabilityHandler(
+                        testCompletePromise: testCompletePromise
+                    )
+                )
+            }
+            .connect(to: listener.localAddress!)
+            .wait()
+        
+        do {
+            let result = try testCompletePromise.futureResult.wait()
+            XCTAssertEqual(result, true)
+        } catch {
+            XCTFail("Threw unexpected error \(error)")
+        }
+        XCTAssertNoThrow(try connection.close().wait())
+        XCTAssertNoThrow(try listener.close().wait())
+    }
 }
 #endif

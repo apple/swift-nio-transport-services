@@ -140,6 +140,7 @@ extension StateManagedNWConnectionChannel {
         let connection = NWConnection(to: target, using: parameters)
         connection.stateUpdateHandler = self.stateUpdateHandler(newState:)
         connection.betterPathUpdateHandler = self.betterPathHandler
+        connection.viabilityUpdateHandler = self.viabilityUpdateHandler
         connection.pathUpdateHandler = self.pathChangedHandler(newPath:)
 
         // Ok, state is ready. Let's go!
@@ -230,6 +231,7 @@ extension StateManagedNWConnectionChannel {
         self.connectPromise = promise
         connection.stateUpdateHandler = self.stateUpdateHandler(newState:)
         connection.betterPathUpdateHandler = self.betterPathHandler
+        connection.viabilityUpdateHandler = self.viabilityUpdateHandler
         connection.pathUpdateHandler = self.pathChangedHandler(newPath:)
         connection.start(queue: self.connectionQueue)
     }
@@ -432,6 +434,13 @@ extension StateManagedNWConnectionChannel {
         } else {
             self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.BetterPathUnavailable())
         }
+    }
+    
+    /// Called by the underlying `NWConnection` when a path becomes viable or non-viable
+    ///
+    /// Notifies the channel pipeline of the new viability.
+    private func viabilityUpdateHandler(_ isViable: Bool) {
+        self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.ViabilityUpdate(isViable: isViable))
     }
 
     /// Called by the underlying `NWConnection` when this connection changes its network path.
