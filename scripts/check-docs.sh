@@ -18,8 +18,8 @@ set -eu
 raw_targets=$(sed -E -n -e 's/^.* - documentation_targets: \[(.*)\].*$/\1/p' .spi.yml)
 targets=(${raw_targets//,/ })
 
-# Add the DocC plugin.
-swift package add-dependency https://github.com/apple/swift-docc-plugin --from "1.0.0"
+# Add the DocC plugin; the doc checking CI runs on 5.8 so we can't use "swift package add-dependency".
+echo 'package.dependencies.append(.package(url: "https://github.com/apple/swift-docc-plugin.git", from: "1.0.0"))' >> Package.swift
 
 for target in "${targets[@]}"; do
   swift package plugin generate-documentation --target "$target" --warnings-as-errors --analyze --level detailed
