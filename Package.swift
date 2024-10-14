@@ -15,12 +15,6 @@
 
 import PackageDescription
 
-#if compiler(>=5.9)
-let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .macCatalyst, .driverKit, .visionOS]
-#else
-let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .macCatalyst, .driverKit]
-#endif
-
 let package = Package(
     name: "swift-nio-transport-services",
     products: [
@@ -36,7 +30,7 @@ let package = Package(
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOCore", package: "swift-nio"),
-                .product(name: "NIOFoundationCompat", package: "swift-nio", condition: .when(platforms: applePlatforms)),
+                .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "NIOTLS", package: "swift-nio"),
                 .product(name: "Atomics", package: "swift-atomics"),
             ]),
