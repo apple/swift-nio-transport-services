@@ -48,6 +48,10 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
     
     var connection: NWConnection? { get set }
 
+    var minimumIncompleteReceiveLength: Int { get set }
+
+    var maximumReceiveLength: Int { get set }
+
     var connectionQueue: DispatchQueue { get }
 
     var connectPromise: EventLoopPromise<Void>? { get set }
@@ -249,9 +253,13 @@ extension StateManagedNWConnectionChannel {
             preconditionFailure("Connection should not be nil")
         }
 
-        // TODO: Can we do something sensible with these numbers?
         self.outstandingRead = true
-        conn.receive(minimumIncompleteLength: 1, maximumLength: 8192, completion: self.dataReceivedHandler(content:context:isComplete:error:))
+
+        conn.receive(
+            minimumIncompleteLength: self.minimumIncompleteReceiveLength,
+            maximumLength: self.maximumReceiveLength,
+            completion: self.dataReceivedHandler(content:context:isComplete:error:)
+        )
     }
 
     public func doClose0(error: Error) {
@@ -554,6 +562,10 @@ extension StateManagedNWConnectionChannel {
             self.options.supportRemoteHalfClosure = value as! Bool
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
             self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse.Value
+        case is NIOTSChannelOptions.Types.NIOTSMinimumIncompleteReceiveLengthOption:
+            self.minimumIncompleteReceiveLength = value as! NIOTSChannelOptions.Types.NIOTSMinimumIncompleteReceiveLengthOption.Value
+        case is NIOTSChannelOptions.Types.NIOTSMaximumReceiveLengthOption:
+            self.maximumReceiveLength = value as! NIOTSChannelOptions.Types.NIOTSMaximumReceiveLengthOption.Value
         default:
             try self.setChannelSpecificOption0(option: option, value: value)
         }
@@ -610,6 +622,10 @@ extension StateManagedNWConnectionChannel {
                 throw NIOTSErrors.NoCurrentConnection()
             }
             return connection.metadata(definition: optionValue.definition) as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSMinimumIncompleteReceiveLengthOption:
+            return self.minimumIncompleteReceiveLength as! Option.Value
+        case is NIOTSChannelOptions.Types.NIOTSMaximumReceiveLengthOption:
+            return self.maximumReceiveLength as! Option.Value
         default:
             // watchOS 6.0 availability is covered by the @available on this extension.
             if #available(OSX 10.15, iOS 13.0, tvOS 13.0, *) {

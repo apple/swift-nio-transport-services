@@ -139,5 +139,45 @@ class NIOTSChannelOptionsTests: XCTestCase {
         XCTAssertEqual(listenerValue, .handover)
         XCTAssertEqual(connectionValue, .interactive)
     }
+
+    func testMinimumIncompleteReceiveLength() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .channelOption(NIOTSChannelOptions.minimumIncompleteReceiveLength, value: 1)
+            .connect(to: listener.localAddress!)
+            .wait()
+        defer {
+            XCTAssertNoThrow(try connection.close().wait())
+        }
+
+        let connectionValue = try assertNoThrowWithValue(connection.getOption(NIOTSChannelOptions.minimumIncompleteReceiveLength).wait())
+
+        XCTAssertEqual(connectionValue, 1)
+    }
+
+    func testMaximumReceiveLength() throws {
+        let listener = try NIOTSListenerBootstrap(group: self.group)
+            .bind(host: "localhost", port: 0).wait()
+        defer {
+            XCTAssertNoThrow(try listener.close().wait())
+        }
+
+        let connection = try NIOTSConnectionBootstrap(group: self.group)
+            .channelOption(NIOTSChannelOptions.maximumReceiveLength, value: 8192)
+            .connect(to: listener.localAddress!)
+            .wait()
+        defer {
+            XCTAssertNoThrow(try connection.close().wait())
+        }
+
+        let connectionValue = try assertNoThrowWithValue(connection.getOption(NIOTSChannelOptions.maximumReceiveLength).wait())
+
+        XCTAssertEqual(connectionValue, 8192)
+    }
 }
 #endif
