@@ -53,6 +53,12 @@ public struct NIOTSChannelOptions {
     /// See: ``Types/NIOTSListenerOption``.
     @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
     public static let listener = NIOTSChannelOptions.Types.NIOTSListenerOption()
+
+    /// See: ``Types/NIOTSMinimumIncompleteReceiveLengthOption``.
+    public static let minimumIncompleteReceiveLength = NIOTSChannelOptions.Types.NIOTSMinimumIncompleteReceiveLengthOption()
+
+    /// See: ``Types/NIOTSMaximumReceiveLengthOption``.
+    public static let maximumReceiveLength = NIOTSChannelOptions.Types.NIOTSMaximumReceiveLengthOption()
 }
 
 
@@ -176,6 +182,26 @@ extension NIOTSChannelOptions {
         @available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
         public struct NIOTSListenerOption: ChannelOption, Equatable {
             public typealias Value = NWListener?
+
+            public init() {}
+        }
+
+        /// ``NIOTSMinimumIncompleteReceiveLengthOption`` controls the minimum length to receive from a given
+        /// `NWConnection`, until the content is complete.
+        ///
+        /// This option is only valid with a `Channel` backed by an `NWConnection`.
+        public struct NIOTSMinimumIncompleteReceiveLengthOption: ChannelOption, Equatable {
+            public typealias Value = Int
+
+            public init() {}
+        }
+
+        /// ``NIOTSMaximumReceiveLengthOption`` controls the maximum length to receive from a given
+        /// `NWConnection` in a single completion.
+        ///
+        /// This option is only valid with a `Channel` backed by an `NWConnection`.
+        public struct NIOTSMaximumReceiveLengthOption: ChannelOption, Equatable {
+            public typealias Value = Int
 
             public init() {}
         }
