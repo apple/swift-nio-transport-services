@@ -19,7 +19,6 @@ import NIOCore
 import NIOConcurrencyHelpers
 import NIOTransportServices
 
-
 @available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 class NIOTSEventLoopTest: XCTestCase {
     func testIsInEventLoopWorks() throws {
@@ -38,8 +37,10 @@ class NIOTSEventLoopTest: XCTestCase {
 
         try loop.scheduleTask(in: .milliseconds(100)) {
             let newNow = DispatchTime.now()
-            XCTAssertGreaterThan(newNow.uptimeNanoseconds - now.uptimeNanoseconds,
-                                 100 * 1000 * 1000)
+            XCTAssertGreaterThan(
+                newNow.uptimeNanoseconds - now.uptimeNanoseconds,
+                100 * 1000 * 1000
+            )
         }.futureResult.wait()
     }
 
@@ -54,11 +55,13 @@ class NIOTSEventLoopTest: XCTestCase {
         let secondTask = loop.scheduleTask(in: .milliseconds(10)) {
             firstTask.cancel()
         }
-        let thirdTask = loop.scheduleTask(in: .milliseconds(50)) { }
+        let thirdTask = loop.scheduleTask(in: .milliseconds(50)) {}
         firstTask.futureResult.whenComplete { (_: Result<Void, Error>) in
             let newNow = DispatchTime.now()
-            XCTAssertLessThan(newNow.uptimeNanoseconds - now.uptimeNanoseconds,
-                              300 * 1000 * 1000)
+            XCTAssertLessThan(
+                newNow.uptimeNanoseconds - now.uptimeNanoseconds,
+                300 * 1000 * 1000
+            )
         }
 
         XCTAssertNoThrow(try secondTask.futureResult.wait())
@@ -88,7 +91,8 @@ class NIOTSEventLoopTest: XCTestCase {
             XCTAssertFalse(firstLoop.inEventLoop)
             XCTAssertTrue(secondLoop.inEventLoop)
         }
-        try EventLoopFuture<Void>.andAllComplete([firstTask.futureResult, secondTask.futureResult], on: firstLoop).wait()
+        try EventLoopFuture<Void>.andAllComplete([firstTask.futureResult, secondTask.futureResult], on: firstLoop)
+            .wait()
     }
 
     func testWeDontHoldELOrELGReferencesImmeditelyFollowingAConnect() {
@@ -112,20 +116,24 @@ class NIOTSEventLoopTest: XCTestCase {
                 }
                 .bind(host: "127.0.0.1", port: 0).wait()
             // leave this "localhost" so we need to resolve it (involving happy eyeballs)
-            let client = try NIOTSConnectionBootstrap(group: group).connect(host: "localhost",
-                                                                            port: server.localAddress!.port!).wait()
+            let client = try NIOTSConnectionBootstrap(group: group).connect(
+                host: "localhost",
+                port: server.localAddress!.port!
+            ).wait()
             XCTAssertNoThrow(try client.close().wait())
-            XCTAssertNoThrow(try acceptedChan.futureResult.wait().close().flatMapErrorThrowing { error in
-                if let error = error as? ChannelError, error == .alreadyClosed {
-                    // this is okay because we previously closed the other end
-                } else {
-                    throw error
+            XCTAssertNoThrow(
+                try acceptedChan.futureResult.wait().close().flatMapErrorThrowing { error in
+                    if let error = error as? ChannelError, error == .alreadyClosed {
+                        // this is okay because we previously closed the other end
+                    } else {
+                        throw error
+                    }
                 }
-            })
+            )
             XCTAssertNoThrow(try server.close().wait())
         }
         XCTAssertNoThrow(try make())
-        usleep(100_000) // to give the other thread chance to deallocate everything
+        usleep(100_000)  // to give the other thread chance to deallocate everything
         XCTAssertNil(weakELG)
         XCTAssertNil(weakEL)
     }

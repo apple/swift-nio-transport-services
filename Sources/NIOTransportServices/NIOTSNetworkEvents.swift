@@ -20,7 +20,7 @@ import NIOCore
 ///
 /// Users are strongly encouraged not to conform their own types to this protocol.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public protocol NIOTSNetworkEvent: Equatable, _NIOPreconcurrencySendable { }
+public protocol NIOTSNetworkEvent: Equatable, _NIOPreconcurrencySendable {}
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public enum NIOTSNetworkEvents {
@@ -33,7 +33,7 @@ public enum NIOTSNetworkEvents {
     /// transfer your work to that connection before closing this one.
     public struct BetterPathAvailable: NIOTSNetworkEvent {
         /// Create a new ``NIOTSNetworkEvents/BetterPathAvailable`` event.
-        public init(){ }
+        public init() {}
     }
 
     /// ``BetterPathUnavailable`` is fired when the OS has informed NIO that no better path to the
@@ -41,16 +41,16 @@ public enum NIOTSNetworkEvents {
     /// currently available.
     public struct BetterPathUnavailable: NIOTSNetworkEvent {
         /// Create a new ``NIOTSNetworkEvents/BetterPathUnavailable`` event.
-        public init(){ }
+        public init() {}
     }
-    
+
     /// ``ViabilityUpdate`` is triggered when the OS informs NIO that communication
     /// with the remote endpoint is possible, indicating that the connection is viable.
     public struct ViabilityUpdate: NIOTSNetworkEvent {
 
         /// The current viability for the connection
         public var isViable: Bool
-        
+
         /// Create a new ``NIOTSNetworkEvents/ViabilityUpdate`` event.
         public init(isViable: Bool) {
             self.isViable = isViable
@@ -74,7 +74,7 @@ public enum NIOTSNetworkEvents {
     public struct ConnectToNWEndpoint: NIOTSNetworkEvent {
         /// The endpoint to which we want to connect.
         public let endpoint: NWEndpoint
-        
+
         /// Create a new ``NIOTSNetworkEvents/ConnectToNWEndpoint`` event.
         public init(endpoint: NWEndpoint) {
             self.endpoint = endpoint
@@ -86,7 +86,7 @@ public enum NIOTSNetworkEvents {
     public struct BindToNWEndpoint: NIOTSNetworkEvent {
         /// The endpoint to which we want to bind.
         public let endpoint: NWEndpoint
-        
+
         /// Create a new ``NIOTSNetworkEvents/BindToNWEndpoint`` event.
         public init(endpoint: NWEndpoint) {
             self.endpoint = endpoint
@@ -104,7 +104,7 @@ public enum NIOTSNetworkEvents {
         /// Note that these reasons are _not fatal_: applications are strongly advised not to treat them
         /// as fatal, and instead to use them as information to inform UI decisions.
         public var transientError: NWError
-        
+
         /// Create a new ``NIOTSNetworkEvents/WaitingForConnectivity`` event.
         public init(transientError: NWError) {
             self.transientError = transientError

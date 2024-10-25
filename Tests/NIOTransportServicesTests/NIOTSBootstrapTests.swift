@@ -24,7 +24,7 @@ import Foundation
 
 @available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 final class NIOTSBootstrapTests: XCTestCase {
-    var groupBag: [NIOTSEventLoopGroup]? = nil // protected by `self.lock`
+    var groupBag: [NIOTSEventLoopGroup]? = nil  // protected by `self.lock`
     let lock = NIOLock()
 
     override func setUp() {
@@ -35,16 +35,19 @@ final class NIOTSBootstrapTests: XCTestCase {
     }
 
     override func tearDown() {
-        XCTAssertNoThrow(try self.lock.withLock {
-            guard let groupBag = self.groupBag else {
-                XCTFail()
-                return
+        XCTAssertNoThrow(
+            try self.lock.withLock {
+                guard let groupBag = self.groupBag else {
+                    XCTFail()
+                    return
+                }
+                for group in groupBag {
+                    XCTAssertNoThrow(try group.syncShutdownGracefully())
+                }
+
+                self.groupBag = nil
             }
-            XCTAssertNoThrow(try groupBag.forEach {
-                XCTAssertNoThrow(try $0.syncShutdownGracefully())
-            })
-            self.groupBag = nil
-        })
+        )
     }
 
     func freshEventLoop() -> EventLoop {
@@ -58,34 +61,38 @@ final class NIOTSBootstrapTests: XCTestCase {
     func testBootstrapsTolerateFuturesFromDifferentEventLoopsReturnedInInitializers() throws {
         let childChannelDone = self.freshEventLoop().makePromise(of: Void.self)
         let serverChannelDone = self.freshEventLoop().makePromise(of: Void.self)
-        let serverChannel = try assertNoThrowWithValue(NIOTSListenerBootstrap(group: self.freshEventLoop())
-            .childChannelInitializer { channel in
-                channel.eventLoop.preconditionInEventLoop()
-                defer {
-                    childChannelDone.succeed(())
+        let serverChannel = try assertNoThrowWithValue(
+            NIOTSListenerBootstrap(group: self.freshEventLoop())
+                .childChannelInitializer { channel in
+                    channel.eventLoop.preconditionInEventLoop()
+                    defer {
+                        childChannelDone.succeed(())
+                    }
+                    return self.freshEventLoop().makeSucceededFuture(())
                 }
-                return self.freshEventLoop().makeSucceededFuture(())
-            }
-            .serverChannelInitializer { channel in
-                channel.eventLoop.preconditionInEventLoop()
-                defer {
-                    serverChannelDone.succeed(())
+                .serverChannelInitializer { channel in
+                    channel.eventLoop.preconditionInEventLoop()
+                    defer {
+                        serverChannelDone.succeed(())
+                    }
+                    return self.freshEventLoop().makeSucceededFuture(())
                 }
-                return self.freshEventLoop().makeSucceededFuture(())
-            }
-            .bind(host: "127.0.0.1", port: 0)
-            .wait())
+                .bind(host: "127.0.0.1", port: 0)
+                .wait()
+        )
         defer {
             XCTAssertNoThrow(try serverChannel.close().wait())
         }
 
-        let client = try assertNoThrowWithValue(NIOTSConnectionBootstrap(group: self.freshEventLoop())
-            .channelInitializer { channel in
-                channel.eventLoop.preconditionInEventLoop()
-                return self.freshEventLoop().makeSucceededFuture(())
-            }
-            .connect(to: serverChannel.localAddress!)
-            .wait())
+        let client = try assertNoThrowWithValue(
+            NIOTSConnectionBootstrap(group: self.freshEventLoop())
+                .channelInitializer { channel in
+                    channel.eventLoop.preconditionInEventLoop()
+                    return self.freshEventLoop().makeSucceededFuture(())
+                }
+                .connect(to: serverChannel.localAddress!)
+                .wait()
+        )
         defer {
             XCTAssertNoThrow(try client.syncCloseAcceptingAlreadyClosed())
         }
@@ -115,7 +122,7 @@ final class NIOTSBootstrapTests: XCTestCase {
                 }
 
                 switch self.buffer!.readBytes(length: 2) {
-                case .some([0x16, 0x03]): // TLS ClientHello always starts with 0x16, 0x03
+                case .some([0x16, 0x03]):  // TLS ClientHello always starts with 0x16, 0x03
                     self.isTLS.succeed(true)
                     context.channel.close(promise: nil)
                 case .some(_):
@@ -134,9 +141,9 @@ final class NIOTSBootstrapTests: XCTestCase {
                 .childChannelInitializer { channel in
                     XCTAssertEqual(0, numberOfConnections.loadThenWrappingIncrement(ordering: .relaxed))
                     return channel.pipeline.addHandler(TellMeIfConnectionIsTLSHandler(isTLS: isTLS))
-            }
-            .bind(host: "127.0.0.1", port: 0)
-            .wait()
+                }
+                .bind(host: "127.0.0.1", port: 0)
+                .wait()
         }
 
         let isTLSConnection1 = group.next().makePromise(of: Bool.self)
@@ -158,11 +165,15 @@ final class NIOTSBootstrapTests: XCTestCase {
         }
 
         let tlsOptions = NWProtocolTLS.Options()
-        let bootstrap = NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
-                                              tls: NIOTSClientTLSProvider(tlsOptions: tlsOptions))
-        let tlsBootstrap = NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
-                                                 tls: NIOTSClientTLSProvider())
-                               .enableTLS()
+        let bootstrap = NIOClientTCPBootstrap(
+            NIOTSConnectionBootstrap(group: group),
+            tls: NIOTSClientTLSProvider(tlsOptions: tlsOptions)
+        )
+        let tlsBootstrap = NIOClientTCPBootstrap(
+            NIOTSConnectionBootstrap(group: group),
+            tls: NIOTSClientTLSProvider()
+        )
+        .enableTLS()
 
         var buffer = server1.allocator.buffer(capacity: 2)
         buffer.writeString("NO")
@@ -249,44 +260,55 @@ final class NIOTSBootstrapTests: XCTestCase {
         XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongELG, childGroup: correctELG))
         XCTAssertNil(NIOTSListenerBootstrap(validatingGroup: wrongEL, childGroup: correctEL))
     }
-    
+
     func testEndpointReuseShortcutOption() throws {
         let group = NIOTSEventLoopGroup()
         let listenerChannel = try NIOTSListenerBootstrap(group: group)
             .bind(host: "127.0.0.1", port: 0)
             .wait()
-        
-        
-        let bootstrap = NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
-                                              tls: NIOInsecureNoTLS())
-            .channelConvenienceOptions([.allowLocalEndpointReuse])
+
+        let bootstrap = NIOClientTCPBootstrap(
+            NIOTSConnectionBootstrap(group: group),
+            tls: NIOInsecureNoTLS()
+        )
+        .channelConvenienceOptions([.allowLocalEndpointReuse])
         let client = try bootstrap.connect(to: listenerChannel.localAddress!).wait()
         let optionValue = try client.getOption(NIOTSChannelOptions.allowLocalEndpointReuse).wait()
         try client.close().wait()
-        
+
         XCTAssertEqual(optionValue, true)
     }
-    
+
     func testShorthandOptionsAreEquivalent() throws {
-        func setAndGetOption<Option>(option: Option,
-                                     _ applyOptions : (NIOClientTCPBootstrap) -> NIOClientTCPBootstrap)
-                                    throws -> Option.Value where Option : ChannelOption {
+        func setAndGetOption<Option>(
+            option: Option,
+            _ applyOptions: (NIOClientTCPBootstrap) -> NIOClientTCPBootstrap
+        )
+            throws -> Option.Value where Option: ChannelOption
+        {
             let group = NIOTSEventLoopGroup()
             let listenerChannel = try NIOTSListenerBootstrap(group: group)
                 .bind(host: "127.0.0.1", port: 0)
                 .wait()
-            
-            let bootstrap = applyOptions(NIOClientTCPBootstrap(NIOTSConnectionBootstrap(group: group),
-                                                               tls: NIOInsecureNoTLS()))
+
+            let bootstrap = applyOptions(
+                NIOClientTCPBootstrap(
+                    NIOTSConnectionBootstrap(group: group),
+                    tls: NIOInsecureNoTLS()
+                )
+            )
             let client = try bootstrap.connect(to: listenerChannel.localAddress!).wait()
             let optionRead = try client.getOption(option).wait()
             try client.close().wait()
             return optionRead
         }
-        
-        func checkOptionEquivalence<Option>(longOption: Option, setValue: Option.Value,
-                                            shortOption: ChannelOptions.TCPConvenienceOption) throws
-            where Option : ChannelOption, Option.Value : Equatable {
+
+        func checkOptionEquivalence<Option>(
+            longOption: Option,
+            setValue: Option.Value,
+            shortOption: ChannelOptions.TCPConvenienceOption
+        ) throws
+        where Option: ChannelOption, Option.Value: Equatable {
             let longSetValue = try setAndGetOption(option: longOption) { bs in
                 bs.channelOption(longOption, value: setValue)
             }
@@ -294,20 +316,26 @@ final class NIOTSBootstrapTests: XCTestCase {
                 bs.channelConvenienceOptions([shortOption])
             }
             let unsetValue = try setAndGetOption(option: longOption) { $0 }
-            
+
             XCTAssertEqual(longSetValue, shortSetValue)
             XCTAssertNotEqual(longSetValue, unsetValue)
         }
-        
-        try checkOptionEquivalence(longOption: NIOTSChannelOptions.allowLocalEndpointReuse,
-                                   setValue: true,
-                                   shortOption: .allowLocalEndpointReuse)
-        try checkOptionEquivalence(longOption: ChannelOptions.allowRemoteHalfClosure,
-                                   setValue: true,
-                                   shortOption: .allowRemoteHalfClosure)
-        try checkOptionEquivalence(longOption: ChannelOptions.autoRead,
-                                   setValue: false,
-                                   shortOption: .disableAutoRead)
+
+        try checkOptionEquivalence(
+            longOption: NIOTSChannelOptions.allowLocalEndpointReuse,
+            setValue: true,
+            shortOption: .allowLocalEndpointReuse
+        )
+        try checkOptionEquivalence(
+            longOption: ChannelOptions.allowRemoteHalfClosure,
+            setValue: true,
+            shortOption: .allowRemoteHalfClosure
+        )
+        try checkOptionEquivalence(
+            longOption: ChannelOptions.autoRead,
+            setValue: false,
+            shortOption: .disableAutoRead
+        )
     }
 
     func testBootstrapsErrorGracefullyOnOutOfBandPorts() throws {
@@ -325,10 +353,14 @@ final class NIOTSBootstrapTests: XCTestCase {
             var listenerChannel: Channel?
             var connectionChannel: Channel?
 
-            XCTAssertThrowsError(listenerChannel = try listenerBootstrap.bind(host: "localhost", port: invalidPort).wait()) { error in
+            XCTAssertThrowsError(
+                listenerChannel = try listenerBootstrap.bind(host: "localhost", port: invalidPort).wait()
+            ) { error in
                 XCTAssertNotNil(error as? NIOTSErrors.InvalidPort)
             }
-            XCTAssertThrowsError(connectionChannel = try connectionBootstrap.connect(host: "localhost", port: invalidPort).wait())  { error in
+            XCTAssertThrowsError(
+                connectionChannel = try connectionBootstrap.connect(host: "localhost", port: invalidPort).wait()
+            ) { error in
                 XCTAssertNotNil(error as? NIOTSErrors.InvalidPort)
             }
 
@@ -348,7 +380,7 @@ final class NIOTSBootstrapTests: XCTestCase {
 
         let listenerChannel: Channel = try listenerBootstrap.bind(host: "localhost", port: 0).wait()
         let connectionChannel: Channel = try connectionBootstrap.connect(to: listenerChannel.localAddress!).wait()
-        defer{
+        defer {
             try? listenerChannel.close().wait()
             try? connectionChannel.close().wait()
         }
@@ -362,7 +394,7 @@ extension Channel {
         do {
             try self.close().wait()
         } catch ChannelError.alreadyClosed {
-            /* we're happy with this one */
+            // we're happy with this one
         } catch let e {
             throw e
         }

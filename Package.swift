@@ -18,7 +18,7 @@ import PackageDescription
 let package = Package(
     name: "swift-nio-transport-services",
     products: [
-        .library(name: "NIOTransportServices", targets: ["NIOTransportServices"]),
+        .library(name: "NIOTransportServices", targets: ["NIOTransportServices"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.62.0"),
@@ -33,21 +33,24 @@ let package = Package(
                 .product(name: "NIOFoundationCompat", package: "swift-nio"),
                 .product(name: "NIOTLS", package: "swift-nio"),
                 .product(name: "Atomics", package: "swift-atomics"),
-            ]),
+            ]
+        ),
         .executableTarget(
             name: "NIOTSHTTPClient",
             dependencies: [
                 "NIOTransportServices",
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
-            ]),
+            ]
+        ),
         .executableTarget(
             name: "NIOTSHTTPServer",
             dependencies: [
                 "NIOTransportServices",
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
-            ]),
+            ]
+        ),
         .testTarget(
             name: "NIOTransportServicesTests",
             dependencies: [
@@ -55,6 +58,7 @@ let package = Package(
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOEmbedded", package: "swift-nio"),
                 .product(name: "Atomics", package: "swift-atomics"),
-            ]),
+            ]
+        ),
     ]
 )

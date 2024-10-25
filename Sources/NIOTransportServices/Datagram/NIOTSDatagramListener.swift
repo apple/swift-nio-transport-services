@@ -107,9 +107,11 @@ public final class NIOTSDatagramListenerBootstrap {
     ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSConnectionChannel`s on.
     public convenience init(group: EventLoopGroup, childGroup: EventLoopGroup) {
         guard NIOTSBootstraps.isCompatible(group: group) && NIOTSBootstraps.isCompatible(group: childGroup) else {
-            preconditionFailure("NIOTSListenerBootstrap is only compatible with NIOTSEventLoopGroup and " +
-                                "NIOTSEventLoop. You tried constructing one with group: \(group) and " +
-                                "childGroup: \(childGroup) at least one of which is incompatible.")
+            preconditionFailure(
+                "NIOTSListenerBootstrap is only compatible with NIOTSEventLoopGroup and "
+                    + "NIOTSEventLoop. You tried constructing one with group: \(group) and "
+                    + "childGroup: \(childGroup) at least one of which is incompatible."
+            )
         }
 
         self.init(validatingGroup: group, childGroup: childGroup)!
@@ -210,7 +212,6 @@ public final class NIOTSDatagramListenerBootstrap {
         return self
     }
 
-
     /// Specifies a QoS to use for the child connections created from the server channel,
     /// instead of the default QoS for the event loop.
     ///
@@ -261,7 +262,7 @@ public final class NIOTSDatagramListenerBootstrap {
     /// - parameters:
     ///     - address: The `SocketAddress` to bind on.
     public func bind(to address: SocketAddress) -> EventLoopFuture<Channel> {
-        return self.bind0(shouldRegister: true) { (channel, promise) in
+        self.bind0(shouldRegister: true) { (channel, promise) in
             channel.bind(to: address, promise: promise)
         }
     }
@@ -271,7 +272,7 @@ public final class NIOTSDatagramListenerBootstrap {
     /// - parameters:
     ///     - unixDomainSocketPath: The _Unix domain socket_ path to bind to. `unixDomainSocketPath` must not exist, it will be created by the system.
     public func bind(unixDomainSocketPath: String) -> EventLoopFuture<Channel> {
-        return self.bind0(shouldRegister: true) { (channel, promise) in
+        self.bind0(shouldRegister: true) { (channel, promise) in
             do {
                 let address = try SocketAddress(unixDomainSocketPath: unixDomainSocketPath)
                 channel.bind(to: address, promise: promise)
@@ -286,7 +287,7 @@ public final class NIOTSDatagramListenerBootstrap {
     /// - parameters:
     ///     - endpoint: The `NWEndpoint` to bind this channel to.
     public func bind(endpoint: NWEndpoint) -> EventLoopFuture<Channel> {
-        return self.bind0(shouldRegister: true) { (channel, promise) in
+        self.bind0(shouldRegister: true) { (channel, promise) in
             channel.triggerUserOutboundEvent(NIOTSNetworkEvents.BindToNWEndpoint(endpoint: endpoint), promise: promise)
         }
     }
@@ -295,13 +296,17 @@ public final class NIOTSDatagramListenerBootstrap {
     ///
     /// - parameters:
     ///     - listener: The NWListener to wrap.
-    public func withNWListener(_ listener:NWListener) -> EventLoopFuture<Channel>{
-        return self.bind0(existingNWListener: listener,shouldRegister: false) { channel, promise in
+    public func withNWListener(_ listener: NWListener) -> EventLoopFuture<Channel> {
+        self.bind0(existingNWListener: listener, shouldRegister: false) { channel, promise in
             channel.registerAlreadyConfigured0(promise: promise)
         }
     }
 
-    private func bind0(existingNWListener: NWListener? = nil, shouldRegister: Bool, _ binder: @escaping (NIOTSDatagramListenerChannel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
+    private func bind0(
+        existingNWListener: NWListener? = nil,
+        shouldRegister: Bool,
+        _ binder: @escaping (NIOTSDatagramListenerChannel, EventLoopPromise<Void>) -> Void
+    ) -> EventLoopFuture<Channel> {
         let eventLoop = self.group.next() as! NIOTSEventLoop
         let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(()) }
         let childChannelInit = self.childChannelInit
@@ -310,35 +315,43 @@ public final class NIOTSDatagramListenerBootstrap {
 
         let serverChannel: NIOTSDatagramListenerChannel
         if let newListener = existingNWListener {
-            serverChannel = NIOTSDatagramListenerChannel(wrapping: newListener,
-                                                         on: eventLoop,
-                                                         qos: self.serverQoS,
-                                                         udpOptions: self.udpOptions,
-                                                         tlsOptions: self.tlsOptions,
-                                                         childLoopGroup: self.childGroup,
-                                                         childChannelQoS: self.childQoS,
-                                                         childUDPOptions: self.udpOptions,
-                                                         childTLSOptions: self.tlsOptions)
+            serverChannel = NIOTSDatagramListenerChannel(
+                wrapping: newListener,
+                on: eventLoop,
+                qos: self.serverQoS,
+                udpOptions: self.udpOptions,
+                tlsOptions: self.tlsOptions,
+                childLoopGroup: self.childGroup,
+                childChannelQoS: self.childQoS,
+                childUDPOptions: self.udpOptions,
+                childTLSOptions: self.tlsOptions
+            )
         } else {
-            serverChannel = NIOTSDatagramListenerChannel(eventLoop: eventLoop,
-                                                         qos: self.serverQoS,
-                                                         udpOptions: self.udpOptions,
-                                                         tlsOptions: self.tlsOptions,
-                                                         childLoopGroup: self.childGroup,
-                                                         childChannelQoS: self.childQoS,
-                                                         childUDPOptions: self.udpOptions,
-                                                         childTLSOptions: self.tlsOptions)
+            serverChannel = NIOTSDatagramListenerChannel(
+                eventLoop: eventLoop,
+                qos: self.serverQoS,
+                udpOptions: self.udpOptions,
+                tlsOptions: self.tlsOptions,
+                childLoopGroup: self.childGroup,
+                childChannelQoS: self.childQoS,
+                childUDPOptions: self.udpOptions,
+                childTLSOptions: self.tlsOptions
+            )
         }
 
         return eventLoop.submit {
-            return serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
+            serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
                 serverChannelInit(serverChannel)
             }.flatMap {
                 eventLoop.assertInEventLoop()
-                return serverChannel.pipeline.addHandler(AcceptHandler<NIOTSDatagramChannel>(childChannelInitializer: childChannelInit,
-                                                                       childChannelOptions: childChannelOptions))
+                return serverChannel.pipeline.addHandler(
+                    AcceptHandler<NIOTSDatagramChannel>(
+                        childChannelInitializer: childChannelInit,
+                        childChannelOptions: childChannelOptions
+                    )
+                )
             }.flatMap {
-                if shouldRegister{
+                if shouldRegister {
                     return serverChannel.register()
                 } else {
                     return eventLoop.makeSucceededVoidFuture()

@@ -23,8 +23,10 @@ internal class AcceptHandler<ChildChannel: Channel>: ChannelInboundHandler {
     private let childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?
     private let childChannelOptions: ChannelOptions.Storage
 
-    init(childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?,
-         childChannelOptions: ChannelOptions.Storage) {
+    init(
+        childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?,
+        childChannelOptions: ChannelOptions.Storage
+    ) {
         self.childChannelInitializer = childChannelInitializer
         self.childChannelOptions = childChannelOptions
     }
@@ -35,10 +37,9 @@ internal class AcceptHandler<ChildChannel: Channel>: ChannelInboundHandler {
         let ctxEventLoop = context.eventLoop
         let childInitializer = self.childChannelInitializer ?? { _ in childLoop.makeSucceededFuture(()) }
 
-
         @inline(__always)
         func setupChildChannel() -> EventLoopFuture<Void> {
-            return self.childChannelOptions.applyAllChannelOptions(to: newChannel).flatMap { () -> EventLoopFuture<Void> in
+            self.childChannelOptions.applyAllChannelOptions(to: newChannel).flatMap { () -> EventLoopFuture<Void> in
                 childLoop.assertInEventLoop()
                 return childInitializer(newChannel)
             }
@@ -66,9 +67,11 @@ internal class AcceptHandler<ChildChannel: Channel>: ChannelInboundHandler {
         if childLoop === ctxEventLoop {
             fireThroughPipeline(setupChildChannel())
         } else {
-            fireThroughPipeline(childLoop.flatSubmit {
-                return setupChildChannel()
-            }.hop(to: ctxEventLoop))
+            fireThroughPipeline(
+                childLoop.flatSubmit {
+                    setupChildChannel()
+                }.hop(to: ctxEventLoop)
+            )
         }
     }
 }

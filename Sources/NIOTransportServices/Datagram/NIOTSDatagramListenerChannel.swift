@@ -33,13 +33,16 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
             return options
         }
         set {
-            assert({
-                if case .udp = protocolOptions {
-                    return true
-                } else {
-                    return false
-                }
-            }(), "The protocol options of this channel were not configured as UDP")
+            assert(
+                {
+                    if case .udp = protocolOptions {
+                        return true
+                    } else {
+                        return false
+                    }
+                }(),
+                "The protocol options of this channel were not configured as UDP"
+            )
 
             protocolOptions = .udp(newValue)
         }
@@ -55,13 +58,16 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
             return options
         }
         set {
-            assert({
-                if case .udp = childProtocolOptions {
-                    return true
-                } else {
-                    return false
-                }
-            }(), "The protocol options of child channelss were not configured as UDP")
+            assert(
+                {
+                    if case .udp = childProtocolOptions {
+                        return true
+                    } else {
+                        return false
+                    }
+                }(),
+                "The protocol options of child channelss were not configured as UDP"
+            )
 
             childProtocolOptions = .udp(newValue)
         }
@@ -70,14 +76,16 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
     /// Create a `NIOTSDatagramListenerChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSDatagramListenerChannel` objects cannot be created on arbitrary loops types.
-    internal convenience init(eventLoop: NIOTSEventLoop,
-                              qos: DispatchQoS? = nil,
-                              udpOptions: NWProtocolUDP.Options,
-                              tlsOptions: NWProtocolTLS.Options?,
-                              childLoopGroup: EventLoopGroup,
-                              childChannelQoS: DispatchQoS?,
-                              childUDPOptions: NWProtocolUDP.Options,
-                              childTLSOptions: NWProtocolTLS.Options?) {
+    internal convenience init(
+        eventLoop: NIOTSEventLoop,
+        qos: DispatchQoS? = nil,
+        udpOptions: NWProtocolUDP.Options,
+        tlsOptions: NWProtocolTLS.Options?,
+        childLoopGroup: EventLoopGroup,
+        childChannelQoS: DispatchQoS?,
+        childUDPOptions: NWProtocolUDP.Options,
+        childTLSOptions: NWProtocolTLS.Options?
+    ) {
         self.init(
             eventLoop: eventLoop,
             protocolOptions: .udp(udpOptions),
@@ -90,15 +98,17 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
     }
 
     /// Create a `NIOTSDatagramListenerChannel` with an already-established `NWListener`.
-    internal convenience init(wrapping listener: NWListener,
-                              on eventLoop: NIOTSEventLoop,
-                              qos: DispatchQoS? = nil,
-                              udpOptions: NWProtocolUDP.Options,
-                              tlsOptions: NWProtocolTLS.Options?,
-                              childLoopGroup: EventLoopGroup,
-                              childChannelQoS: DispatchQoS?,
-                              childUDPOptions: NWProtocolUDP.Options,
-                              childTLSOptions: NWProtocolTLS.Options?) {
+    internal convenience init(
+        wrapping listener: NWListener,
+        on eventLoop: NIOTSEventLoop,
+        qos: DispatchQoS? = nil,
+        udpOptions: NWProtocolUDP.Options,
+        tlsOptions: NWProtocolTLS.Options?,
+        childLoopGroup: EventLoopGroup,
+        childChannelQoS: DispatchQoS?,
+        childUDPOptions: NWProtocolUDP.Options,
+        childTLSOptions: NWProtocolTLS.Options?
+    ) {
         self.init(
             wrapping: listener,
             eventLoop: eventLoop,
@@ -122,7 +132,8 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
             on: self.childLoopGroup.next() as! NIOTSEventLoop,
             parent: self,
             udpOptions: self.childUDPOptions,
-            tlsOptions: self.childTLSOptions)
+            tlsOptions: self.childTLSOptions
+        )
 
         self.pipeline.fireChannelRead(NIOAny(newChannel))
         self.pipeline.fireChannelReadComplete()
@@ -140,12 +151,12 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
         }
 
         public func getOption<Option: ChannelOption>(_ option: Option) throws -> Option.Value {
-            return try self.channel.getOption0(option: option)
+            try self.channel.getOption0(option: option)
         }
     }
 
     public override var syncOptions: NIOSynchronousChannelOptions? {
-        return SynchronousOptions(channel: self)
+        SynchronousOptions(channel: self)
     }
 }
 

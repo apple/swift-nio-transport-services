@@ -59,7 +59,7 @@ public final class NIOTSConnectionBootstrap {
     private var qos: DispatchQoS?
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
-    private var protocolHandlers: Optional<() -> [ChannelHandler]> = nil
+    private var protocolHandlers: (() -> [ChannelHandler])? = nil
 
     /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
@@ -72,8 +72,10 @@ public final class NIOTSConnectionBootstrap {
     ///     - group: The `EventLoopGroup` to use.
     public convenience init(group: EventLoopGroup) {
         guard NIOTSBootstraps.isCompatible(group: group) else {
-            preconditionFailure("NIOTSConnectionBootstrap is only compatible with NIOTSEventLoopGroup and " +
-                                "NIOTSEventLoop. You tried constructing one with \(group) which is incompatible.")
+            preconditionFailure(
+                "NIOTSConnectionBootstrap is only compatible with NIOTSEventLoopGroup and "
+                    + "NIOTSEventLoop. You tried constructing one with \(group) which is incompatible."
+            )
         }
 
         self.init(validatingGroup: group)!
@@ -84,7 +86,7 @@ public final class NIOTSConnectionBootstrap {
     /// - parameters:
     ///     - group: The ``NIOTSEventLoopGroup`` to use.
     public convenience init(group: NIOTSEventLoopGroup) {
-      self.init(group: group as EventLoopGroup)
+        self.init(group: group as EventLoopGroup)
     }
 
     /// Create a `NIOTSConnectionBootstrap` on the ``NIOTSEventLoopGroup`` `group`, validating
@@ -184,7 +186,7 @@ public final class NIOTSConnectionBootstrap {
     ///     - address: The address to connect to.
     /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
     public func connect(to address: SocketAddress) -> EventLoopFuture<Channel> {
-        return self.connect(shouldRegister: true) { channel, promise in
+        self.connect(shouldRegister: true) { channel, promise in
             channel.connect(to: address, promise: promise)
         }
     }
@@ -205,9 +207,11 @@ public final class NIOTSConnectionBootstrap {
 
     /// Specify the `endpoint` to connect to for the TCP `Channel` that will be established.
     public func connect(endpoint: NWEndpoint) -> EventLoopFuture<Channel> {
-        return self.connect(shouldRegister: true) { channel, promise in
-            channel.triggerUserOutboundEvent(NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint),
-                                             promise: promise)
+        self.connect(shouldRegister: true) { channel, promise in
+            channel.triggerUserOutboundEvent(
+                NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint),
+                promise: promise
+            )
         }
     }
 
@@ -217,29 +221,37 @@ public final class NIOTSConnectionBootstrap {
     ///     - connection: The NWConnection to wrap.
     /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
     public func withExistingNWConnection(_ connection: NWConnection) -> EventLoopFuture<Channel> {
-        return self.connect(existingNWConnection: connection, shouldRegister: false) { channel, promise in
+        self.connect(existingNWConnection: connection, shouldRegister: false) { channel, promise in
             channel.registerAlreadyConfigured0(promise: promise)
         }
     }
 
-    private func connect(existingNWConnection: NWConnection? = nil, shouldRegister: Bool, _ connectAction: @escaping (NIOTSConnectionChannel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
+    private func connect(
+        existingNWConnection: NWConnection? = nil,
+        shouldRegister: Bool,
+        _ connectAction: @escaping (NIOTSConnectionChannel, EventLoopPromise<Void>) -> Void
+    ) -> EventLoopFuture<Channel> {
         let conn: NIOTSConnectionChannel
         if let newConnection = existingNWConnection {
-            conn = NIOTSConnectionChannel(wrapping: newConnection,
-                                          on: self.group.next() as! NIOTSEventLoop,
-                                          tcpOptions: self.tcpOptions,
-                                          tlsOptions: self.tlsOptions)
+            conn = NIOTSConnectionChannel(
+                wrapping: newConnection,
+                on: self.group.next() as! NIOTSEventLoop,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions
+            )
         } else {
-            conn = NIOTSConnectionChannel(eventLoop: self.group.next() as! NIOTSEventLoop,
-                                                       qos: self.qos,
-                                                       tcpOptions: self.tcpOptions,
-                                                       tlsOptions: self.tlsOptions)
+            conn = NIOTSConnectionChannel(
+                eventLoop: self.group.next() as! NIOTSEventLoop,
+                qos: self.qos,
+                tcpOptions: self.tcpOptions,
+                tlsOptions: self.tlsOptions
+            )
         }
         let initializer = self.channelInitializer
         let channelOptions = self.channelOptions
 
         return conn.eventLoop.flatSubmit {
-            return channelOptions.applyAllChannelOptions(to: conn).flatMap {
+            channelOptions.applyAllChannelOptions(to: conn).flatMap {
                 initializer(conn)
             }.flatMap {
                 conn.eventLoop.assertInEventLoop()
@@ -435,7 +447,7 @@ extension NIOTSConnectionBootstrap {
         let channelOptions = self.channelOptions
 
         return connectionChannel.eventLoop.flatSubmit {
-            return channelOptions.applyAllChannelOptions(to: connectionChannel).flatMap {
+            channelOptions.applyAllChannelOptions(to: connectionChannel).flatMap {
                 channelInitializer(connectionChannel)
             }.flatMap { result -> EventLoopFuture<ChannelInitializerResult> in
                 let connectPromise: EventLoopPromise<Void> = connectionChannel.eventLoop.makePromise()

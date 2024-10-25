@@ -21,7 +21,6 @@ import Dispatch
 import Network
 import Atomics
 
-
 /// An object that conforms to this protocol represents the substate of a channel in the
 /// active state. This can be used to provide more fine-grained tracking of states
 /// within the active state of a channel. Example uses include for tracking TCP half-closure
@@ -31,7 +30,6 @@ internal protocol ActiveChannelSubstate {
     /// Create the substate in its default initial state.
     init()
 }
-
 
 /// A state machine enum that tracks the state of the connection channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -82,14 +80,12 @@ internal enum ChannelState<ActiveSubstate: ActiveChannelSubstate> {
     }
 }
 
-
 /// The kinds of activation that a channel may support.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal enum ActivationType {
     case connect
     case bind
 }
-
 
 /// A protocol for `Channel` implementations with a simple Network.framework
 /// state management layer.
@@ -111,28 +107,28 @@ internal protocol StateManagedChannel: Channel, ChannelCore {
 
     var supportedActivationType: ActivationType { get }
 
-    func beginActivating0(to: NWEndpoint, promise: EventLoopPromise<Void>?) -> Void
+    func beginActivating0(to: NWEndpoint, promise: EventLoopPromise<Void>?)
 
-    func becomeActive0(promise: EventLoopPromise<Void>?) -> Void
+    func becomeActive0(promise: EventLoopPromise<Void>?)
 
-    func alreadyConfigured0(promise: EventLoopPromise<Void>?) -> Void
+    func alreadyConfigured0(promise: EventLoopPromise<Void>?)
 
-    func doClose0(error: Error) -> Void
+    func doClose0(error: Error)
 
-    func doHalfClose0(error: Error, promise: EventLoopPromise<Void>?) -> Void
+    func doHalfClose0(error: Error, promise: EventLoopPromise<Void>?)
 
-    func readIfNeeded0() -> Void
+    func readIfNeeded0()
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension StateManagedChannel {
     public var eventLoop: EventLoop {
-        return self.tsEventLoop
+        self.tsEventLoop
     }
 
     /// Whether this channel is currently active.
     public var isActive: Bool {
-        return self.isActive0.load(ordering: .relaxed)
+        self.isActive0.load(ordering: .relaxed)
     }
 
     /// Whether this channel is currently closed. This is not necessary for the public

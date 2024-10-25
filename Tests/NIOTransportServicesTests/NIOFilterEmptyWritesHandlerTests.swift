@@ -18,7 +18,6 @@ import NIOCore
 import NIOEmbedded
 import NIOTransportServices
 
-
 class NIOFilterEmptyWritesHandlerTests: XCTestCase {
     var allocator: ByteBufferAllocator!
     var channel: EmbeddedChannel!
@@ -52,36 +51,42 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
             XCTAssertNil(try channel.readOutbound(as: ByteBuffer.self))
         )
     }
-    
+
     func testEmptyWritesNoWriteThrough() {
         class OutboundTestHandler: ChannelOutboundHandler {
             typealias OutboundIn = ByteBuffer
             typealias OutboundOut = ByteBuffer
 
-            func write(context: ChannelHandlerContext,
-                       data: NIOAny,
-                       promise: EventLoopPromise<Void>?) {
+            func write(
+                context: ChannelHandlerContext,
+                data: NIOAny,
+                promise: EventLoopPromise<Void>?
+            ) {
                 XCTFail()
                 context.write(data, promise: promise)
             }
         }
         XCTAssertNoThrow(
-            try self.channel.pipeline.addHandler(OutboundTestHandler(),
-                                                 position: .first).wait()
+            try self.channel.pipeline.addHandler(
+                OutboundTestHandler(),
+                position: .first
+            ).wait()
         )
         let emptyWrite = self.allocator.buffer(capacity: 0)
         let thenEmptyWrite = self.allocator.buffer(capacity: 0)
         let thenEmptyWritePromise = self.eventLoop.makePromise(of: Void.self)
         self.channel.write(NIOAny(emptyWrite), promise: nil)
-        self.channel.write(NIOAny(thenEmptyWrite),
-                           promise: thenEmptyWritePromise)
+        self.channel.write(
+            NIOAny(thenEmptyWrite),
+            promise: thenEmptyWritePromise
+        )
         self.channel.flush()
         XCTAssertNoThrow(try thenEmptyWritePromise.futureResult.wait())
         XCTAssertNoThrow(
             XCTAssertNil(try self.channel.readOutbound(as: ByteBuffer.self))
         )
     }
-    
+
     func testSomeWriteThenEmptyWritePromiseCascade() {
         let someWrite = self.allocator.bufferFor(string: "non empty")
         let someWritePromise = self.eventLoop.makePromise(of: Void.self)
@@ -101,10 +106,14 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
             XCTAssertEqual(checkOrder, .someWrite)
             checkOrder = .thenEmptyWrite
         }
-        self.channel.write(NIOAny(someWrite),
-                           promise: someWritePromise)
-        self.channel.write(NIOAny(thenEmptyWrite),
-                           promise: thenEmptyWritePromise)
+        self.channel.write(
+            NIOAny(someWrite),
+            promise: someWritePromise
+        )
+        self.channel.write(
+            NIOAny(thenEmptyWrite),
+            promise: thenEmptyWritePromise
+        )
         self.channel.flush()
         XCTAssertNoThrow(try thenEmptyWritePromise.futureResult.wait())
         XCTAssertNoThrow(
@@ -115,7 +124,7 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
         )
         XCTAssertEqual(checkOrder, .thenEmptyWrite)
     }
-    
+
     func testEmptyWriteTwicePromiseCascade() {
         let emptyWrite = self.allocator.buffer(capacity: 0)
         let emptyWritePromise = self.eventLoop.makePromise(of: Void.self)
@@ -135,10 +144,14 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
             XCTAssertEqual(checkOrder, .emptyWrite)
             checkOrder = .thenEmptyWrite
         }
-        self.channel.write(NIOAny(emptyWrite),
-                           promise: emptyWritePromise)
-        self.channel.write(NIOAny(thenEmptyWrite),
-                           promise: thenEmptyWritePromise)
+        self.channel.write(
+            NIOAny(emptyWrite),
+            promise: emptyWritePromise
+        )
+        self.channel.write(
+            NIOAny(thenEmptyWrite),
+            promise: thenEmptyWritePromise
+        )
         self.channel.flush()
         XCTAssertNoThrow(try thenEmptyWritePromise.futureResult.wait())
         XCTAssertNoThrow(
@@ -146,7 +159,7 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
         )
         XCTAssertEqual(checkOrder, .thenEmptyWrite)
     }
-    
+
     func testEmptyWriteThenSomeWriteThenEmptyWritePromiseCascade() {
         let emptyWrite = self.allocator.buffer(capacity: 0)
         let emptyWritePromise = self.eventLoop.makePromise(of: Void.self)
@@ -186,7 +199,7 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
         )
         XCTAssertEqual(checkOrder, .thenEmptyWrite)
     }
-    
+
     func testSomeWriteWithNilPromiseThenEmptyWriteWithNilPromiseThenSomeWrite() {
         let someWrite = self.allocator.bufferFor(string: "non empty")
         let thenEmptyWrite = self.allocator.buffer(capacity: 0)
@@ -211,7 +224,7 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
             XCTAssertNil(try self.channel.readOutbound(as: ByteBuffer.self))
         )
     }
-    
+
     func testSomeWriteAndFlushThenSomeWriteAndFlush() {
         let someWrite = self.allocator.bufferFor(string: "non empty")
         var someWritePromise: EventLoopPromise<Void>! = self.eventLoop.makePromise()

@@ -19,9 +19,13 @@ import NIOTransportServices
 import Foundation
 import Network
 
-
-func assertNoThrowWithValue<T>(_ body: @autoclosure () throws -> T, defaultValue: T? = nil, message: String? = nil,
-                               file: StaticString = #filePath, line: UInt = #line) throws -> T {
+func assertNoThrowWithValue<T>(
+    _ body: @autoclosure () throws -> T,
+    defaultValue: T? = nil,
+    message: String? = nil,
+    file: StaticString = #filePath,
+    line: UInt = #line
+) throws -> T {
     do {
         return try body()
     } catch {
@@ -33,7 +37,6 @@ func assertNoThrowWithValue<T>(_ body: @autoclosure () throws -> T, defaultValue
         }
     }
 }
-
 
 final class EchoHandler: ChannelInboundHandler {
     typealias InboundIn = Any
@@ -48,18 +51,17 @@ final class EchoHandler: ChannelInboundHandler {
     }
 }
 
-
 final class ReadExpecter: ChannelInboundHandler {
     typealias InboundIn = ByteBuffer
 
-    struct DidNotReadError: Error { }
+    struct DidNotReadError: Error {}
 
     private var readPromise: EventLoopPromise<Void>?
     private var cumulationBuffer: ByteBuffer?
     private let expectedRead: ByteBuffer
 
     var readFuture: EventLoopFuture<Void>? {
-        return self.readPromise?.futureResult
+        self.readPromise?.futureResult
     }
 
     init(expecting: ByteBuffer) {
@@ -95,7 +97,6 @@ final class ReadExpecter: ChannelInboundHandler {
     }
 }
 
-
 final class CloseOnActiveHandler: ChannelInboundHandler {
     typealias InboundIn = Never
     typealias OutboundOut = Never
@@ -104,7 +105,6 @@ final class CloseOnActiveHandler: ChannelInboundHandler {
         context.close(promise: nil)
     }
 }
-
 
 final class HalfCloseHandler: ChannelInboundHandler {
     typealias InboundIn = Never
@@ -141,7 +141,6 @@ final class HalfCloseHandler: ChannelInboundHandler {
     }
 }
 
-
 final class FailOnHalfCloseHandler: ChannelInboundHandler {
     typealias InboundIn = Any
 
@@ -157,7 +156,6 @@ final class FailOnHalfCloseHandler: ChannelInboundHandler {
         context.fireUserInboundEventTriggered(event)
     }
 }
-
 
 final class WaitForActiveHandler: ChannelInboundHandler {
     typealias InboundIn = Any
@@ -179,13 +177,12 @@ final class WaitForActiveHandler: ChannelInboundHandler {
     }
 }
 
-
 extension Channel {
     /// Expect that the given bytes will be received.
     func expectRead(_ bytes: ByteBuffer) -> EventLoopFuture<Void> {
         let expecter = ReadExpecter(expecting: bytes)
         return self.pipeline.addHandler(expecter).flatMap {
-            return expecter.readFuture!
+            expecter.readFuture!
         }
     }
 }
@@ -212,7 +209,7 @@ class NIOTSEndToEndTests: XCTestCase {
 
     func testSimpleListener() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler()) }
             .bind(host: "localhost", port: 0).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -232,9 +229,10 @@ class NIOTSEndToEndTests: XCTestCase {
     func testNWExistingListener() throws {
         let nwListenerTest = try NWListener(
             using: NWParameters(tls: nil),
-            on: NWEndpoint.Port(rawValue: 0)!)
+            on: NWEndpoint.Port(rawValue: 0)!
+        )
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler()) }
             .withNWListener(nwListenerTest).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -243,7 +241,8 @@ class NIOTSEndToEndTests: XCTestCase {
         let nwConnectionTest = NWConnection(
             host: NWEndpoint.Host("localhost"),
             port: nwListenerTest.port!,
-            using: NWParameters(tls: nil))
+            using: NWParameters(tls: nil)
+        )
         let connection = try NIOTSConnectionBootstrap(group: self.group)
 
             .withExistingNWConnection(nwConnectionTest).wait()
@@ -260,7 +259,7 @@ class NIOTSEndToEndTests: XCTestCase {
 
     func testMultipleConnectionsOneListener() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler()) }
             .bind(host: "localhost", port: 0).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -269,7 +268,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let bootstrap = NIOTSConnectionBootstrap(group: self.group)
 
         let completeFutures: [EventLoopFuture<Void>] = (0..<10).map { _ in
-            return bootstrap.connect(to: listener.localAddress!).flatMap { channel -> EventLoopFuture<Void> in
+            bootstrap.connect(to: listener.localAddress!).flatMap { channel -> EventLoopFuture<Void> in
                 let buffer = channel.allocator.bufferFor(string: "hello, world!")
                 let completeFuture = channel.expectRead(buffer)
                 channel.writeAndFlush(buffer, promise: nil)
@@ -283,7 +282,7 @@ class NIOTSEndToEndTests: XCTestCase {
 
     func testBasicConnectionTeardown() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.addHandler(CloseOnActiveHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(CloseOnActiveHandler()) }
             .bind(host: "localhost", port: 0).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -327,7 +326,8 @@ class NIOTSEndToEndTests: XCTestCase {
         for _ in (0..<10) {
             // Each connection attempt needs to enter the group twice: each end will leave it once
             // for us.
-            closeFutureGroup.enter(); closeFutureGroup.enter()
+            closeFutureGroup.enter()
+            closeFutureGroup.enter()
             bootstrap.connect(to: listener.localAddress!).whenSuccess { channel in
                 closeFutureSyncQueue.sync {
                     closeFutures.append(channel.closeFuture)
@@ -338,7 +338,7 @@ class NIOTSEndToEndTests: XCTestCase {
 
         closeFutureGroup.wait()
         let allClosed = closeFutureSyncQueue.sync {
-            return EventLoopFuture<Void>.andAllComplete(closeFutures, on: self.group.next())
+            EventLoopFuture<Void>.andAllComplete(closeFutures, on: self.group.next())
         }
         XCTAssertNoThrow(try allClosed.wait())
     }
@@ -347,9 +347,9 @@ class NIOTSEndToEndTests: XCTestCase {
         let serverSideConnectionPromise: EventLoopPromise<Channel> = self.group.next().makePromise()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
-                return channel.pipeline.addHandlers([
+                channel.pipeline.addHandlers([
                     WaitForActiveHandler(serverSideConnectionPromise),
-                    EchoHandler()
+                    EchoHandler(),
                 ])
             }
             .bind(host: "localhost", port: 0).wait()
@@ -483,7 +483,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let udsPath = "/tmp/\(UUID().uuidString)_testBasicUnixSockets.sock"
 
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler()) }
             .bind(unixDomainSocketPath: udsPath).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -513,7 +513,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let serviceEndpoint = NWEndpoint.service(name: name, type: "_niots._tcp", domain: "local", interface: nil)
 
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler()) }
             .bind(endpoint: serviceEndpoint).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -541,7 +541,7 @@ class NIOTSEndToEndTests: XCTestCase {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .serverChannelOption(ChannelOptions.socket(SOL_SOCKET, SO_REUSEADDR), value: 0)
             .serverChannelOption(ChannelOptions.socket(SOL_SOCKET, SO_REUSEPORT), value: 0)
-            .childChannelInitializer { channel in channel.pipeline.addHandler(CloseOnActiveHandler())}
+            .childChannelInitializer { channel in channel.pipeline.addHandler(CloseOnActiveHandler()) }
             .bind(host: "localhost", port: 0).wait()
         let address = listener.localAddress!
 
@@ -550,20 +550,22 @@ class NIOTSEndToEndTests: XCTestCase {
         XCTAssertNoThrow(try listener.close().wait())
 
         // this should now definitely time out.
-        XCTAssertThrowsError(try NIOTSConnectionBootstrap(group: self.group)
-            .connectTimeout(.milliseconds(10))
-            .connect(to: address)
-            .wait()) { error in
-                print(error)
+        XCTAssertThrowsError(
+            try NIOTSConnectionBootstrap(group: self.group)
+                .connectTimeout(.milliseconds(10))
+                .connect(to: address)
+                .wait()
+        ) { error in
+            print(error)
         }
     }
-    
+
     func testViabilityUpdate() throws {
         final class ViabilityHandler: ChannelInboundHandler {
             typealias InboundIn = ByteBuffer
-            
+
             private let testCompletePromise: EventLoopPromise<Bool>
-            
+
             init(testCompletePromise: EventLoopPromise<Bool>) {
                 self.testCompletePromise = testCompletePromise
             }
@@ -574,14 +576,14 @@ class NIOTSEndToEndTests: XCTestCase {
                 }
             }
         }
-        
+
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
-                return channel.eventLoop.makeSucceededVoidFuture()
+                channel.eventLoop.makeSucceededVoidFuture()
             }
             .bind(host: "localhost", port: 0)
             .wait()
-        
+
         let testCompletePromise = self.group.next().makePromise(of: Bool.self)
         let connection = try NIOTSConnectionBootstrap(group: self.group)
             .channelInitializer { channel in
@@ -593,7 +595,7 @@ class NIOTSEndToEndTests: XCTestCase {
             }
             .connect(to: listener.localAddress!)
             .wait()
-        
+
         do {
             let result = try testCompletePromise.futureResult.wait()
             XCTAssertEqual(result, true)

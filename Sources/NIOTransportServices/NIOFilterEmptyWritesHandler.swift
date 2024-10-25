@@ -14,7 +14,6 @@
 
 import NIOCore
 
-
 /// A `ChannelHandler` that checks for outbound writes of zero length, which are then dropped. This is
 /// due to a bug in `Network Framework`, where zero byte TCP writes lead to stalled connections.
 /// Write promises are confirmed in the correct order.
@@ -31,16 +30,16 @@ public final class NIOFilterEmptyWritesHandler: ChannelDuplexHandler {
         case closedFromRemote
         case error
     }
-    
+
     private var state: ChannelState = .notActiveYet
     private var prefixEmptyWritePromise: Optional<EventLoopPromise<Void>>
     private var lastWritePromise: Optional<EventLoopPromise<Void>>
-    
+
     public init() {
         self.prefixEmptyWritePromise = nil
         self.lastWritePromise = nil
     }
-    
+
     public func write(context: ChannelHandlerContext, data: NIOAny, promise: EventLoopPromise<Void>?) {
         switch self.state {
         case .open:
@@ -49,13 +48,11 @@ public final class NIOFilterEmptyWritesHandler: ChannelDuplexHandler {
                 self.lastWritePromise = promise ?? context.eventLoop.makePromise()
                 context.write(data, promise: self.lastWritePromise)
             } else {
-                /*
-                 Empty writes need to be handled individually depending on:
-                 A) Empty write occurring before any non-empty write needs a
-                 separate promise to cascade from (prefix)
-                 B) Non-empty writes carry a promise, that subsequent empty
-                 writes can cascade from
-                 */
+                // Empty writes need to be handled individually depending on:
+                // A) Empty write occurring before any non-empty write needs a
+                // separate promise to cascade from (prefix)
+                // B) Non-empty writes carry a promise, that subsequent empty
+                // writes can cascade from
                 switch (self.prefixEmptyWritePromise, self.lastWritePromise, promise) {
                 case (_, _, .none): ()
                 case (.none, .none, .some(let promise)):
@@ -73,7 +70,7 @@ public final class NIOFilterEmptyWritesHandler: ChannelDuplexHandler {
             preconditionFailure()
         }
     }
-    
+
     public func flush(context: ChannelHandlerContext) {
         self.lastWritePromise = nil
         if let prefixEmptyWritePromise = self.prefixEmptyWritePromise {
@@ -102,7 +99,7 @@ extension NIOFilterEmptyWritesHandler {
             preconditionFailure()
         }
     }
-    
+
     public func channelInactive(context: ChannelHandlerContext) {
         let save = self.prefixEmptyWritePromise
         self.prefixEmptyWritePromise = nil
@@ -127,19 +124,19 @@ extension NIOFilterEmptyWritesHandler {
 
         switch (mode, self.state) {
         case (.all, .open),
-             (.output, .open),
+            (.output, .open),
 
-             // We allow closure in .notActiveYet because it is possible to close before the channelActive fires.
-             (.all, .notActiveYet),
-             (.output, .notActiveYet):
+            // We allow closure in .notActiveYet because it is possible to close before the channelActive fires.
+            (.all, .notActiveYet),
+            (.output, .notActiveYet):
             self.state = .closedFromLocal
             save?.fail(ChannelError.outputClosed)
         case (.all, .closedFromLocal),
-             (.output, .closedFromLocal),
-             (.all, .closedFromRemote),
-             (.output, .closedFromRemote),
-             (.all, .error),
-             (.output, .error):
+            (.output, .closedFromLocal),
+            (.all, .closedFromRemote),
+            (.output, .closedFromRemote),
+            (.all, .error),
+            (.output, .error):
             assert(save == nil)
         case (.input, _):
             save?.fail(ChannelError.operationUnsupported)
@@ -162,7 +159,7 @@ extension NIOFilterEmptyWritesHandler {
         case .notActiveYet:
             preconditionFailure()
         }
-        
+
         context.fireErrorCaught(error)
     }
 

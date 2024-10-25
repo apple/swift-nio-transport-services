@@ -18,7 +18,6 @@ import Network
 import NIOCore
 import NIOTransportServices
 
-
 @available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 final class BindRecordingHandler: ChannelOutboundHandler {
     typealias OutboundIn = Any
@@ -43,7 +42,6 @@ final class BindRecordingHandler: ChannelOutboundHandler {
     }
 }
 
-
 @available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 class NIOTSListenerChannelTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
@@ -60,7 +58,7 @@ class NIOTSListenerChannelTests: XCTestCase {
         let bindRecordingHandler = BindRecordingHandler()
         let target = try SocketAddress.makeAddressResolvingHost("localhost", port: 0)
         let bindBootstrap = NIOTSListenerBootstrap(group: self.group)
-            .serverChannelInitializer { channel in channel.pipeline.addHandler(bindRecordingHandler)}
+            .serverChannelInitializer { channel in channel.pipeline.addHandler(bindRecordingHandler) }
 
         XCTAssertEqual(bindRecordingHandler.bindTargets, [])
         XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
@@ -79,7 +77,7 @@ class NIOTSListenerChannelTests: XCTestCase {
     func testConnectingToHostPortTraversesPipeline() throws {
         let bindRecordingHandler = BindRecordingHandler()
         let bindBootstrap = NIOTSListenerBootstrap(group: self.group)
-            .serverChannelInitializer { channel in channel.pipeline.addHandler(bindRecordingHandler)}
+            .serverChannelInitializer { channel in channel.pipeline.addHandler(bindRecordingHandler) }
 
         XCTAssertEqual(bindRecordingHandler.bindTargets, [])
         XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
@@ -90,7 +88,10 @@ class NIOTSListenerChannelTests: XCTestCase {
         }
 
         try self.group.next().submit {
-            XCTAssertEqual(bindRecordingHandler.bindTargets, [try SocketAddress.makeAddressResolvingHost("localhost", port: 0)])
+            XCTAssertEqual(
+                bindRecordingHandler.bindTargets,
+                [try SocketAddress.makeAddressResolvingHost("localhost", port: 0)]
+            )
             XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
         }.wait()
     }
@@ -99,7 +100,7 @@ class NIOTSListenerChannelTests: XCTestCase {
         let endpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: .any)
         let bindRecordingHandler = BindRecordingHandler()
         let bindBootstrap = NIOTSListenerBootstrap(group: self.group)
-            .serverChannelInitializer { channel in channel.pipeline.addHandler(bindRecordingHandler)}
+            .serverChannelInitializer { channel in channel.pipeline.addHandler(bindRecordingHandler) }
 
         XCTAssertEqual(bindRecordingHandler.bindTargets, [])
         XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
@@ -142,7 +143,7 @@ class NIOTSListenerChannelTests: XCTestCase {
     }
 
     func testErrorsInChannelSetupAreFine() throws {
-        struct MyError: Error { }
+        struct MyError: Error {}
 
         let listenerFuture = NIOTSListenerBootstrap(group: self.group)
             .serverChannelInitializer { channel in channel.eventLoop.makeFailedFuture(MyError()) }
@@ -205,12 +206,12 @@ class NIOTSListenerChannelTests: XCTestCase {
     func testCanObserveValueOfEnablePeerToPeer() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .serverChannelInitializer { channel in
-                return channel.getOption(NIOTSChannelOptions.enablePeerToPeer).map { value in
+                channel.getOption(NIOTSChannelOptions.enablePeerToPeer).map { value in
                     XCTAssertFalse(value)
                 }.flatMap {
                     channel.setOption(NIOTSChannelOptions.enablePeerToPeer, value: true)
                 }.flatMap {
-                        channel.getOption(NIOTSChannelOptions.enablePeerToPeer)
+                    channel.getOption(NIOTSChannelOptions.enablePeerToPeer)
                 }.map { value in
                     XCTAssertTrue(value)
                 }
@@ -277,7 +278,11 @@ class NIOTSListenerChannelTests: XCTestCase {
             XCTAssertNoThrow(try channel.close().wait())
             XCTFail("Did not throw")
         } catch {
-            XCTAssertEqual(error as? NIOTSErrors.BindTimeout, NIOTSErrors.BindTimeout(timeout: .nanoseconds(0)), "unexpected error: \(error)")
+            XCTAssertEqual(
+                error as? NIOTSErrors.BindTimeout,
+                NIOTSErrors.BindTimeout(timeout: .nanoseconds(0)),
+                "unexpected error: \(error)"
+            )
         }
     }
 
@@ -290,7 +295,8 @@ class NIOTSListenerChannelTests: XCTestCase {
 
         let ourSyncQueue = DispatchQueue(label: "ourSyncQueue")
 
-        let workFuture = NIOTSConnectionBootstrap(group: self.group).connect(to: listener.localAddress!).map { channel -> Channel in
+        let workFuture = NIOTSConnectionBootstrap(group: self.group).connect(to: listener.localAddress!).map {
+            channel -> Channel in
             XCTAssertTrue(listener.eventLoop.inEventLoop)
 
             ourSyncQueue.sync {

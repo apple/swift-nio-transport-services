@@ -23,7 +23,7 @@ public struct NIOTSChannelOptions {
 
     /// See: ``Types/NIOTSEnablePeerToPeerOption``.
     public static let enablePeerToPeer = NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption()
-    
+
     /// See: ``Types/NIOTSAllowLocalEndpointReuse``.
     public static let allowLocalEndpointReuse = NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse()
 
@@ -31,7 +31,8 @@ public struct NIOTSChannelOptions {
     public static let currentPath = NIOTSChannelOptions.Types.NIOTSCurrentPathOption()
 
     /// See: ``Types/NIOTSMetadataOption``
-    public static let metadata = { (definition: NWProtocolDefinition) -> NIOTSChannelOptions.Types.NIOTSMetadataOption in
+    public static let metadata = {
+        (definition: NWProtocolDefinition) -> NIOTSChannelOptions.Types.NIOTSMetadataOption in
         .init(definition: definition)
     }
 
@@ -55,12 +56,12 @@ public struct NIOTSChannelOptions {
     public static let listener = NIOTSChannelOptions.Types.NIOTSListenerOption()
 
     /// See: ``Types/NIOTSMinimumIncompleteReceiveLengthOption``.
-    public static let minimumIncompleteReceiveLength = NIOTSChannelOptions.Types.NIOTSMinimumIncompleteReceiveLengthOption()
+    public static let minimumIncompleteReceiveLength = NIOTSChannelOptions.Types
+        .NIOTSMinimumIncompleteReceiveLengthOption()
 
     /// See: ``Types/NIOTSMaximumReceiveLengthOption``.
     public static let maximumReceiveLength = NIOTSChannelOptions.Types.NIOTSMaximumReceiveLengthOption()
 }
-
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSChannelOptions {
@@ -92,7 +93,7 @@ extension NIOTSChannelOptions {
 
             public init() {}
         }
-        
+
         /// ``NIOTSAllowLocalEndpointReuse`` controls whether the `Channel` can reuse a TCP address recently used.
         ///  Setting this to true is the equivalent of setting at least one of `REUSEADDR` and `REUSEPORT` to
         /// `true`. By default this option is set to `false`.
@@ -101,7 +102,7 @@ extension NIOTSChannelOptions {
         @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
         public struct NIOTSAllowLocalEndpointReuse: ChannelOption, Equatable {
             public typealias Value = Bool
-            
+
             public init() {}
         }
 
@@ -111,19 +112,19 @@ extension NIOTSChannelOptions {
         @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
         public struct NIOTSCurrentPathOption: ChannelOption, Equatable {
             public typealias Value = NWPath
-            
+
             public init() {}
         }
-        
+
         /// ``NIOTSMetadataOption`` accesses the metadata for a given `NWProtocol`.
         ///
         /// This option is only valid with ``NIOTSConnectionBootstrap``.
         @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
         public struct NIOTSMetadataOption: ChannelOption, Equatable {
             public typealias Value = NWProtocolMetadata
-            
+
             let definition: NWProtocolDefinition
-            
+
             public init(definition: NWProtocolDefinition) {
                 self.definition = definition
             }
@@ -135,7 +136,7 @@ extension NIOTSChannelOptions {
         @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
         public struct NIOTSEstablishmentReportOption: ChannelOption, Equatable {
             public typealias Value = EventLoopFuture<NWConnection.EstablishmentReport?>
-            
+
             public init() {}
         }
 
@@ -145,7 +146,7 @@ extension NIOTSChannelOptions {
         @available(OSX 10.15, iOS 13.0, tvOS 13.0, watchOS 6.0, *)
         public struct NIOTSDataTransferReportOption: ChannelOption, Equatable {
             public typealias Value = NWConnection.PendingDataTransferReport
-            
+
             public init() {}
         }
 
@@ -213,11 +214,9 @@ extension NIOTSChannelOptions {
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public typealias NIOTSWaitForActivityOption = NIOTSChannelOptions.Types.NIOTSWaitForActivityOption
 
-
 /// See: ``NIOTSChannelOptions/Types/NIOTSEnablePeerToPeerOption``
 @available(*, deprecated, renamed: "NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption")
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public typealias NIOTSEnablePeerToPeerOption = NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption
-
 
 #endif

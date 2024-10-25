@@ -34,17 +34,18 @@ extension NIOTSEventLoopGroup {
     ///         `NIOSingletons.singletonsEnabledSuggestion` to `false` which will lead to a forced crash
     ///         if any code attempts to use the global singletons.
     public static var singleton: NIOTSEventLoopGroup {
-        return NIOSingletons.transportServicesEventLoopGroup
+        NIOSingletons.transportServicesEventLoopGroup
     }
 }
 
+// swift-format-ignore: DontRepeatTypeInStaticProperties
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension EventLoopGroup where Self == NIOTSEventLoopGroup {
     /// A globally shared, lazily initialized, singleton ``NIOTSEventLoopGroup``.
     ///
     /// This provides the same object as ``NIOTSEventLoopGroup/singleton``.
     public static var singletonNIOTSEventLoopGroup: Self {
-        return NIOTSEventLoopGroup.singleton
+        NIOTSEventLoopGroup.singleton
     }
 }
 
@@ -67,22 +68,26 @@ extension NIOSingletons {
     ///         if any code attempts to use the global singletons.
     @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
     public static var transportServicesEventLoopGroup: NIOTSEventLoopGroup {
-        return globalTransportServicesEventLoopGroup
+        globalTransportServicesEventLoopGroup
     }
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 private let globalTransportServicesEventLoopGroup: NIOTSEventLoopGroup = {
     guard NIOSingletons.singletonsEnabledSuggestion else {
-        fatalError("""
-                   Cannot create global singleton NIOThreadPool because the global singletons have been \
-                   disabled by setting `NIOSingletons.singletonsEnabledSuggestion = false`
-                   """)
+        fatalError(
+            """
+            Cannot create global singleton NIOThreadPool because the global singletons have been \
+            disabled by setting `NIOSingletons.singletonsEnabledSuggestion = false`
+            """
+        )
     }
 
-    let group = NIOTSEventLoopGroup._makePerpetualGroup(loopCount: NIOSingletons.groupLoopCountSuggestion,
-                                                        defaultQoS: .default)
-    _ = Unmanaged.passUnretained(group).retain() // Never gonna give you up, never gonna let you down.
+    let group = NIOTSEventLoopGroup._makePerpetualGroup(
+        loopCount: NIOSingletons.groupLoopCountSuggestion,
+        defaultQoS: .default
+    )
+    _ = Unmanaged.passUnretained(group).retain()  // Never gonna give you up, never gonna let you down.
     return group
 }()
 #endif

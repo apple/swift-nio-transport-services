@@ -41,9 +41,10 @@ if #available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *) {
     let group = NIOTSEventLoopGroup()
     let channel = try! NIOTSListenerBootstrap(group: group)
         .childChannelInitializer { channel in
-            channel.pipeline.configureHTTPServerPipeline(withPipeliningAssistance: true, withErrorHandling: true).flatMap {
-                channel.pipeline.addHandler(HTTP1ServerHandler())
-            }
+            channel.pipeline.configureHTTPServerPipeline(withPipeliningAssistance: true, withErrorHandling: true)
+                .flatMap {
+                    channel.pipeline.addHandler(HTTP1ServerHandler())
+                }
         }.bind(host: "127.0.0.1", port: 8888).wait()
 
     print("Server listening on \(channel.localAddress!)")

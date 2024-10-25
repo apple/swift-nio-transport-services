@@ -69,7 +69,7 @@ public final class NIOTSDatagramBootstrap {
     /// - parameters:
     ///     - group: The `NIOTSEventLoopGroup` to use.
     public convenience init(group: NIOTSEventLoopGroup) {
-      self.init(group: group as EventLoopGroup)
+        self.init(group: group as EventLoopGroup)
     }
 
     /// Initialize the connected `NIOTSDatagramConnectionChannel` with `initializer`. The most common task in initializer is to add
@@ -151,7 +151,7 @@ public final class NIOTSDatagramBootstrap {
     ///     - address: The address to connect to.
     /// - returns: An `EventLoopFuture<Channel>` to deliver the `Channel` when connected.
     public func connect(to address: SocketAddress) -> EventLoopFuture<Channel> {
-        return self.connect0 { channel, promise in
+        self.connect0 { channel, promise in
             channel.connect(to: address, promise: promise)
         }
     }
@@ -172,7 +172,7 @@ public final class NIOTSDatagramBootstrap {
 
     /// Specify the `endpoint` to connect to for the UDP `Channel` that will be established.
     public func connect(endpoint: NWEndpoint) -> EventLoopFuture<Channel> {
-        return self.connect0 { channel, promise in
+        self.connect0 { channel, promise in
             channel.triggerUserOutboundEvent(
                 NIOTSNetworkEvents.ConnectToNWEndpoint(endpoint: endpoint),
                 promise: promise
@@ -181,15 +181,17 @@ public final class NIOTSDatagramBootstrap {
     }
 
     private func connect0(_ binder: @escaping (Channel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
-        let conn: Channel = NIOTSDatagramChannel(eventLoop: self.group.next() as! NIOTSEventLoop,
-                                                   qos: self.qos,
-                                                   udpOptions: self.udpOptions,
-                                                   tlsOptions: self.tlsOptions)
+        let conn: Channel = NIOTSDatagramChannel(
+            eventLoop: self.group.next() as! NIOTSEventLoop,
+            qos: self.qos,
+            udpOptions: self.udpOptions,
+            tlsOptions: self.tlsOptions
+        )
         let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
         let channelOptions = self.channelOptions
 
         return conn.eventLoop.submit {
-            return channelOptions.applyAllChannelOptions(to: conn).flatMap {
+            channelOptions.applyAllChannelOptions(to: conn).flatMap {
                 initializer(conn)
             }.flatMap {
                 conn.eventLoop.assertInEventLoop()

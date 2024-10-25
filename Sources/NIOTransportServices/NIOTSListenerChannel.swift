@@ -33,13 +33,16 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
             return options
         }
         set {
-            assert({
-                if case .tcp = protocolOptions {
-                    return true
-                } else {
-                    return false
-                }
-            }(), "The protocol options of this channel were not configured as TCP")
+            assert(
+                {
+                    if case .tcp = protocolOptions {
+                        return true
+                    } else {
+                        return false
+                    }
+                }(),
+                "The protocol options of this channel were not configured as TCP"
+            )
 
             protocolOptions = .tcp(newValue)
         }
@@ -55,13 +58,16 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
             return options
         }
         set {
-            assert({
-                if case .tcp = childProtocolOptions {
-                    return true
-                } else {
-                    return false
-                }
-            }(), "The protocol options of child channels were not configured as TCP")
+            assert(
+                {
+                    if case .tcp = childProtocolOptions {
+                        return true
+                    } else {
+                        return false
+                    }
+                }(),
+                "The protocol options of child channels were not configured as TCP"
+            )
 
             childProtocolOptions = .tcp(newValue)
         }
@@ -70,14 +76,16 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
     /// Create a `NIOTSListenerChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSListenerChannel` objects cannot be created on arbitrary loops types.
-    internal convenience init(eventLoop: NIOTSEventLoop,
-                              qos: DispatchQoS? = nil,
-                              tcpOptions: NWProtocolTCP.Options,
-                              tlsOptions: NWProtocolTLS.Options?,
-                              childLoopGroup: EventLoopGroup,
-                              childChannelQoS: DispatchQoS?,
-                              childTCPOptions: NWProtocolTCP.Options,
-                              childTLSOptions: NWProtocolTLS.Options?) {
+    internal convenience init(
+        eventLoop: NIOTSEventLoop,
+        qos: DispatchQoS? = nil,
+        tcpOptions: NWProtocolTCP.Options,
+        tlsOptions: NWProtocolTLS.Options?,
+        childLoopGroup: EventLoopGroup,
+        childChannelQoS: DispatchQoS?,
+        childTCPOptions: NWProtocolTCP.Options,
+        childTLSOptions: NWProtocolTLS.Options?
+    ) {
         self.init(
             eventLoop: eventLoop,
             protocolOptions: .tcp(tcpOptions),
@@ -90,15 +98,17 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
     }
 
     /// Create a `NIOTSListenerChannel` with an already-established `NWListener`.
-    internal convenience init(wrapping listener: NWListener,
-                              on eventLoop: NIOTSEventLoop,
-                              qos: DispatchQoS? = nil,
-                              tcpOptions: NWProtocolTCP.Options,
-                              tlsOptions: NWProtocolTLS.Options?,
-                              childLoopGroup: EventLoopGroup,
-                              childChannelQoS: DispatchQoS?,
-                              childTCPOptions: NWProtocolTCP.Options,
-                              childTLSOptions: NWProtocolTLS.Options?) {
+    internal convenience init(
+        wrapping listener: NWListener,
+        on eventLoop: NIOTSEventLoop,
+        qos: DispatchQoS? = nil,
+        tcpOptions: NWProtocolTCP.Options,
+        tlsOptions: NWProtocolTLS.Options?,
+        childLoopGroup: EventLoopGroup,
+        childChannelQoS: DispatchQoS?,
+        childTCPOptions: NWProtocolTCP.Options,
+        childTLSOptions: NWProtocolTLS.Options?
+    ) {
         self.init(
             wrapping: listener,
             eventLoop: eventLoop,
@@ -124,7 +134,8 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
             parent: self,
             qos: self.childChannelQoS,
             tcpOptions: self.childTCPOptions,
-            tlsOptions: self.childTLSOptions)
+            tlsOptions: self.childTLSOptions
+        )
 
         self.pipeline.fireChannelRead(NIOAny(newChannel))
         self.pipeline.fireChannelReadComplete()
@@ -142,12 +153,12 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
         }
 
         public func getOption<Option: ChannelOption>(_ option: Option) throws -> Option.Value {
-            return try self.channel.getOption0(option: option)
+            try self.channel.getOption0(option: option)
         }
     }
 
     public override var syncOptions: NIOSynchronousChannelOptions? {
-        return SynchronousOptions(channel: self)
+        SynchronousOptions(channel: self)
     }
 }
 
