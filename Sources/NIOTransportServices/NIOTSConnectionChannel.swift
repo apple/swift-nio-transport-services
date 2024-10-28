@@ -39,15 +39,14 @@ struct TransportServicesChannelOptions {
 
 internal struct AddressCache {
     // deliberately lets because they must always be updated together (so forcing `init` is useful).
-    let local: Optional<SocketAddress>
-    let remote: Optional<SocketAddress>
+    let local: SocketAddress?
+    let remote: SocketAddress?
 
     init(local: SocketAddress?, remote: SocketAddress?) {
         self.local = local
         self.remote = remote
     }
 }
-
 
 /// A structure that manages backpressure signaling on this channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -79,7 +78,7 @@ internal struct BackpressureManager {
     /// - returns: Whether the state changed.
     mutating func writabilityChanges(whenQueueingBytes newBytes: Int) -> Bool {
         self.outstandingBytes += newBytes
-        if self.outstandingBytes > self.waterMarks.high && self.writable.load(ordering: .relaxed)  {
+        if self.outstandingBytes > self.waterMarks.high && self.writable.load(ordering: .relaxed) {
             self.writable.store(false, ordering: .relaxed)
             return true
         }
@@ -109,7 +108,9 @@ internal struct BackpressureManager {
     /// - parameters:
     ///     - waterMarks: The new waterMarks to use.
     /// - returns: Whether the state changed.
-    mutating func writabilityChanges(whenUpdatingWaterMarks waterMarks: ChannelOptions.Types.WriteBufferWaterMark) -> Bool {
+    mutating func writabilityChanges(
+        whenUpdatingWaterMarks waterMarks: ChannelOptions.Types.WriteBufferWaterMark
+    ) -> Bool {
         let writable = self.writable.load(ordering: .relaxed)
         self.waterMarks = waterMarks
 
@@ -125,7 +126,6 @@ internal struct BackpressureManager {
     }
 }
 
-
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// The `ByteBufferAllocator` for this `Channel`.
@@ -133,7 +133,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
 
     /// An `EventLoopFuture` that will complete when this channel is finally closed.
     public var closeFuture: EventLoopFuture<Void> {
-        return self.closePromise.futureResult
+        self.closePromise.futureResult
     }
 
     /// The parent `Channel` for this one, if any.
@@ -142,7 +142,9 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// The `EventLoop` this `Channel` belongs to.
     internal let tsEventLoop: NIOTSEventLoop
 
-    private(set) var _pipeline: ChannelPipeline! = nil  // this is really a constant (set in .init) but needs `self` to be constructed and therefore a `var`. Do not change as this needs to accessed from arbitrary threads.
+    // This is really a constant (set in .init) but needs `self` to be constructed and therefore a `var`.
+    // *Do not change* as this needs to accessed from arbitrary threads.
+    private(set) var _pipeline: ChannelPipeline! = nil
 
     internal let closePromise: EventLoopPromise<Void>
 
@@ -201,7 +203,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
 
     /// The value of SO_REUSEPORT.
     internal var reusePort = false
-    
+
     /// The value of the allowLocalEndpointReuse option.
     internal var allowLocalEndpointReuse = false
 
@@ -216,8 +218,8 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
 
     internal var addressCache: AddressCache {
         get {
-            return self._addressCacheLock.withLock {
-                return self._addressCache
+            self._addressCacheLock.withLock {
+                self._addressCache
             }
         }
         set {
@@ -233,13 +235,15 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// Create a `NIOTSConnectionChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSConnectionChannel` objects cannot be created on arbitrary loops types.
-    internal init(eventLoop: NIOTSEventLoop,
-                  parent: Channel? = nil,
-                  qos: DispatchQoS? = nil,
-                  minimumIncompleteReceiveLength: Int = 1,
-                  maximumReceiveLength: Int = 8192,
-                  tcpOptions: NWProtocolTCP.Options,
-                  tlsOptions: NWProtocolTLS.Options?) {
+    internal init(
+        eventLoop: NIOTSEventLoop,
+        parent: Channel? = nil,
+        qos: DispatchQoS? = nil,
+        minimumIncompleteReceiveLength: Int = 1,
+        maximumReceiveLength: Int = 8192,
+        tcpOptions: NWProtocolTCP.Options,
+        tlsOptions: NWProtocolTLS.Options?
+    ) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
         self.parent = parent
@@ -254,30 +258,33 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     }
 
     /// Create a `NIOTSConnectionChannel` with an already-established `NWConnection`.
-    internal convenience init(wrapping connection: NWConnection,
-                              on eventLoop: NIOTSEventLoop,
-                              parent: Channel? = nil,
-                              qos: DispatchQoS? = nil,
-                              minimumIncompleteReceiveLength: Int = 1,
-                              maximumReceiveLength: Int = 8192,
-                              tcpOptions: NWProtocolTCP.Options,
-                              tlsOptions: NWProtocolTLS.Options?) {
-        self.init(eventLoop: eventLoop,
-                  parent: parent,
-                  qos: qos,
-                  minimumIncompleteReceiveLength: minimumIncompleteReceiveLength,
-                  maximumReceiveLength: maximumReceiveLength,
-                  tcpOptions: tcpOptions,
-                  tlsOptions: tlsOptions)
+    internal convenience init(
+        wrapping connection: NWConnection,
+        on eventLoop: NIOTSEventLoop,
+        parent: Channel? = nil,
+        qos: DispatchQoS? = nil,
+        minimumIncompleteReceiveLength: Int = 1,
+        maximumReceiveLength: Int = 8192,
+        tcpOptions: NWProtocolTCP.Options,
+        tlsOptions: NWProtocolTLS.Options?
+    ) {
+        self.init(
+            eventLoop: eventLoop,
+            parent: parent,
+            qos: qos,
+            minimumIncompleteReceiveLength: minimumIncompleteReceiveLength,
+            maximumReceiveLength: maximumReceiveLength,
+            tcpOptions: tcpOptions,
+            tlsOptions: tlsOptions
+        )
         self.connection = connection
     }
 }
 
-
 // MARK:- NIOTSConnectionChannel implementation of Channel
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel: Channel {
-    func getChannelSpecificOption0<Option>(option: Option) throws -> Option.Value where Option : ChannelOption {
+    func getChannelSpecificOption0<Option>(option: Option) throws -> Option.Value where Option: ChannelOption {
         if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
             switch option {
             case is NIOTSChannelOptions.Types.NIOTSConnectionOption:
@@ -311,7 +318,6 @@ extension NIOTSConnectionChannel: Channel {
         }
     }
 }
-
 
 // MARK:- NIOTSConnectionChannel implementation of StateManagedChannel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -370,7 +376,6 @@ extension NIOTSConnectionChannel: StateManagedChannel {
     }
 }
 
-
 // MARK:- Implementations of the callbacks passed to NWConnection.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel {
@@ -380,7 +385,12 @@ extension NIOTSConnectionChannel {
     /// and call channelReadComplete. This may be nil, in which case we expect either `isComplete` to be `true` or `error`
     /// to be non-nil. `isComplete` indicates half-closure on the read side of a connection. `error` is set if the receive
     /// did not complete due to an error, though there may still be some data.
-    private func dataReceivedHandler(content: Data?, context: NWConnection.ContentContext?, isComplete: Bool, error: NWError?) {
+    private func dataReceivedHandler(
+        content: Data?,
+        context: NWConnection.ContentContext?,
+        isComplete: Bool,
+        error: NWError?
+    ) {
         precondition(self.outstandingRead)
         self.outstandingRead = false
 
@@ -423,7 +433,7 @@ extension NIOTSConnectionChannel {
             self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.BetterPathUnavailable())
         }
     }
-    
+
     /// Called by the underlying `NWConnection` when a path becomes viable or non-viable
     ///
     /// Notifies the channel pipeline of the new viability.
@@ -438,7 +448,6 @@ extension NIOTSConnectionChannel {
         self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.PathChanged(newPath: path))
     }
 }
-
 
 // MARK:- Implementations of state management for the channel.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
@@ -481,7 +490,6 @@ extension NIOTSConnectionChannel {
     }
 }
 
-
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSConnectionChannel {
     internal struct SynchronousOptions: NIOSynchronousChannelOptions {
@@ -496,15 +504,14 @@ extension NIOTSConnectionChannel {
         }
 
         public func getOption<Option: ChannelOption>(_ option: Option) throws -> Option.Value {
-            return try self.channel.getOption0(option: option)
+            try self.channel.getOption0(option: option)
         }
     }
 
     public var syncOptions: NIOSynchronousChannelOptions? {
-        return SynchronousOptions(channel: self)
+        SynchronousOptions(channel: self)
     }
 }
-
 
 public struct NIOTSConnectionNotInitialized: Error, Hashable {
     public init() {}
@@ -543,7 +550,7 @@ extension Channel {
             }
         }
     }
-    
+
     /// Retrieves the metadata for a specific protocol from the underlying ``NWConnection``
     /// - Precondition: Must be called on the `EventLoop` the `Channel` is running on.
     /// - Throws: If `self` isn't a `NIOTS` channel with a `NWConnection` this method will throw

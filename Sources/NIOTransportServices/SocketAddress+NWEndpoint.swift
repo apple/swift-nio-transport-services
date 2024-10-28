@@ -110,7 +110,7 @@ extension SocketAddress {
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-internal extension SocketAddress {
+extension SocketAddress {
     /// Change the port on this `SocketAddress` to a new value.
     mutating func newPort(_ port: UInt16) {
         switch self {

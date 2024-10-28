@@ -19,7 +19,7 @@ import NIOCore
 internal enum NIOTSBootstraps {
     @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
     internal static func isCompatible(group: EventLoopGroup) -> Bool {
-        return group is NIOTSEventLoop || group is NIOTSEventLoopGroup
+        group is NIOTSEventLoop || group is NIOTSEventLoopGroup
     }
 }
 

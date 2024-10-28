@@ -29,15 +29,15 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
 
     enum UDPSubstate: NWConnectionSubstate {
         case open, closed
-        
+
         init() {
             self = .open
         }
-        
+
         static func closeInput(state: inout ChannelState<NIOTSDatagramChannel.UDPSubstate>) throws {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
-        
+
         static func closeOutput(state: inout ChannelState<NIOTSDatagramChannel.UDPSubstate>) throws {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
@@ -45,13 +45,13 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
 
     /// The kinds of channel activation this channel supports
     internal let supportedActivationType: ActivationType = .connect
-    
+
     /// The `ByteBufferAllocator` for this `Channel`.
     public let allocator = ByteBufferAllocator()
 
     /// An `EventLoopFuture` that will complete when this channel is finally closed.
     public var closeFuture: EventLoopFuture<Void> {
-        return self.closePromise.futureResult
+        self.closePromise.futureResult
     }
 
     /// The parent `Channel` for this one, if any.
@@ -60,7 +60,9 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     /// The `EventLoop` this `Channel` belongs to.
     internal let tsEventLoop: NIOTSEventLoop
 
-    private(set) var _pipeline: ChannelPipeline! = nil  // this is really a constant (set in .init) but needs `self` to be constructed and therefore a `var`. Do not change as this needs to accessed from arbitrary threads.
+    // This is really a constant (set in .init) but needs `self` to be constructed and therefore a `var`.
+    // *Do not change* as this needs to accessed from arbitrary threads.
+    private(set) var _pipeline: ChannelPipeline! = nil
 
     internal let closePromise: EventLoopPromise<Void>
 
@@ -121,8 +123,8 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
 
     internal var addressCache: AddressCache {
         get {
-            return self._addressCacheLock.withLock {
-                return self._addressCache
+            self._addressCacheLock.withLock {
+                self._addressCache
             }
         }
         set {
@@ -137,11 +139,11 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
 
     internal var allowLocalEndpointReuse = false
     internal var multipathServiceType: NWParameters.MultipathServiceType = .disabled
-    
+
     var parameters: NWParameters {
         NWParameters(dtls: self.tlsOptions, udp: self.udpOptions)
     }
-    
+
     var _inboundStreamOpen: Bool {
         switch self.state {
         case .active(.open):
@@ -151,11 +153,12 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
         }
     }
 
-    func setChannelSpecificOption0<Option>(option: Option, value: Option.Value) throws where Option : NIOCore.ChannelOption {
+    func setChannelSpecificOption0<Option>(option: Option, value: Option.Value) throws
+    where Option: NIOCore.ChannelOption {
         fatalError("option \(type(of: option)).\(option) not supported")
     }
 
-    func getChannelSpecificOption0<Option>(option: Option) throws -> Option.Value where Option : ChannelOption {
+    func getChannelSpecificOption0<Option>(option: Option) throws -> Option.Value where Option: ChannelOption {
         if #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) {
             switch option {
             case is NIOTSChannelOptions.Types.NIOTSConnectionOption:
@@ -172,13 +175,15 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     /// Create a `NIOTSDatagramConnectionChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSDatagramConnectionChannel` objects cannot be created on arbitrary loops types.
-    internal init(eventLoop: NIOTSEventLoop,
-                  parent: Channel? = nil,
-                  qos: DispatchQoS? = nil,
-                  minimumIncompleteReceiveLength: Int = 1,
-                  maximumReceiveLength: Int = 8192,
-                  udpOptions: NWProtocolUDP.Options,
-                  tlsOptions: NWProtocolTLS.Options?) {
+    internal init(
+        eventLoop: NIOTSEventLoop,
+        parent: Channel? = nil,
+        qos: DispatchQoS? = nil,
+        minimumIncompleteReceiveLength: Int = 1,
+        maximumReceiveLength: Int = 8192,
+        udpOptions: NWProtocolUDP.Options,
+        tlsOptions: NWProtocolTLS.Options?
+    ) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
         self.parent = parent
@@ -193,21 +198,25 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     }
 
     /// Create a `NIOTSDatagramConnectionChannel` with an already-established `NWConnection`.
-    internal convenience init(wrapping connection: NWConnection,
-                              on eventLoop: NIOTSEventLoop,
-                              parent: Channel,
-                              qos: DispatchQoS? = nil,
-                              minimumIncompleteReceiveLength: Int = 1,
-                              maximumReceiveLength: Int = 8192,
-                              udpOptions: NWProtocolUDP.Options,
-                              tlsOptions: NWProtocolTLS.Options?) {
-        self.init(eventLoop: eventLoop,
-                  parent: parent,
-                  qos: qos,
-                  minimumIncompleteReceiveLength: minimumIncompleteReceiveLength,
-                  maximumReceiveLength: maximumReceiveLength,
-                  udpOptions: udpOptions,
-                  tlsOptions: tlsOptions)
+    internal convenience init(
+        wrapping connection: NWConnection,
+        on eventLoop: NIOTSEventLoop,
+        parent: Channel,
+        qos: DispatchQoS? = nil,
+        minimumIncompleteReceiveLength: Int = 1,
+        maximumReceiveLength: Int = 8192,
+        udpOptions: NWProtocolUDP.Options,
+        tlsOptions: NWProtocolTLS.Options?
+    ) {
+        self.init(
+            eventLoop: eventLoop,
+            parent: parent,
+            qos: qos,
+            minimumIncompleteReceiveLength: minimumIncompleteReceiveLength,
+            maximumReceiveLength: maximumReceiveLength,
+            udpOptions: udpOptions,
+            tlsOptions: tlsOptions
+        )
         self.connection = connection
     }
 }
@@ -226,12 +235,12 @@ extension NIOTSDatagramChannel {
         }
 
         public func getOption<Option: ChannelOption>(_ option: Option) throws -> Option.Value {
-            return try self.channel.getOption0(option: option)
+            try self.channel.getOption0(option: option)
         }
     }
 
     public var syncOptions: NIOSynchronousChannelOptions? {
-        return SynchronousOptions(channel: self)
+        SynchronousOptions(channel: self)
     }
 }
 #endif

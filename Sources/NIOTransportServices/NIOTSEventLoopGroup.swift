@@ -20,7 +20,6 @@ import Dispatch
 import Network
 import Atomics
 
-
 /// An `EventLoopGroup` containing `EventLoop`s specifically designed for use with
 /// Network.framework's post-sockets networking API.
 ///
@@ -79,7 +78,7 @@ public final class NIOTSEventLoopGroup: EventLoopGroup {
     }
 
     public func next() -> EventLoop {
-        return self.eventLoops[abs(index.loadThenWrappingIncrement(ordering: .relaxed) % self.eventLoops.count)]
+        self.eventLoops[abs(index.loadThenWrappingIncrement(ordering: .relaxed) % self.eventLoops.count)]
     }
 
     /// Shuts down all of the event loops, rendering them unable to perform further work.
@@ -109,7 +108,7 @@ public final class NIOTSEventLoopGroup: EventLoopGroup {
     }
 
     public func makeIterator() -> EventLoopIterator {
-        return EventLoopIterator(self.eventLoops)
+        EventLoopIterator(self.eventLoops)
     }
 }
 
@@ -139,7 +138,7 @@ public struct NIOTSClientTLSProvider: NIOClientTLSProvider {
     /// Enable TLS on the bootstrap. This is not a function you will typically call as a user, it is called by
     /// `NIOClientTCPBootstrap`.
     public func enableTLS(_ bootstrap: NIOTSConnectionBootstrap) -> NIOTSConnectionBootstrap {
-        return bootstrap.tlsOptions(self.tlsOptions)
+        bootstrap.tlsOptions(self.tlsOptions)
     }
 }
 

@@ -28,13 +28,12 @@ import NIOConcurrencyHelpers
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public protocol QoSEventLoop: EventLoop {
     /// Submit a given task to be executed by the `EventLoop` at a given `qos`.
-    func execute(qos: DispatchQoS, _ task: @escaping () -> Void) -> Void
+    func execute(qos: DispatchQoS, _ task: @escaping () -> Void)
 
     /// Schedule a `task` that is executed by this `NIOTSEventLoop` after the given amount of time at the
     /// given `qos`.
     func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T>
 }
-
 
 /// The lifecycle state of a given event loop.
 ///
@@ -44,7 +43,7 @@ public protocol QoSEventLoop: EventLoop {
 /// will accept neither new registrations nor new scheduled work items, but it will continue to process
 /// the queue until it has drained.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-fileprivate enum LifecycleState {
+private enum LifecycleState {
     case active
     case closing
     case closed
@@ -72,7 +71,7 @@ internal class NIOTSEventLoop: QoSEventLoop {
 
     /// Whether this event loop is accepting new channels.
     private var open: Bool {
-        return self.state == .active
+        self.state == .active
     }
 
     /// Returns whether the currently executing code is on the event loop.
@@ -94,7 +93,7 @@ internal class NIOTSEventLoop: QoSEventLoop {
     /// callers ever use synchronous dispatch (which is impossible to enforce), or to hope that a future version of
     /// libdispatch will provide a solution.
     public var inEventLoop: Bool {
-        return DispatchQueue.getSpecific(key: self.inQueueKey) == self.loopID
+        DispatchQueue.getSpecific(key: self.inQueueKey) == self.loopID
     }
 
     public convenience init(qos: DispatchQoS) {
@@ -102,7 +101,11 @@ internal class NIOTSEventLoop: QoSEventLoop {
     }
 
     internal init(qos: DispatchQoS, canBeShutDownIndividually: Bool) {
-        self.loop = DispatchQueue(label: "nio.transportservices.eventloop.loop", qos: qos, autoreleaseFrequency: .workItem)
+        self.loop = DispatchQueue(
+            label: "nio.transportservices.eventloop.loop",
+            qos: qos,
+            autoreleaseFrequency: .workItem
+        )
         self.taskQueue = DispatchQueue(label: "nio.transportservices.eventloop.taskqueue", target: self.loop)
         self.loopID = UUID()
         self.inQueueKey = DispatchSpecificKey()
@@ -121,10 +124,14 @@ internal class NIOTSEventLoop: QoSEventLoop {
     }
 
     public func scheduleTask<T>(deadline: NIODeadline, _ task: @escaping () throws -> T) -> Scheduled<T> {
-        return self.scheduleTask(deadline: deadline, qos: self.defaultQoS, task)
+        self.scheduleTask(deadline: deadline, qos: self.defaultQoS, task)
     }
 
-    public func scheduleTask<T>(deadline: NIODeadline, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T> {
+    public func scheduleTask<T>(
+        deadline: NIODeadline,
+        qos: DispatchQoS,
+        _ task: @escaping () throws -> T
+    ) -> Scheduled<T> {
         let p: EventLoopPromise<T> = self.makePromise()
 
         // Dispatch support for cancellation exists at the work-item level, so we explicitly create one here.
@@ -150,17 +157,21 @@ internal class NIOTSEventLoop: QoSEventLoop {
             timerSource.cancel()
         }
 
-        return Scheduled(promise: p, cancellationTask: {
-            timerSource.cancel()
-        })
+        return Scheduled(
+            promise: p,
+            cancellationTask: {
+                timerSource.cancel()
+            }
+        )
     }
 
     public func scheduleTask<T>(in time: TimeAmount, _ task: @escaping () throws -> T) -> Scheduled<T> {
-        return self.scheduleTask(in: time, qos: self.defaultQoS, task)
+        self.scheduleTask(in: time, qos: self.defaultQoS, task)
     }
 
-    public func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T> {
-        return self.scheduleTask(deadline: NIODeadline.now() + time, qos: qos, task)
+    public func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T>
+    {
+        self.scheduleTask(deadline: NIODeadline.now() + time, qos: qos, task)
     }
 
     public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping (Error?) -> Void) {

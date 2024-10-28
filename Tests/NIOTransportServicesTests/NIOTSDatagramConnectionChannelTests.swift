@@ -21,7 +21,7 @@ import Foundation
 
 extension Channel {
     func wait<T>(for type: T.Type, count: Int) throws -> [T] {
-        return try self.pipeline.context(name: "ByteReadRecorder").flatMap { context in
+        try self.pipeline.context(name: "ByteReadRecorder").flatMap { context in
             if let future = (context.handler as? ReadRecorder<T>)?.notifyForDatagrams(count) {
                 return future
             }
@@ -36,15 +36,18 @@ extension Channel {
     }
 
     func readCompleteCount() throws -> Int {
-        return try self.pipeline.context(name: "ByteReadRecorder").map { context in
-            return (context.handler as! ReadRecorder<ByteBuffer>).readCompleteCount
+        try self.pipeline.context(name: "ByteReadRecorder").map { context in
+            (context.handler as! ReadRecorder<ByteBuffer>).readCompleteCount
         }.wait()
     }
 
     func configureForRecvMmsg(messageCount: Int) throws {
         let totalBufferSize = messageCount * 2048
 
-        try self.setOption(ChannelOptions.recvAllocator, value: FixedSizeRecvByteBufferAllocator(capacity: totalBufferSize)).flatMap {
+        try self.setOption(
+            ChannelOptions.recvAllocator,
+            value: FixedSizeRecvByteBufferAllocator(capacity: totalBufferSize)
+        ).flatMap {
             self.setOption(ChannelOptions.datagramVectorReadMessageCount, value: messageCount)
         }.wait()
     }
@@ -113,8 +116,13 @@ final class ReadRecorder<DataType>: ChannelInboundHandler {
 final class NIOTSDatagramConnectionChannelTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
 
-    private func buildServerChannel(group: NIOTSEventLoopGroup, host: String = "127.0.0.1", port: Int = 0, onConnect: @escaping (Channel) -> ()) throws -> Channel {
-        return try NIOTSDatagramListenerBootstrap(group: group)
+    private func buildServerChannel(
+        group: NIOTSEventLoopGroup,
+        host: String = "127.0.0.1",
+        port: Int = 0,
+        onConnect: @escaping (Channel) -> Void
+    ) throws -> Channel {
+        try NIOTSDatagramListenerBootstrap(group: group)
             .childChannelInitializer { childChannel in
                 onConnect(childChannel)
                 return childChannel.pipeline.addHandler(ReadRecorder<ByteBuffer>(), name: "ByteReadRecorder")
@@ -123,8 +131,9 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
             .wait()
     }
 
-    private func buildClientChannel(group: NIOTSEventLoopGroup, host: String = "127.0.0.1", port: Int) throws -> Channel {
-        return try NIOTSDatagramBootstrap(group: group)
+    private func buildClientChannel(group: NIOTSEventLoopGroup, host: String = "127.0.0.1", port: Int) throws -> Channel
+    {
+        try NIOTSDatagramBootstrap(group: group)
             .channelInitializer { channel in
                 channel.pipeline.addHandler(ReadRecorder<ByteBuffer>(), name: "ByteReadRecorder")
             }
@@ -233,7 +242,6 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
                 }
             }.wait()
     }
-
 
     func testCanExtractTheListener() throws {
         guard #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) else {

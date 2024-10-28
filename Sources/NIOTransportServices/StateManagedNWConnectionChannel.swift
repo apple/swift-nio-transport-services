@@ -45,7 +45,7 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
     var parameters: NWParameters { get }
 
     var nwOptions: NWOptions { get }
-    
+
     var connection: NWConnection? { get set }
 
     var minimumIncompleteReceiveLength: Int { get set }
@@ -69,7 +69,7 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
     var reusePort: Bool { get set }
 
     var enablePeerToPeer: Bool { get set }
-    
+
     var _inboundStreamOpen: Bool { get }
 
     var _pipeline: ChannelPipeline! { get }
@@ -94,26 +94,26 @@ extension StateManagedNWConnectionChannel {
     }
 
     public var _channelCore: ChannelCore {
-        return self
+        self
     }
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.local
+        self._addressCacheLock.withLock {
+            self._addressCache.local
         }
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        return self._addressCacheLock.withLock {
-            return self._addressCache.remote
+        self._addressCacheLock.withLock {
+            self._addressCache.remote
         }
     }
 
     /// Whether this channel is currently writable.
     public var isWritable: Bool {
-        return self._backpressureManager.writable.load(ordering: .relaxed)
+        self._backpressureManager.writable.load(ordering: .relaxed)
     }
 
     internal func beginActivating0(to target: NWEndpoint, promise: EventLoopPromise<Void>?) {
@@ -166,7 +166,6 @@ extension StateManagedNWConnectionChannel {
         let data = self.unwrapData(data, as: ByteBuffer.self)
         self.pendingWrites.append((data, promise))
 
-
         /// This may cause our writability state to change.
         if self._backpressureManager.writabilityChanges(whenQueueingBytes: data.readableBytes) {
             self.pipeline.fireChannelWritabilityChanged()
@@ -183,7 +182,7 @@ extension StateManagedNWConnectionChannel {
         }
 
         func completionCallback(promise: EventLoopPromise<Void>?, sentBytes: Int) -> ((NWError?) -> Void) {
-            return { error in
+            { error in
                 if let error = error {
                     promise?.fail(error)
                 } else {
@@ -201,11 +200,16 @@ extension StateManagedNWConnectionChannel {
                 let write = self.pendingWrites.removeFirst()
                 let buffer = write.data
                 let content = buffer.getData(at: buffer.readerIndex, length: buffer.readableBytes)
-                conn.send(content: content, completion: .contentProcessed(completionCallback(promise: write.promise, sentBytes: buffer.readableBytes)))
+                conn.send(
+                    content: content,
+                    completion: .contentProcessed(
+                        completionCallback(promise: write.promise, sentBytes: buffer.readableBytes)
+                    )
+                )
             }
         }
     }
-    
+
     public func localAddress0() throws -> SocketAddress {
         guard let localEndpoint = self.connection?.currentPath?.localEndpoint else {
             throw NIOTSErrors.NoCurrentPath()
@@ -310,7 +314,7 @@ extension StateManagedNWConnectionChannel {
         }
 
         func completionCallback(for promise: EventLoopPromise<Void>?) -> ((NWError?) -> Void) {
-            return { error in
+            { error in
                 if let error = error {
                     promise?.fail(error)
                 } else {
@@ -323,7 +327,11 @@ extension StateManagedNWConnectionChannel {
         assert(self.connectPromise == nil)
 
         // Step 1 is to tell the network stack we're done.
-        conn.send(content: nil, contentContext: .finalMessage, completion: .contentProcessed(completionCallback(for: promise)))
+        conn.send(
+            content: nil,
+            contentContext: .finalMessage,
+            completion: .contentProcessed(completionCallback(for: promise))
+        )
 
         // Step 2 is to fail all outstanding writes.
         self.dropOutstandingWrites(error: error)
@@ -354,7 +362,7 @@ extension StateManagedNWConnectionChannel {
             self.pipeline.read()
         }
     }
-    
+
     /// Called by the underlying `NWConnection` when its internal state has changed.
     private func stateUpdateHandler(newState: NWConnection.State) {
         switch newState {
@@ -365,7 +373,9 @@ extension StateManagedNWConnectionChannel {
                 // This means the connection cannot currently be completed. We should notify the pipeline
                 // here, or support this with a channel option or something, but for now for the sake of
                 // demos we will just allow ourselves into this stage.tage.
-                self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.WaitingForConnectivity(transientError: err))
+                self.pipeline.fireUserInboundEventTriggered(
+                    NIOTSNetworkEvents.WaitingForConnectivity(transientError: err)
+                )
                 break
             }
 
@@ -400,7 +410,12 @@ extension StateManagedNWConnectionChannel {
     /// and call channelReadComplete. This may be nil, in which case we expect either `isComplete` to be `true` or `error`
     /// to be non-nil. `isComplete` indicates half-closure on the read side of a connection. `error` is set if the receive
     /// did not complete due to an error, though there may still be some data.
-    private func dataReceivedHandler(content: Data?, context: NWConnection.ContentContext?, isComplete: Bool, error: NWError?) {
+    private func dataReceivedHandler(
+        content: Data?,
+        context: NWConnection.ContentContext?,
+        isComplete: Bool,
+        error: NWError?
+    ) {
         precondition(self.outstandingRead)
         self.outstandingRead = false
 
@@ -443,7 +458,7 @@ extension StateManagedNWConnectionChannel {
             self.pipeline.fireUserInboundEventTriggered(NIOTSNetworkEvents.BetterPathUnavailable())
         }
     }
-    
+
     /// Called by the underlying `NWConnection` when a path becomes viable or non-viable
     ///
     /// Notifies the channel pipeline of the new viability.
@@ -501,7 +516,9 @@ extension StateManagedNWConnectionChannel {
                 }
             }
 
-            self.pipeline.fireUserInboundEventTriggered(TLSUserEvent.handshakeCompleted(negotiatedProtocol: negotiatedProtocol))
+            self.pipeline.fireUserInboundEventTriggered(
+                TLSUserEvent.handshakeCompleted(negotiatedProtocol: negotiatedProtocol)
+            )
         }
     }
 
@@ -545,7 +562,9 @@ extension StateManagedNWConnectionChannel {
                 try self.nwOptions.applyChannelOption(option: optionValue, value: value as! SocketOptionValue)
             }
         case _ as ChannelOptions.Types.WriteBufferWaterMarkOption:
-            if self._backpressureManager.writabilityChanges(whenUpdatingWaterMarks: value as! ChannelOptions.Types.WriteBufferWaterMark) {
+            if self._backpressureManager.writabilityChanges(
+                whenUpdatingWaterMarks: value as! ChannelOptions.Types.WriteBufferWaterMark
+            ) {
                 self.pipeline.fireChannelWritabilityChanged()
             }
         case is NIOTSChannelOptions.Types.NIOTSEnablePeerToPeerOption:
@@ -563,7 +582,8 @@ extension StateManagedNWConnectionChannel {
         case is NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse:
             self.allowLocalEndpointReuse = value as! NIOTSChannelOptions.Types.NIOTSAllowLocalEndpointReuse.Value
         case is NIOTSChannelOptions.Types.NIOTSMinimumIncompleteReceiveLengthOption:
-            self.minimumIncompleteReceiveLength = value as! NIOTSChannelOptions.Types.NIOTSMinimumIncompleteReceiveLengthOption.Value
+            self.minimumIncompleteReceiveLength =
+                value as! NIOTSChannelOptions.Types.NIOTSMinimumIncompleteReceiveLengthOption.Value
         case is NIOTSChannelOptions.Types.NIOTSMaximumReceiveLengthOption:
             self.maximumReceiveLength = value as! NIOTSChannelOptions.Types.NIOTSMaximumReceiveLengthOption.Value
         default:

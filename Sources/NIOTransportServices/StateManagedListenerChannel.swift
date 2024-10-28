@@ -45,7 +45,7 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
 
     /// An `EventLoopFuture` that will complete when this channel is finally closed.
     public var closeFuture: EventLoopFuture<Void> {
-        return self.closePromise.futureResult
+        self.closePromise.futureResult
     }
 
     /// The parent `Channel` for this one, if any.
@@ -54,7 +54,9 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     /// The `EventLoop` this `Channel` belongs to.
     internal let tsEventLoop: NIOTSEventLoop
 
-    internal var _pipeline: ChannelPipeline! = nil  // this is really a constant (set in .init) but needs `self` to be constructed and therefore a `var`. Do not change as this needs to accessed from arbitrary threads.
+    // This is really a constant (set in .init) but needs `self` to be constructed and therefore a `var`.
+    // *Do not change* as this needs to accessed from arbitrary threads.
+    internal var _pipeline: ChannelPipeline! = nil
 
     internal let closePromise: EventLoopPromise<Void>
 
@@ -123,14 +125,16 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     /// The protocol level options to use for child channels.
     var childProtocolOptions: ProtocolOptions
 
-    internal init(eventLoop: NIOTSEventLoop,
-                  qos: DispatchQoS? = nil,
-                  protocolOptions: ProtocolOptions,
-                  tlsOptions: NWProtocolTLS.Options?,
-                  childLoopGroup: EventLoopGroup,
-                  childChannelQoS: DispatchQoS?,
-                  childProtocolOptions: ProtocolOptions,
-                  childTLSOptions: NWProtocolTLS.Options?) {
+    internal init(
+        eventLoop: NIOTSEventLoop,
+        qos: DispatchQoS? = nil,
+        protocolOptions: ProtocolOptions,
+        tlsOptions: NWProtocolTLS.Options?,
+        childLoopGroup: EventLoopGroup,
+        childChannelQoS: DispatchQoS?,
+        childProtocolOptions: ProtocolOptions,
+        childTLSOptions: NWProtocolTLS.Options?
+    ) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
         self.connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
@@ -145,15 +149,17 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
         self._pipeline = ChannelPipeline(channel: self)
     }
 
-    internal convenience init(wrapping listener: NWListener,
-                              eventLoop: NIOTSEventLoop,
-                              qos: DispatchQoS? = nil,
-                              protocolOptions: ProtocolOptions,
-                              tlsOptions: NWProtocolTLS.Options?,
-                              childLoopGroup: EventLoopGroup,
-                              childChannelQoS: DispatchQoS?,
-                              childProtocolOptions: ProtocolOptions,
-                              childTLSOptions: NWProtocolTLS.Options?) {
+    internal convenience init(
+        wrapping listener: NWListener,
+        eventLoop: NIOTSEventLoop,
+        qos: DispatchQoS? = nil,
+        protocolOptions: ProtocolOptions,
+        tlsOptions: NWProtocolTLS.Options?,
+        childLoopGroup: EventLoopGroup,
+        childChannelQoS: DispatchQoS?,
+        childProtocolOptions: ProtocolOptions,
+        childTLSOptions: NWProtocolTLS.Options?
+    ) {
         self.init(
             eventLoop: eventLoop,
             qos: qos,
@@ -174,7 +180,7 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     // This needs to be declared here to make sure the child classes can override
     // the behaviour.
     internal var syncOptions: NIOSynchronousChannelOptions? {
-        return nil
+        nil
     }
 
 }
@@ -183,27 +189,27 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
 extension StateManagedListenerChannel {
     /// The `ChannelPipeline` for this `Channel`.
     public var pipeline: ChannelPipeline {
-        return self._pipeline
+        self._pipeline
     }
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
-        return self.addressCache.local
+        self.addressCache.local
     }
 
     /// The remote address for this channel.
     public var remoteAddress: SocketAddress? {
-        return self.addressCache.remote
+        self.addressCache.remote
     }
 
     /// Whether this channel is currently writable.
     public var isWritable: Bool {
         // TODO: implement
-        return true
+        true
     }
 
     public var _channelCore: ChannelCore {
-        return self
+        self
     }
 
     public func setOption<Option: ChannelOption>(_ option: Option, value: Option.Value) -> EventLoopFuture<Void> {

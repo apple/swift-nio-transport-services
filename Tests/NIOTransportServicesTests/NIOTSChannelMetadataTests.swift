@@ -26,7 +26,7 @@ final class NIOTSChannelMetadataTests: XCTestCase {
         let listenerBootsrap = NIOTSListenerBootstrap(group: eventLoopGroup)
         let listenerChannel = try listenerBootsrap.bind(host: "localhost", port: 0).wait()
         defer { XCTAssertNoThrow(try listenerChannel.close().wait()) }
-        
+
         XCTAssertThrowsError(try listenerChannel.getMetadata(definition: NWProtocolTLS.definition).wait()) { error in
             XCTAssertTrue(error is NIOTSChannelIsNotANIOTSConnectionChannel, "unexpected error \(error)")
         }
@@ -35,12 +35,16 @@ final class NIOTSChannelMetadataTests: XCTestCase {
                 XCTAssertTrue(error is NIOTSChannelIsNotANIOTSConnectionChannel, "unexpected error \(error)")
             }
         }.wait()
-        
+
     }
     func testThowsIfCalledOnANonInitializedChannel() {
         let eventLoopGroup = NIOTSEventLoopGroup()
         defer { XCTAssertNoThrow(try eventLoopGroup.syncShutdownGracefully()) }
-        let channel = NIOTSConnectionChannel(eventLoop: eventLoopGroup.next() as! NIOTSEventLoop, tcpOptions: .init(), tlsOptions: .init())
+        let channel = NIOTSConnectionChannel(
+            eventLoop: eventLoopGroup.next() as! NIOTSEventLoop,
+            tcpOptions: .init(),
+            tlsOptions: .init()
+        )
         XCTAssertThrowsError(try channel.getMetadata(definition: NWProtocolTLS.definition).wait()) { error in
             XCTAssertTrue(error is NIOTSConnectionNotInitialized, "unexpected error \(error)")
         }
