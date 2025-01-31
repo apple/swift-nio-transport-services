@@ -16,6 +16,7 @@
 import XCTest
 import Network
 import NIOCore
+import NIOFoundationCompat
 import NIOTransportServices
 import Foundation
 

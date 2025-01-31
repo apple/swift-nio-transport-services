@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
+import Atomics
 import Foundation
 import NIOCore
 import NIOConcurrencyHelpers
