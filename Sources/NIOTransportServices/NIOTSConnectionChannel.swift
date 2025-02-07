@@ -415,6 +415,8 @@ extension NIOTSConnectionChannel {
 
         // First things first, if there's data we need to deliver it.
         if let content = content {
+            // It would be nice if we didn't have to do this copy, but I'm not sure how to avoid it with the current Data
+            // APIs.
             let (buffer, bytesReceived) = self.recvBufferPool.buffer(allocator: allocator) { $0.writeBytes(content) }
             
             self.recvBufferPool.record(actualReadBytes: bytesReceived)
