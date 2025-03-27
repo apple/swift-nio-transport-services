@@ -181,7 +181,9 @@ public final class NIOTSDatagramBootstrap {
         }
     }
 
-    private func connect0(_ binder: @Sendable @escaping (Channel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
+    private func connect0(
+        _ binder: @Sendable @escaping (Channel, EventLoopPromise<Void>) -> Void
+    ) -> EventLoopFuture<Channel> {
         let conn: Channel = NIOTSDatagramChannel(
             eventLoop: self.group.next() as! NIOTSEventLoop,
             qos: self.qos,

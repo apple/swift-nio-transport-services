@@ -158,7 +158,8 @@ public final class NIOTSListenerBootstrap {
     /// - parameters:
     ///     - initializer: A closure that initializes the provided `Channel`.
     @preconcurrency
-    public func serverChannelInitializer(_ initializer: @escaping @Sendable (Channel) -> EventLoopFuture<Void>) -> Self {
+    public func serverChannelInitializer(_ initializer: @escaping @Sendable (Channel) -> EventLoopFuture<Void>) -> Self
+    {
         self.serverChannelInit = initializer
         return self
     }

@@ -174,7 +174,10 @@ internal final class NIOTSEventLoop: QoSEventLoop {
         self.taskQueue.async(qos: qos, execute: task)
     }
 
-    @preconcurrency public func scheduleTask<T>(deadline: NIODeadline, _ task: @escaping @Sendable () throws -> T) -> Scheduled<T> {
+    @preconcurrency public func scheduleTask<T>(
+        deadline: NIODeadline,
+        _ task: @escaping @Sendable () throws -> T
+    ) -> Scheduled<T> {
         self.scheduleTask(deadline: deadline, qos: self.defaultQoS, task)
     }
 
@@ -217,11 +220,18 @@ internal final class NIOTSEventLoop: QoSEventLoop {
         )
     }
 
-    @preconcurrency public func scheduleTask<T>(in time: TimeAmount, _ task: @escaping @Sendable () throws -> T) -> Scheduled<T> {
+    @preconcurrency public func scheduleTask<T>(
+        in time: TimeAmount,
+        _ task: @escaping @Sendable () throws -> T
+    ) -> Scheduled<T> {
         self.scheduleTask(in: time, qos: self.defaultQoS, task)
     }
 
-    @preconcurrency public func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping @Sendable () throws -> T) -> Scheduled<T> {
+    @preconcurrency public func scheduleTask<T>(
+        in time: TimeAmount,
+        qos: DispatchQoS,
+        _ task: @escaping @Sendable () throws -> T
+    ) -> Scheduled<T> {
         self.scheduleTask(deadline: NIODeadline.now() + time, qos: qos, task)
     }
 

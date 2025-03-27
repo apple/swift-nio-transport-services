@@ -127,7 +127,7 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
                 onConnect(childChannel)
                 return childChannel.eventLoop.makeCompletedFuture {
                     try childChannel.pipeline.syncOperations.addHandler(
-                        ReadRecorder<ByteBuffer>(), 
+                        ReadRecorder<ByteBuffer>(),
                         name: "ByteReadRecorder"
                     )
                 }
@@ -145,7 +145,7 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
             .channelInitializer { channel in
                 channel.eventLoop.makeCompletedFuture {
                     try channel.pipeline.syncOperations.addHandler(
-                        ReadRecorder<ByteBuffer>(), 
+                        ReadRecorder<ByteBuffer>(),
                         name: "ByteReadRecorder"
                     )
                 }
@@ -207,7 +207,7 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
                 promise.succeed(channel)
                 return channel.eventLoop.makeCompletedFuture {
                     try channel.pipeline.syncOperations.addHandler(
-                        ReadRecorder<ByteBuffer>(), 
+                        ReadRecorder<ByteBuffer>(),
                         name: "ByteReadRecorder"
                     )
                 }

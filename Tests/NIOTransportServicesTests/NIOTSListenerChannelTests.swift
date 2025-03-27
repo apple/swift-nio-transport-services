@@ -120,7 +120,6 @@ class NIOTSListenerChannelTests: XCTestCase {
                 }
             }
 
-
         let listener = try bindBootstrap.bind(endpoint: endpoint).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
