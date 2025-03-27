@@ -15,7 +15,7 @@
 
 import PackageDescription
 
-let strictConcurrencyDevelopment = true
+let strictConcurrencyDevelopment = false
 
 let strictConcurrencySettings: [SwiftSetting] = {
     var initialSettings: [SwiftSetting] = []
