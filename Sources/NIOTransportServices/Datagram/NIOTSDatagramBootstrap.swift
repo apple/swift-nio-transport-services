@@ -41,7 +41,7 @@ import Network
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSDatagramBootstrap {
     private let group: EventLoopGroup
-    private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)?
+    private var channelInitializer: (@Sendable (Channel) -> EventLoopFuture<Void>)?
     private var connectTimeout: TimeAmount = TimeAmount.seconds(10)
     private var channelOptions = ChannelOptions.Storage()
     private var qos: DispatchQoS?
@@ -79,7 +79,8 @@ public final class NIOTSDatagramBootstrap {
     ///
     /// - parameters:
     ///     - handler: A closure that initializes the provided `Channel`.
-    public func channelInitializer(_ handler: @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
+    @preconcurrency
+    public func channelInitializer(_ handler: @Sendable @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
         self.channelInitializer = handler
         return self
     }
@@ -180,17 +181,18 @@ public final class NIOTSDatagramBootstrap {
         }
     }
 
-    private func connect0(_ binder: @escaping (Channel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
+    private func connect0(
+        _ binder: @Sendable @escaping (Channel, EventLoopPromise<Void>) -> Void
+    ) -> EventLoopFuture<Channel> {
         let conn: Channel = NIOTSDatagramChannel(
             eventLoop: self.group.next() as! NIOTSEventLoop,
             qos: self.qos,
             udpOptions: self.udpOptions,
             tlsOptions: self.tlsOptions
         )
-        let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
-        let channelOptions = self.channelOptions
+        let initializer = self.channelInitializer ?? { @Sendable _ in conn.eventLoop.makeSucceededFuture(()) }
 
-        return conn.eventLoop.submit {
+        return conn.eventLoop.submit { [channelOptions, connectTimeout] in
             channelOptions.applyAllChannelOptions(to: conn).flatMap {
                 initializer(conn)
             }.flatMap {
@@ -199,8 +201,8 @@ public final class NIOTSDatagramBootstrap {
             }.flatMap {
                 let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
                 binder(conn, connectPromise)
-                let cancelTask = conn.eventLoop.scheduleTask(in: self.connectTimeout) {
-                    connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
+                let cancelTask = conn.eventLoop.scheduleTask(in: connectTimeout) {
+                    connectPromise.fail(ChannelError.connectTimeout(connectTimeout))
                     conn.close(promise: nil)
                 }
 
@@ -215,4 +217,7 @@ public final class NIOTSDatagramBootstrap {
         }.flatMap { $0 }
     }
 }
+
+@available(*, unavailable)
+extension NIOTSDatagramBootstrap: Sendable {}
 #endif

@@ -243,4 +243,7 @@ extension NIOTSDatagramChannel {
         SynchronousOptions(channel: self)
     }
 }
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSDatagramChannel: @unchecked Sendable {}
 #endif

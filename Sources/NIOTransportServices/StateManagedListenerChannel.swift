@@ -533,4 +533,9 @@ extension StateManagedListenerChannel {
     }
 }
 
+// We inherit from StateManagedListenerChannel in NIOTSDatagramListenerChannel, so we can't mark
+// it as Sendable safely.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension StateManagedListenerChannel: @unchecked Sendable {}
+
 #endif

@@ -182,7 +182,7 @@ extension StateManagedNWConnectionChannel {
             preconditionFailure("nwconnection cannot be nil while channel is active")
         }
 
-        func completionCallback(promise: EventLoopPromise<Void>?, sentBytes: Int) -> ((NWError?) -> Void) {
+        func completionCallback(promise: EventLoopPromise<Void>?, sentBytes: Int) -> (@Sendable (NWError?) -> Void) {
             { error in
                 if let error = error {
                     promise?.fail(error)
@@ -314,7 +314,7 @@ extension StateManagedNWConnectionChannel {
             return
         }
 
-        func completionCallback(for promise: EventLoopPromise<Void>?) -> ((NWError?) -> Void) {
+        func completionCallback(for promise: EventLoopPromise<Void>?) -> (@Sendable (NWError?) -> Void) {
             { error in
                 if let error = error {
                     promise?.fail(error)
@@ -432,7 +432,7 @@ extension StateManagedNWConnectionChannel {
             // APIs.
             var buffer = self.allocator.buffer(capacity: content.count)
             buffer.writeBytes(content)
-            self.pipeline.fireChannelRead(NIOAny(buffer))
+            self.pipeline.fireChannelRead(buffer)
             self.pipeline.fireChannelReadComplete()
         }
 

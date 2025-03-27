@@ -137,7 +137,7 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
             tlsOptions: self.childTLSOptions
         )
 
-        self.pipeline.fireChannelRead(NIOAny(newChannel))
+        self.pipeline.fireChannelRead(newChannel)
         self.pipeline.fireChannelReadComplete()
     }
 

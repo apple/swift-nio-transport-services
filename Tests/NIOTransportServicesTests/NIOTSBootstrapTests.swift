@@ -24,58 +24,41 @@ import Foundation
 
 @available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 final class NIOTSBootstrapTests: XCTestCase {
-    var groupBag: [NIOTSEventLoopGroup]? = nil  // protected by `self.lock`
-    let lock = NIOLock()
-
-    override func setUp() {
-        self.lock.withLock {
-            XCTAssertNil(self.groupBag)
-            self.groupBag = []
-        }
-    }
-
-    override func tearDown() {
-        XCTAssertNoThrow(
-            try self.lock.withLock {
-                guard let groupBag = self.groupBag else {
-                    XCTFail()
-                    return
-                }
-                for group in groupBag {
+    func testBootstrapsTolerateFuturesFromDifferentEventLoopsReturnedInInitializers() throws {
+        let groupBag: NIOLockedValueBox<[NIOTSEventLoopGroup]> = .init([])
+        defer {
+            try! groupBag.withLockedValue {
+                for group in $0 {
                     XCTAssertNoThrow(try group.syncShutdownGracefully())
                 }
-
-                self.groupBag = nil
             }
-        )
-    }
-
-    func freshEventLoop() -> EventLoop {
-        let group: NIOTSEventLoopGroup = .init(loopCount: 1, defaultQoS: .default)
-        self.lock.withLock {
-            self.groupBag!.append(group)
         }
-        return group.next()
-    }
 
-    func testBootstrapsTolerateFuturesFromDifferentEventLoopsReturnedInInitializers() throws {
-        let childChannelDone = self.freshEventLoop().makePromise(of: Void.self)
-        let serverChannelDone = self.freshEventLoop().makePromise(of: Void.self)
+        @Sendable func freshEventLoop() -> EventLoop {
+            let group: NIOTSEventLoopGroup = .init(loopCount: 1, defaultQoS: .default)
+            groupBag.withLockedValue {
+                $0.append(group)
+            }
+            return group.next()
+        }
+
+        let childChannelDone = freshEventLoop().makePromise(of: Void.self)
+        let serverChannelDone = freshEventLoop().makePromise(of: Void.self)
         let serverChannel = try assertNoThrowWithValue(
-            NIOTSListenerBootstrap(group: self.freshEventLoop())
+            NIOTSListenerBootstrap(group: freshEventLoop())
                 .childChannelInitializer { channel in
                     channel.eventLoop.preconditionInEventLoop()
                     defer {
                         childChannelDone.succeed(())
                     }
-                    return self.freshEventLoop().makeSucceededFuture(())
+                    return freshEventLoop().makeSucceededFuture(())
                 }
                 .serverChannelInitializer { channel in
                     channel.eventLoop.preconditionInEventLoop()
                     defer {
                         serverChannelDone.succeed(())
                     }
-                    return self.freshEventLoop().makeSucceededFuture(())
+                    return freshEventLoop().makeSucceededFuture(())
                 }
                 .bind(host: "127.0.0.1", port: 0)
                 .wait()
@@ -85,10 +68,10 @@ final class NIOTSBootstrapTests: XCTestCase {
         }
 
         let client = try assertNoThrowWithValue(
-            NIOTSConnectionBootstrap(group: self.freshEventLoop())
+            NIOTSConnectionBootstrap(group: freshEventLoop())
                 .channelInitializer { channel in
                     channel.eventLoop.preconditionInEventLoop()
-                    return self.freshEventLoop().makeSucceededFuture(())
+                    return freshEventLoop().makeSucceededFuture(())
                 }
                 .connect(to: serverChannel.localAddress!)
                 .wait()
@@ -140,7 +123,9 @@ final class NIOTSBootstrapTests: XCTestCase {
             return try NIOTSListenerBootstrap(group: group)
                 .childChannelInitializer { channel in
                     XCTAssertEqual(0, numberOfConnections.loadThenWrappingIncrement(ordering: .relaxed))
-                    return channel.pipeline.addHandler(TellMeIfConnectionIsTLSHandler(isTLS: isTLS))
+                    return channel.eventLoop.makeCompletedFuture {
+                        try channel.pipeline.syncOperations.addHandler(TellMeIfConnectionIsTLSHandler(isTLS: isTLS))
+                    }
                 }
                 .bind(host: "127.0.0.1", port: 0)
                 .wait()
@@ -175,8 +160,7 @@ final class NIOTSBootstrapTests: XCTestCase {
         )
         .enableTLS()
 
-        var buffer = server1.allocator.buffer(capacity: 2)
-        buffer.writeString("NO")
+        let buffer = server1.allocator.buffer(string: "NO")
 
         var maybeClient1: Channel? = nil
         XCTAssertNoThrow(maybeClient1 = try bootstrap.connect(to: server1.localAddress!).wait())
