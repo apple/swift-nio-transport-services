@@ -79,6 +79,7 @@ public final class NIOTSDatagramBootstrap {
     ///
     /// - parameters:
     ///     - handler: A closure that initializes the provided `Channel`.
+    @preconcurrency
     public func channelInitializer(_ handler: @Sendable @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
         self.channelInitializer = handler
         return self
@@ -188,10 +189,8 @@ public final class NIOTSDatagramBootstrap {
             tlsOptions: self.tlsOptions
         )
         let initializer = self.channelInitializer ?? { @Sendable _ in conn.eventLoop.makeSucceededFuture(()) }
-        let channelOptions = self.channelOptions
-        let connectTimeout = self.connectTimeout
 
-        return conn.eventLoop.submit {
+        return conn.eventLoop.submit { [channelOptions, connectTimeout] in
             channelOptions.applyAllChannelOptions(to: conn).flatMap {
                 initializer(conn)
             }.flatMap {

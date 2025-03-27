@@ -86,11 +86,7 @@ final class ReadExpecter: ChannelInboundHandler, Sendable {
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         self.cumulationBuffer.withLockedValue {
             var bytes = self.unwrapInboundIn(data)
-            if $0 == nil {
-                $0 = bytes
-            } else {
-                $0!.writeBuffer(&bytes)
-            }
+            $0.setOrWriteBuffer(&bytes)
         }
 
         self.maybeFulfillPromise()
@@ -409,11 +405,7 @@ class NIOTSEndToEndTests: XCTestCase {
             .childChannelInitializer { channel in
                 channel.eventLoop.makeCompletedFuture {
                     try channel.pipeline.syncOperations.addHandler(EchoHandler())
-                }
-                .flatMap { _ in
-                    channel.eventLoop.makeCompletedFuture {
-                        try channel.pipeline.syncOperations.addHandler(HalfCloseHandler(halfClosedPromise))
-                    }
+                    try channel.pipeline.syncOperations.addHandler(HalfCloseHandler(halfClosedPromise))
                 }
             }
             .childChannelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
@@ -444,11 +436,7 @@ class NIOTSEndToEndTests: XCTestCase {
             .childChannelInitializer { channel in
                 channel.eventLoop.makeCompletedFuture {
                     try channel.pipeline.syncOperations.addHandler(EchoHandler())
-                }
-                .flatMap { _ in
-                    channel.eventLoop.makeCompletedFuture {
-                        try channel.pipeline.syncOperations.addHandler(FailOnHalfCloseHandler())
-                    }
+                    try channel.pipeline.syncOperations.addHandler(FailOnHalfCloseHandler())
                 }
             }
             .bind(host: "localhost", port: 0).wait()

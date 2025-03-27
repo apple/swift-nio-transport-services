@@ -38,7 +38,7 @@ internal class AcceptHandler<ChildChannel: Channel>: ChannelInboundHandler {
         let childInitializer = self.childChannelInitializer ?? { @Sendable _ in childLoop.makeSucceededFuture(()) }
         let childChannelOptions = self.childChannelOptions
 
-        @preconcurrency @Sendable @inline(__always)
+        @Sendable @inline(__always)
         func setupChildChannel() -> EventLoopFuture<Void> {
             childChannelOptions.applyAllChannelOptions(to: newChannel).flatMap { () -> EventLoopFuture<Void> in
                 childLoop.assertInEventLoop()

@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-import Dispatch
+@preconcurrency import Dispatch
 import Foundation
 import Network
 
@@ -28,10 +28,12 @@ import NIOConcurrencyHelpers
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public protocol QoSEventLoop: EventLoop {
     /// Submit a given task to be executed by the `EventLoop` at a given `qos`.
-    @preconcurrency func execute(qos: DispatchQoS, _ task: @Sendable @escaping () -> Void)
+    @preconcurrency
+    func execute(qos: DispatchQoS, _ task: @Sendable @escaping () -> Void)
 
     /// Schedule a `task` that is executed by this `NIOTSEventLoop` after the given amount of time at the
     /// given `qos`.
+    @preconcurrency
     func scheduleTask<T: Sendable>(
         in time: TimeAmount,
         qos: DispatchQoS,

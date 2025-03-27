@@ -154,7 +154,8 @@ public final class NIOTSDatagramListenerBootstrap {
     ///
     /// - parameters:
     ///     - initializer: A closure that initializes the provided `Channel`.
-    @preconcurrency public func serverChannelInitializer(_ initializer: @Sendable @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
+    @preconcurrency
+    public func serverChannelInitializer(_ initializer: @Sendable @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
         self.serverChannelInit = initializer
         return self
     }
@@ -167,7 +168,8 @@ public final class NIOTSDatagramListenerBootstrap {
     ///
     /// - parameters:
     ///     - initializer: A closure that initializes the provided `Channel`.
-    @preconcurrency public func childChannelInitializer(_ initializer: @Sendable @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
+    @preconcurrency
+    public func childChannelInitializer(_ initializer: @Sendable @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
         self.childChannelInit = initializer
         return self
     }

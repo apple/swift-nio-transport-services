@@ -160,11 +160,7 @@ final class NIOTSBootstrapTests: XCTestCase {
         )
         .enableTLS()
 
-        let buffer = {
-            var buffer = server1.allocator.buffer(capacity: 2)
-            buffer.writeString("NO")
-            return buffer
-        }()
+        let buffer = server1.allocator.buffer(string: "NO")
 
         var maybeClient1: Channel? = nil
         XCTAssertNoThrow(maybeClient1 = try bootstrap.connect(to: server1.localAddress!).wait())
