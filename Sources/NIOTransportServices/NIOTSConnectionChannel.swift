@@ -406,7 +406,7 @@ extension NIOTSConnectionChannel {
             // APIs.
             var buffer = self.allocator.buffer(capacity: content.count)
             buffer.writeBytes(content)
-            self.pipeline.fireChannelRead(NIOAny(buffer))
+            self.pipeline.fireChannelRead(buffer)
             self.pipeline.fireChannelReadComplete()
         }
 
@@ -567,5 +567,8 @@ extension Channel {
         return try channel.metadata(definition: definition)
     }
 }
+
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+extension NIOTSConnectionChannel: @unchecked Sendable {}
 
 #endif

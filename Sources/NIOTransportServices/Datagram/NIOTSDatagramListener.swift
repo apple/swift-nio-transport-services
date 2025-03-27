@@ -57,8 +57,8 @@ import Network
 public final class NIOTSDatagramListenerBootstrap {
     private let group: EventLoopGroup
     private let childGroup: EventLoopGroup
-    private var serverChannelInit: ((Channel) -> EventLoopFuture<Void>)?
-    private var childChannelInit: ((Channel) -> EventLoopFuture<Void>)?
+    private var serverChannelInit: (@Sendable (Channel) -> EventLoopFuture<Void>)?
+    private var childChannelInit: (@Sendable (Channel) -> EventLoopFuture<Void>)?
     private var serverChannelOptions = ChannelOptions.Storage()
     private var childChannelOptions = ChannelOptions.Storage()
     private var serverQoS: DispatchQoS?
@@ -154,7 +154,7 @@ public final class NIOTSDatagramListenerBootstrap {
     ///
     /// - parameters:
     ///     - initializer: A closure that initializes the provided `Channel`.
-    public func serverChannelInitializer(_ initializer: @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
+    @preconcurrency public func serverChannelInitializer(_ initializer: @Sendable @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
         self.serverChannelInit = initializer
         return self
     }
@@ -167,7 +167,7 @@ public final class NIOTSDatagramListenerBootstrap {
     ///
     /// - parameters:
     ///     - initializer: A closure that initializes the provided `Channel`.
-    public func childChannelInitializer(_ initializer: @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
+    @preconcurrency public func childChannelInitializer(_ initializer: @Sendable @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
         self.childChannelInit = initializer
         return self
     }
@@ -305,10 +305,12 @@ public final class NIOTSDatagramListenerBootstrap {
     private func bind0(
         existingNWListener: NWListener? = nil,
         shouldRegister: Bool,
-        _ binder: @escaping (NIOTSDatagramListenerChannel, EventLoopPromise<Void>) -> Void
+        _ binder: @Sendable @escaping (NIOTSDatagramListenerChannel, EventLoopPromise<Void>) -> Void
     ) -> EventLoopFuture<Channel> {
         let eventLoop = self.group.next() as! NIOTSEventLoop
-        let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(()) }
+        let serverChannelInit = self.serverChannelInit ?? {
+            @Sendable _ in eventLoop.makeSucceededFuture(())
+        }
         let childChannelInit = self.childChannelInit
         let serverChannelOptions = self.serverChannelOptions
         let childChannelOptions = self.childChannelOptions
@@ -339,17 +341,19 @@ public final class NIOTSDatagramListenerBootstrap {
             )
         }
 
-        return eventLoop.submit {
+        return eventLoop.submit { [bindTimeout] in
             serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
                 serverChannelInit(serverChannel)
             }.flatMap {
                 eventLoop.assertInEventLoop()
-                return serverChannel.pipeline.addHandler(
-                    AcceptHandler<NIOTSDatagramChannel>(
-                        childChannelInitializer: childChannelInit,
-                        childChannelOptions: childChannelOptions
+                return eventLoop.makeCompletedFuture {
+                    try serverChannel.pipeline.syncOperations.addHandler(
+                        AcceptHandler<NIOTSDatagramChannel>(
+                            childChannelInitializer: childChannelInit,
+                            childChannelOptions: childChannelOptions
+                        )
                     )
-                )
+                }
             }.flatMap {
                 if shouldRegister {
                     return serverChannel.register()
@@ -360,7 +364,7 @@ public final class NIOTSDatagramListenerBootstrap {
                 let bindPromise = eventLoop.makePromise(of: Void.self)
                 binder(serverChannel, bindPromise)
 
-                if let bindTimeout = self.bindTimeout {
+                if let bindTimeout = bindTimeout {
                     let cancelTask = eventLoop.scheduleTask(in: bindTimeout) {
                         bindPromise.fail(NIOTSErrors.BindTimeout(timeout: bindTimeout))
                         serverChannel.close(promise: nil)
@@ -382,4 +386,7 @@ public final class NIOTSDatagramListenerBootstrap {
         }
     }
 }
+
+@available(*, unavailable)
+extension NIOTSDatagramListenerBootstrap: Sendable {}
 #endif

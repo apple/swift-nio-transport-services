@@ -20,7 +20,7 @@ import NIOTransportServices
 import Foundation
 
 extension Channel {
-    func wait<T>(for type: T.Type, count: Int) throws -> [T] {
+    func wait<T: Sendable>(for type: T.Type, count: Int) throws -> [T] {
         try self.pipeline.context(name: "ByteReadRecorder").flatMap { context in
             if let future = (context.handler as? ReadRecorder<T>)?.notifyForDatagrams(count) {
                 return future
@@ -53,7 +53,7 @@ extension Channel {
     }
 }
 
-final class ReadRecorder<DataType>: ChannelInboundHandler {
+final class ReadRecorder<DataType: Sendable>: ChannelInboundHandler {
     typealias InboundIn = DataType
     typealias InboundOut = DataType
 
@@ -120,22 +120,35 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
         group: NIOTSEventLoopGroup,
         host: String = "127.0.0.1",
         port: Int = 0,
-        onConnect: @escaping (Channel) -> Void
+        onConnect: @escaping @Sendable (Channel) -> Void
     ) throws -> Channel {
         try NIOTSDatagramListenerBootstrap(group: group)
             .childChannelInitializer { childChannel in
                 onConnect(childChannel)
-                return childChannel.pipeline.addHandler(ReadRecorder<ByteBuffer>(), name: "ByteReadRecorder")
+                return childChannel.eventLoop.makeCompletedFuture {
+                    try childChannel.pipeline.syncOperations.addHandler(
+                        ReadRecorder<ByteBuffer>(), 
+                        name: "ByteReadRecorder"
+                    )
+                }
             }
             .bind(host: host, port: port)
             .wait()
     }
 
-    private func buildClientChannel(group: NIOTSEventLoopGroup, host: String = "127.0.0.1", port: Int) throws -> Channel
-    {
+    private func buildClientChannel(
+        group: NIOTSEventLoopGroup,
+        host: String = "127.0.0.1",
+        port: Int
+    ) throws -> Channel {
         try NIOTSDatagramBootstrap(group: group)
             .channelInitializer { channel in
-                channel.pipeline.addHandler(ReadRecorder<ByteBuffer>(), name: "ByteReadRecorder")
+                channel.eventLoop.makeCompletedFuture {
+                    try channel.pipeline.syncOperations.addHandler(
+                        ReadRecorder<ByteBuffer>(), 
+                        name: "ByteReadRecorder"
+                    )
+                }
             }
             .connect(host: host, port: port)
             .wait()
@@ -169,7 +182,7 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
     }
 
     func testSyncOptionsAreSupported() throws {
-        func testSyncOptions(_ channel: Channel) {
+        @Sendable func testSyncOptions(_ channel: Channel) {
             if let sync = channel.syncOptions {
                 do {
                     let endpointReuse = try sync.getOption(NIOTSChannelOptions.allowLocalEndpointReuse)
@@ -192,7 +205,12 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
             .childChannelInitializer { channel in
                 testSyncOptions(channel)
                 promise.succeed(channel)
-                return channel.pipeline.addHandler(ReadRecorder<ByteBuffer>(), name: "ByteReadRecorder")
+                return channel.eventLoop.makeCompletedFuture {
+                    try channel.pipeline.syncOperations.addHandler(
+                        ReadRecorder<ByteBuffer>(), 
+                        name: "ByteReadRecorder"
+                    )
+                }
             }
             .bind(host: "localhost", port: 0)
             .wait()

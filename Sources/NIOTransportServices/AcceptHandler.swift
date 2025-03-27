@@ -20,11 +20,11 @@ internal class AcceptHandler<ChildChannel: Channel>: ChannelInboundHandler {
     typealias InboundIn = ChildChannel
     typealias InboundOut = ChildChannel
 
-    private let childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?
+    private let childChannelInitializer: (@Sendable (Channel) -> EventLoopFuture<Void>)?
     private let childChannelOptions: ChannelOptions.Storage
 
     init(
-        childChannelInitializer: ((Channel) -> EventLoopFuture<Void>)?,
+        childChannelInitializer: (@Sendable (Channel) -> EventLoopFuture<Void>)?,
         childChannelOptions: ChannelOptions.Storage
     ) {
         self.childChannelInitializer = childChannelInitializer
@@ -35,11 +35,12 @@ internal class AcceptHandler<ChildChannel: Channel>: ChannelInboundHandler {
         let newChannel = self.unwrapInboundIn(data)
         let childLoop = newChannel.eventLoop
         let ctxEventLoop = context.eventLoop
-        let childInitializer = self.childChannelInitializer ?? { _ in childLoop.makeSucceededFuture(()) }
+        let childInitializer = self.childChannelInitializer ?? { @Sendable _ in childLoop.makeSucceededFuture(()) }
+        let childChannelOptions = self.childChannelOptions
 
-        @inline(__always)
+        @preconcurrency @Sendable @inline(__always)
         func setupChildChannel() -> EventLoopFuture<Void> {
-            self.childChannelOptions.applyAllChannelOptions(to: newChannel).flatMap { () -> EventLoopFuture<Void> in
+            childChannelOptions.applyAllChannelOptions(to: newChannel).flatMap { () -> EventLoopFuture<Void> in
                 childLoop.assertInEventLoop()
                 return childInitializer(newChannel)
             }
@@ -48,8 +49,8 @@ internal class AcceptHandler<ChildChannel: Channel>: ChannelInboundHandler {
         @inline(__always)
         func fireThroughPipeline(_ future: EventLoopFuture<Void>) {
             ctxEventLoop.assertInEventLoop()
-            future.flatMap { (_) -> EventLoopFuture<Void> in
-                ctxEventLoop.assertInEventLoop()
+            assert(ctxEventLoop === context.eventLoop)
+            future.assumeIsolated().flatMap { (_) -> EventLoopFuture<Void> in
                 guard context.channel.isActive else {
                     return newChannel.close().flatMapThrowing {
                         throw ChannelError.ioOnClosedChannel
@@ -75,4 +76,7 @@ internal class AcceptHandler<ChildChannel: Channel>: ChannelInboundHandler {
         }
     }
 }
+
+@available(*, unavailable)
+extension AcceptHandler: Sendable {}
 #endif
