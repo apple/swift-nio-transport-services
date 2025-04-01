@@ -17,7 +17,6 @@ import XCTest
 import NIOCore
 import NIOEmbedded
 import NIOTransportServices
-import NIOConcurrencyHelpers
 
 class NIOFilterEmptyWritesHandlerTests: XCTestCase {
     var allocator: ByteBufferAllocator!
@@ -93,23 +92,19 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
         let someWritePromise = self.eventLoop.makePromise(of: Void.self)
         let thenEmptyWrite = self.allocator.buffer(capacity: 0)
         let thenEmptyWritePromise = self.eventLoop.makePromise(of: Void.self)
-        enum CheckOrder: Equatable {
+        enum CheckOrder {
             case noWrite
             case someWrite
             case thenEmptyWrite
         }
-        let checkOrder = NIOLockedValueBox(CheckOrder.noWrite)
-        someWritePromise.futureResult.whenSuccess {
-            checkOrder.withLockedValue {
-                XCTAssertEqual($0, .noWrite)
-                $0 = .someWrite
-            }
+        var checkOrder = CheckOrder.noWrite
+        someWritePromise.futureResult.assumeIsolated().whenSuccess {
+            XCTAssertEqual(checkOrder, .noWrite)
+            checkOrder = .someWrite
         }
-        thenEmptyWritePromise.futureResult.whenSuccess {
-            checkOrder.withLockedValue {
-                XCTAssertEqual($0, .someWrite)
-                $0 = .thenEmptyWrite
-            }
+        thenEmptyWritePromise.futureResult.assumeIsolated().whenSuccess {
+            XCTAssertEqual(checkOrder, .someWrite)
+            checkOrder = .thenEmptyWrite
         }
         self.channel.write(
             someWrite,
@@ -127,9 +122,7 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
         XCTAssertNoThrow(
             XCTAssertNil(try self.channel.readOutbound(as: ByteBuffer.self))
         )
-        checkOrder.withLockedValue {
-            XCTAssertEqual($0, .thenEmptyWrite)
-        }
+        XCTAssertEqual(checkOrder, .thenEmptyWrite)
     }
 
     func testEmptyWriteTwicePromiseCascade() {
@@ -142,18 +135,14 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
             case emptyWrite
             case thenEmptyWrite
         }
-        let checkOrder = NIOLockedValueBox(CheckOrder.noWrite)
-        emptyWritePromise.futureResult.whenSuccess {
-            checkOrder.withLockedValue {
-                XCTAssertEqual($0, .noWrite)
-                $0 = .emptyWrite
-            }
+        var checkOrder = CheckOrder.noWrite
+        emptyWritePromise.futureResult.assumeIsolated().whenSuccess {
+            XCTAssertEqual(checkOrder, .noWrite)
+            checkOrder = .emptyWrite
         }
-        thenEmptyWritePromise.futureResult.whenSuccess {
-            checkOrder.withLockedValue {
-                XCTAssertEqual($0, .emptyWrite)
-                $0 = .thenEmptyWrite
-            }
+        thenEmptyWritePromise.futureResult.assumeIsolated().whenSuccess {
+            XCTAssertEqual(checkOrder, .emptyWrite)
+            checkOrder = .thenEmptyWrite
         }
         self.channel.write(
             emptyWrite,
@@ -168,9 +157,7 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
         XCTAssertNoThrow(
             XCTAssertNil(try self.channel.readOutbound(as: ByteBuffer.self))
         )
-        checkOrder.withLockedValue {
-            XCTAssertEqual($0, .thenEmptyWrite)
-        }
+        XCTAssertEqual(checkOrder, .thenEmptyWrite)
     }
 
     func testEmptyWriteThenSomeWriteThenEmptyWritePromiseCascade() {
@@ -186,24 +173,18 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
             case thenSomeWrite
             case thenEmptyWrite
         }
-        let checkOrder = NIOLockedValueBox(CheckOrder.noWrite)
-        emptyWritePromise.futureResult.whenSuccess {
-            checkOrder.withLockedValue {
-                XCTAssertEqual($0, .noWrite)
-                $0 = .emptyWrite
-            }
+        var checkOrder = CheckOrder.noWrite
+        emptyWritePromise.futureResult.assumeIsolated().whenSuccess {
+            XCTAssertEqual(checkOrder, .noWrite)
+            checkOrder = .emptyWrite
         }
-        thenSomeWritePromise.futureResult.whenSuccess {
-            checkOrder.withLockedValue {
-                XCTAssertEqual($0, .emptyWrite)
-                $0 = .thenSomeWrite
-            }
+        thenSomeWritePromise.futureResult.assumeIsolated().whenSuccess {
+            XCTAssertEqual(checkOrder, .emptyWrite)
+            checkOrder = .thenSomeWrite
         }
-        thenEmptyWritePromise.futureResult.whenSuccess {
-            checkOrder.withLockedValue {
-                XCTAssertEqual($0, .thenSomeWrite)
-                $0 = .thenEmptyWrite
-            }
+        thenEmptyWritePromise.futureResult.assumeIsolated().whenSuccess {
+            XCTAssertEqual(checkOrder, .thenSomeWrite)
+            checkOrder = .thenEmptyWrite
         }
         self.channel.write(emptyWrite, promise: emptyWritePromise)
         self.channel.write(thenSomeWrite, promise: thenSomeWritePromise)
@@ -216,9 +197,7 @@ class NIOFilterEmptyWritesHandlerTests: XCTestCase {
         XCTAssertNoThrow(
             XCTAssertNil(try self.channel.readOutbound(as: ByteBuffer.self))
         )
-        checkOrder.withLockedValue {
-            XCTAssertEqual($0, .thenEmptyWrite)
-        }
+        XCTAssertEqual(checkOrder, .thenEmptyWrite)
     }
 
     func testSomeWriteWithNilPromiseThenEmptyWriteWithNilPromiseThenSomeWrite() {
