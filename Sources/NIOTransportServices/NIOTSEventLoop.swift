@@ -13,7 +13,11 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-@preconcurrency import Dispatch
+#if swift(<6.1)
+@preconcurrency import class Dispatch.DispatchSource
+#else
+import class Dispatch.DispatchSource
+#endif
 import Foundation
 import Network
 
