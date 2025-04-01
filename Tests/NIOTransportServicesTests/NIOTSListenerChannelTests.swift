@@ -83,7 +83,7 @@ class NIOTSListenerChannelTests: XCTestCase {
     func testConnectingToHostPortTraversesPipeline() throws {
         let bindBootstrap = NIOTSListenerBootstrap(group: self.group)
             .serverChannelInitializer { channel in
-                return channel.eventLoop.makeCompletedFuture {
+                channel.eventLoop.makeCompletedFuture {
                     let bindRecordingHandler = BindRecordingHandler()
                     try channel.pipeline.syncOperations.addHandler(bindRecordingHandler)
                     XCTAssertEqual(bindRecordingHandler.bindTargets, [])
@@ -112,7 +112,7 @@ class NIOTSListenerChannelTests: XCTestCase {
         let endpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: .any)
         let bindBootstrap = NIOTSListenerBootstrap(group: self.group)
             .serverChannelInitializer { channel in
-                return channel.eventLoop.makeCompletedFuture {
+                channel.eventLoop.makeCompletedFuture {
                     let bindRecordingHandler = BindRecordingHandler()
                     try channel.pipeline.syncOperations.addHandler(bindRecordingHandler)
                     XCTAssertEqual(bindRecordingHandler.bindTargets, [])
