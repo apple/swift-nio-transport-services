@@ -32,10 +32,12 @@ import NIOConcurrencyHelpers
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public protocol QoSEventLoop: EventLoop {
     /// Submit a given task to be executed by the `EventLoop` at a given `qos`.
+    @preconcurrency
     func execute(qos: DispatchQoS, _ task: @escaping @Sendable () -> Void)
 
     /// Schedule a `task` that is executed by this `NIOTSEventLoop` after the given amount of time at the
     /// given `qos`.
+    @preconcurrency
     func scheduleTask<T>(
         in time: TimeAmount,
         qos: DispatchQoS,
@@ -123,23 +125,27 @@ internal final class NIOTSEventLoop: QoSEventLoop, @unchecked Sendable {
         loop.setSpecific(key: inQueueKey, value: self.loopID)
     }
 
+    @preconcurrency
     public func execute(_ task: @escaping @Sendable () -> Void) {
         self.execute(qos: self.defaultQoS, task)
     }
 
+    @preconcurrency
     public func execute(qos: DispatchQoS, _ task: @escaping @Sendable () -> Void) {
         // Ideally we'd not accept new work while closed. Sadly, that's not possible with the current APIs for this.
         self.taskQueue.async(qos: qos, execute: task)
     }
 
+    @preconcurrency
     public func scheduleTask<T>(deadline: NIODeadline, _ task: @escaping @Sendable () throws -> T) -> Scheduled<T> {
         self.scheduleTask(deadline: deadline, qos: self.defaultQoS, task)
     }
 
+    @preconcurrency
     public func scheduleTask<T>(
         deadline: NIODeadline,
         qos: DispatchQoS,
-        _ task: @escaping () throws -> T
+        _ task: @escaping @Sendable () throws -> T
     ) -> Scheduled<T> {
         let p: EventLoopPromise<T> = self.makePromise()
 
@@ -175,15 +181,24 @@ internal final class NIOTSEventLoop: QoSEventLoop, @unchecked Sendable {
         )
     }
 
-    public func scheduleTask<T>(in time: TimeAmount, _ task: @escaping () throws -> T) -> Scheduled<T> {
+    @preconcurrency
+    public func scheduleTask<T>(
+        in time: TimeAmount,
+        _ task: @escaping @Sendable () throws -> T
+    ) -> Scheduled<T> {
         self.scheduleTask(in: time, qos: self.defaultQoS, task)
     }
 
-    public func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T>
-    {
+    @preconcurrency
+    public func scheduleTask<T>(
+        in time: TimeAmount,
+        qos: DispatchQoS,
+        _ task: @escaping @Sendable () throws -> T
+    ) -> Scheduled<T> {
         self.scheduleTask(deadline: NIODeadline.now() + time, qos: qos, task)
     }
 
+    @preconcurrency
     public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping @Sendable (Error?) -> Void) {
         guard self.canBeShutDownIndividually else {
             // The loops cannot be shut down by individually. They need to be shut down as a group and
