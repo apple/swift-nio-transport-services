@@ -82,7 +82,8 @@ public final class NIOTSEventLoopGroup: EventLoopGroup {
     }
 
     /// Shuts down all of the event loops, rendering them unable to perform further work.
-    public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping (Error?) -> Void) {
+    @preconcurrency
+    public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping @Sendable (Error?) -> Void) {
         guard self.canBeShutDown else {
             queue.async {
                 callback(EventLoopError.unsupportedOperation)
@@ -91,19 +92,19 @@ public final class NIOTSEventLoopGroup: EventLoopGroup {
         }
         let g = DispatchGroup()
         let q = DispatchQueue(label: "nio.transportservices.shutdowngracefullyqueue", target: queue)
-        var error: Error? = nil
+        let error: NIOLockedValueBox<Error?> = .init(nil)
 
         for loop in self.eventLoops {
             g.enter()
             loop.closeGently().recover { err in
-                q.sync { error = err }
+                q.sync { error.withLockedValue({ $0 = err }) }
             }.whenComplete { (_: Result<Void, Error>) in
                 g.leave()
             }
         }
 
         g.notify(queue: q) {
-            callback(error)
+            callback(error.withLockedValue({ $0 }))
         }
     }
 
@@ -144,5 +145,8 @@ public struct NIOTSClientTLSProvider: NIOClientTLSProvider {
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSEventLoopGroup: @unchecked Sendable {}
+
+@available(*, unavailable)
+extension NIOTSClientTLSProvider: Sendable {}
 
 #endif

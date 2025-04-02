@@ -13,11 +13,11 @@
 //===----------------------------------------------------------------------===//
 #if canImport(Network)
 import NIOCore
-@preconcurrency import Network
+import Network
 
 /// Options that can be set explicitly and only on bootstraps provided by `NIOTransportServices`.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public struct NIOTSChannelOptions {
+public struct NIOTSChannelOptions: Sendable {
     /// See: ``Types/NIOTSWaitForActivityOption``.
     public static let waitForActivity = NIOTSChannelOptions.Types.NIOTSWaitForActivityOption()
 
@@ -32,7 +32,7 @@ public struct NIOTSChannelOptions {
 
     /// See: ``Types/NIOTSMetadataOption``
     public static let metadata = {
-        (definition: NWProtocolDefinition) -> NIOTSChannelOptions.Types.NIOTSMetadataOption in
+        @Sendable (definition: NWProtocolDefinition) -> NIOTSChannelOptions.Types.NIOTSMetadataOption in
         .init(definition: definition)
     }
 
@@ -66,7 +66,7 @@ public struct NIOTSChannelOptions {
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 extension NIOTSChannelOptions {
     /// A namespace for ``NIOTSChannelOptions`` datastructures.
-    public enum Types {
+    public enum Types: Sendable {
         /// ``NIOTSWaitForActivityOption`` controls whether the `Channel` should wait for connection changes
         /// during the connection process if the connection attempt fails. If Network.framework believes that
         /// a connection may succeed in future, it may transition into the `.waiting` state. By default, this option

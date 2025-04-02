@@ -55,13 +55,18 @@ class NIOTSListenerChannelTests: XCTestCase {
     }
 
     func testBindingToSocketAddressTraversesPipeline() throws {
-        let bindRecordingHandler = BindRecordingHandler()
         let target = try SocketAddress.makeAddressResolvingHost("localhost", port: 0)
         let bindBootstrap = NIOTSListenerBootstrap(group: self.group)
-            .serverChannelInitializer { channel in channel.pipeline.addHandler(bindRecordingHandler) }
-
-        XCTAssertEqual(bindRecordingHandler.bindTargets, [])
-        XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
+            .serverChannelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    let bindRecordingHandler = BindRecordingHandler()
+                    try channel.pipeline.syncOperations.addHandler(
+                        bindRecordingHandler
+                    )
+                    XCTAssertEqual(bindRecordingHandler.bindTargets, [])
+                    XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
+                }
+            }
 
         let listener = try bindBootstrap.bind(to: target).wait()
         defer {
@@ -69,18 +74,22 @@ class NIOTSListenerChannelTests: XCTestCase {
         }
 
         try self.group.next().submit {
-            XCTAssertEqual(bindRecordingHandler.bindTargets, [target])
-            XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
+            let handler = try listener.pipeline.syncOperations.handler(type: BindRecordingHandler.self)
+            XCTAssertEqual(handler.bindTargets, [target])
+            XCTAssertEqual(handler.endpointTargets, [])
         }.wait()
     }
 
     func testConnectingToHostPortTraversesPipeline() throws {
-        let bindRecordingHandler = BindRecordingHandler()
         let bindBootstrap = NIOTSListenerBootstrap(group: self.group)
-            .serverChannelInitializer { channel in channel.pipeline.addHandler(bindRecordingHandler) }
-
-        XCTAssertEqual(bindRecordingHandler.bindTargets, [])
-        XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
+            .serverChannelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    let bindRecordingHandler = BindRecordingHandler()
+                    try channel.pipeline.syncOperations.addHandler(bindRecordingHandler)
+                    XCTAssertEqual(bindRecordingHandler.bindTargets, [])
+                    XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
+                }
+            }
 
         let listener = try bindBootstrap.bind(host: "localhost", port: 0).wait()
         defer {
@@ -88,22 +97,28 @@ class NIOTSListenerChannelTests: XCTestCase {
         }
 
         try self.group.next().submit {
+            let handler = try listener.pipeline.syncOperations.handler(
+                type: BindRecordingHandler.self
+            )
             XCTAssertEqual(
-                bindRecordingHandler.bindTargets,
+                handler.bindTargets,
                 [try SocketAddress.makeAddressResolvingHost("localhost", port: 0)]
             )
-            XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
+            XCTAssertEqual(handler.endpointTargets, [])
         }.wait()
     }
 
     func testConnectingToEndpointSkipsPipeline() throws {
         let endpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: .any)
-        let bindRecordingHandler = BindRecordingHandler()
         let bindBootstrap = NIOTSListenerBootstrap(group: self.group)
-            .serverChannelInitializer { channel in channel.pipeline.addHandler(bindRecordingHandler) }
-
-        XCTAssertEqual(bindRecordingHandler.bindTargets, [])
-        XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
+            .serverChannelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    let bindRecordingHandler = BindRecordingHandler()
+                    try channel.pipeline.syncOperations.addHandler(bindRecordingHandler)
+                    XCTAssertEqual(bindRecordingHandler.bindTargets, [])
+                    XCTAssertEqual(bindRecordingHandler.endpointTargets, [])
+                }
+            }
 
         let listener = try bindBootstrap.bind(endpoint: endpoint).wait()
         defer {
@@ -111,8 +126,11 @@ class NIOTSListenerChannelTests: XCTestCase {
         }
 
         try self.group.next().submit {
-            XCTAssertEqual(bindRecordingHandler.bindTargets, [])
-            XCTAssertEqual(bindRecordingHandler.endpointTargets, [endpoint])
+            let handler = try listener.pipeline.syncOperations.handler(
+                type: BindRecordingHandler.self
+            )
+            XCTAssertEqual(handler.bindTargets, [])
+            XCTAssertEqual(handler.endpointTargets, [endpoint])
         }.wait()
     }
 
@@ -169,7 +187,11 @@ class NIOTSListenerChannelTests: XCTestCase {
         let listener = try NIOTSListenerBootstrap(group: self.group, childGroup: childGroup)
             .childChannelInitializer { channel in
                 childChannelPromise.succeed(channel)
-                return channel.pipeline.addHandler(PromiseOnActiveHandler(activePromise))
+                return channel.eventLoop.makeCompletedFuture {
+                    try channel.pipeline.syncOperations.addHandler(
+                        PromiseOnActiveHandler(activePromise)
+                    )
+                }
             }.bind(host: "localhost", port: 0).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -243,7 +265,9 @@ class NIOTSListenerChannelTests: XCTestCase {
         let channelPromise = self.group.next().makePromise(of: Channel.self)
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .serverChannelInitializer { channel in
-                channel.pipeline.addHandler(ChannelReceiver(channelPromise))
+                channel.eventLoop.makeCompletedFuture {
+                    try channel.pipeline.syncOperations.addHandler(ChannelReceiver(channelPromise))
+                }
             }
             .bind(host: "localhost", port: 0).wait()
         defer {
@@ -258,7 +282,9 @@ class NIOTSListenerChannelTests: XCTestCase {
         // We must wait for channel active here, or the socket addresses won't be set.
         let promisedChannel = try channelPromise.futureResult.flatMap { (channel) -> EventLoopFuture<Channel> in
             let promiseChannelActive = channel.eventLoop.makePromise(of: Channel.self)
-            _ = channel.pipeline.addHandler(WaitForActiveHandler(promiseChannelActive))
+            try? channel.pipeline.syncOperations.addHandler(
+                WaitForActiveHandler(promiseChannelActive)
+            )
             return promiseChannelActive.futureResult
         }.wait()
 
@@ -314,7 +340,7 @@ class NIOTSListenerChannelTests: XCTestCase {
     }
 
     func testSyncOptionsAreSupported() throws {
-        func testSyncOptions(_ channel: Channel) {
+        @Sendable func testSyncOptions(_ channel: Channel) {
             if let sync = channel.syncOptions {
                 do {
                     let endpointReuse = try sync.getOption(NIOTSChannelOptions.allowLocalEndpointReuse)

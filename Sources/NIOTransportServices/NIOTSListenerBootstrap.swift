@@ -57,8 +57,8 @@ import Network
 public final class NIOTSListenerBootstrap {
     private let group: EventLoopGroup
     private let childGroup: EventLoopGroup
-    private var serverChannelInit: ((Channel) -> EventLoopFuture<Void>)?
-    private var childChannelInit: ((Channel) -> EventLoopFuture<Void>)?
+    private var serverChannelInit: (@Sendable (Channel) -> EventLoopFuture<Void>)?
+    private var childChannelInit: (@Sendable (Channel) -> EventLoopFuture<Void>)?
     private var serverChannelOptions = ChannelOptions.Storage()
     private var childChannelOptions = ChannelOptions.Storage()
     private var serverQoS: DispatchQoS?
@@ -157,7 +157,9 @@ public final class NIOTSListenerBootstrap {
     ///
     /// - parameters:
     ///     - initializer: A closure that initializes the provided `Channel`.
-    public func serverChannelInitializer(_ initializer: @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
+    @preconcurrency
+    public func serverChannelInitializer(_ initializer: @escaping @Sendable (Channel) -> EventLoopFuture<Void>) -> Self
+    {
         self.serverChannelInit = initializer
         return self
     }
@@ -170,7 +172,8 @@ public final class NIOTSListenerBootstrap {
     ///
     /// - parameters:
     ///     - initializer: A closure that initializes the provided `Channel`.
-    public func childChannelInitializer(_ initializer: @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
+    @preconcurrency
+    public func childChannelInitializer(_ initializer: @escaping @Sendable (Channel) -> EventLoopFuture<Void>) -> Self {
         self.childChannelInit = initializer
         return self
     }
@@ -318,10 +321,10 @@ public final class NIOTSListenerBootstrap {
     private func bind0(
         existingNWListener: NWListener? = nil,
         shouldRegister: Bool,
-        _ binder: @escaping (NIOTSListenerChannel, EventLoopPromise<Void>) -> Void
+        _ binder: @escaping @Sendable (NIOTSListenerChannel, EventLoopPromise<Void>) -> Void
     ) -> EventLoopFuture<Channel> {
         let eventLoop = self.group.next() as! NIOTSEventLoop
-        let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(()) }
+        let serverChannelInit = self.serverChannelInit ?? { @Sendable _ in eventLoop.makeSucceededFuture(()) }
         let childChannelInit = self.childChannelInit
         let serverChannelOptions = self.serverChannelOptions
         let childChannelOptions = self.childChannelOptions
@@ -352,17 +355,19 @@ public final class NIOTSListenerBootstrap {
             )
         }
 
-        return eventLoop.submit {
+        return eventLoop.submit { [bindTimeout] in
             serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
                 serverChannelInit(serverChannel)
             }.flatMap {
                 eventLoop.assertInEventLoop()
-                return serverChannel.pipeline.addHandler(
-                    AcceptHandler<NIOTSConnectionChannel>(
-                        childChannelInitializer: childChannelInit,
-                        childChannelOptions: childChannelOptions
+                return eventLoop.makeCompletedFuture {
+                    try serverChannel.pipeline.syncOperations.addHandler(
+                        AcceptHandler<NIOTSConnectionChannel>(
+                            childChannelInitializer: childChannelInit,
+                            childChannelOptions: childChannelOptions
+                        )
                     )
-                )
+                }
             }.flatMap {
                 if shouldRegister {
                     return serverChannel.register()
@@ -373,7 +378,7 @@ public final class NIOTSListenerBootstrap {
                 let bindPromise = eventLoop.makePromise(of: Void.self)
                 binder(serverChannel, bindPromise)
 
-                if let bindTimeout = self.bindTimeout {
+                if let bindTimeout = bindTimeout {
                     let cancelTask = eventLoop.scheduleTask(in: bindTimeout) {
                         bindPromise.fail(NIOTSErrors.BindTimeout(timeout: bindTimeout))
                         serverChannel.close(promise: nil)
@@ -537,7 +542,7 @@ extension NIOTSListenerBootstrap {
         existingNWListener: NWListener? = nil,
         serverBackPressureStrategy: NIOAsyncSequenceProducerBackPressureStrategies.HighLowWatermark?,
         childChannelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<ChannelInitializerResult>,
-        registration: @escaping (NIOTSListenerChannel, EventLoopPromise<Void>) -> Void
+        registration: @escaping @Sendable (NIOTSListenerChannel, EventLoopPromise<Void>) -> Void
     ) -> EventLoopFuture<NIOAsyncChannel<ChannelInitializerResult, Never>> {
         let eventLoop = self.group.next() as! NIOTSEventLoop
         let serverChannelInit = self.serverChannelInit ?? { _ in eventLoop.makeSucceededFuture(()) }
@@ -571,7 +576,7 @@ extension NIOTSListenerBootstrap {
             )
         }
 
-        return eventLoop.submit {
+        return eventLoop.submit { [bindTimeout] in
             serverChannelOptions.applyAllChannelOptions(to: serverChannel).flatMap {
                 serverChannelInit(serverChannel)
             }.flatMap { (_) -> EventLoopFuture<NIOAsyncChannel<ChannelInitializerResult, Never>> in
@@ -585,7 +590,7 @@ extension NIOTSListenerBootstrap {
                     )
                     let asyncChannel = try NIOAsyncChannel<ChannelInitializerResult, Never>
                         ._wrapAsyncChannelWithTransformations(
-                            synchronouslyWrapping: serverChannel,
+                            wrappingChannelSynchronously: serverChannel,
                             backPressureStrategy: serverBackPressureStrategy,
                             channelReadTransformation: { channel -> EventLoopFuture<(ChannelInitializerResult)> in
                                 // The channelReadTransformation is run on the EL of the server channel
@@ -600,7 +605,7 @@ extension NIOTSListenerBootstrap {
                     let bindPromise = eventLoop.makePromise(of: Void.self)
                     registration(serverChannel, bindPromise)
 
-                    if let bindTimeout = self.bindTimeout {
+                    if let bindTimeout = bindTimeout {
                         let cancelTask = eventLoop.scheduleTask(in: bindTimeout) {
                             bindPromise.fail(NIOTSErrors.BindTimeout(timeout: bindTimeout))
                             serverChannel.close(promise: nil)
@@ -627,4 +632,6 @@ extension NIOTSListenerBootstrap {
     }
 }
 
+@available(*, unavailable)
+extension NIOTSListenerBootstrap: Sendable {}
 #endif
