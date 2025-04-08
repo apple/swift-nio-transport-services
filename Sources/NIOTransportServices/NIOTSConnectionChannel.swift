@@ -164,8 +164,12 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// An `EventLoopPromise` that will be succeeded or failed when a connection attempt succeeds or fails.
     internal var connectPromise: EventLoopPromise<Void>?
 
+    private let nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+
     internal var parameters: NWParameters {
-        NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
+        var parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
+        self.nwParametersConfigurator?(&parameters)
+        return parameters
     }
 
     /// The TCP options for this connection.
@@ -242,7 +246,8 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         minimumIncompleteReceiveLength: Int = 1,
         maximumReceiveLength: Int = 8192,
         tcpOptions: NWProtocolTCP.Options,
-        tlsOptions: NWProtocolTLS.Options?
+        tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
     ) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
@@ -252,6 +257,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         self.connectionQueue = eventLoop.channelQueue(label: "nio.nioTransportServices.connectionchannel", qos: qos)
         self.tcpOptions = tcpOptions
         self.tlsOptions = tlsOptions
+        self.nwParametersConfigurator = nwParametersConfigurator
 
         // Must come last, as it requires self to be completely initialized.
         self._pipeline = ChannelPipeline(channel: self)
@@ -266,7 +272,8 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         minimumIncompleteReceiveLength: Int = 1,
         maximumReceiveLength: Int = 8192,
         tcpOptions: NWProtocolTCP.Options,
-        tlsOptions: NWProtocolTLS.Options?
+        tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
     ) {
         self.init(
             eventLoop: eventLoop,
@@ -275,7 +282,8 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
             minimumIncompleteReceiveLength: minimumIncompleteReceiveLength,
             maximumReceiveLength: maximumReceiveLength,
             tcpOptions: tcpOptions,
-            tlsOptions: tlsOptions
+            tlsOptions: tlsOptions,
+            nwParametersConfigurator: nwParametersConfigurator
         )
         self.connection = connection
     }

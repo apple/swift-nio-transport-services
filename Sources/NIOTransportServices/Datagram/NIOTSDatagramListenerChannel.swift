@@ -81,19 +81,23 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
         qos: DispatchQoS? = nil,
         udpOptions: NWProtocolUDP.Options,
         tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childUDPOptions: NWProtocolUDP.Options,
-        childTLSOptions: NWProtocolTLS.Options?
+        childTLSOptions: NWProtocolTLS.Options?,
+        childNWParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
     ) {
         self.init(
             eventLoop: eventLoop,
             protocolOptions: .udp(udpOptions),
             tlsOptions: tlsOptions,
+            nwParametersConfigurator: nwParametersConfigurator,
             childLoopGroup: childLoopGroup,
             childChannelQoS: childChannelQoS,
             childProtocolOptions: .udp(childUDPOptions),
-            childTLSOptions: childTLSOptions
+            childTLSOptions: childTLSOptions,
+            childNWParametersConfigurator: childNWParametersConfigurator
         )
     }
 
@@ -104,20 +108,24 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
         qos: DispatchQoS? = nil,
         udpOptions: NWProtocolUDP.Options,
         tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childUDPOptions: NWProtocolUDP.Options,
-        childTLSOptions: NWProtocolTLS.Options?
+        childTLSOptions: NWProtocolTLS.Options?,
+        childNWParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
     ) {
         self.init(
             wrapping: listener,
             eventLoop: eventLoop,
             protocolOptions: .udp(udpOptions),
             tlsOptions: tlsOptions,
+            nwParametersConfigurator: nwParametersConfigurator,
             childLoopGroup: childLoopGroup,
             childChannelQoS: childChannelQoS,
             childProtocolOptions: .udp(childUDPOptions),
-            childTLSOptions: childTLSOptions
+            childTLSOptions: childTLSOptions,
+            childNWParametersConfigurator: childNWParametersConfigurator
         )
     }
 
@@ -132,7 +140,8 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
             on: self.childLoopGroup.next() as! NIOTSEventLoop,
             parent: self,
             udpOptions: self.childUDPOptions,
-            tlsOptions: self.childTLSOptions
+            tlsOptions: self.childTLSOptions,
+            nwParametersConfigurator: self.childNWParametersConfigurator
         )
 
         self.pipeline.fireChannelRead(newChannel)
