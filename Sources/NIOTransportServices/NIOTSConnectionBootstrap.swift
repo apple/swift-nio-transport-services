@@ -62,6 +62,7 @@ public final class NIOTSConnectionBootstrap {
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
     private var protocolHandlers: (@Sendable () -> [ChannelHandler])? = nil
+    private var nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
 
     /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
@@ -165,6 +166,14 @@ public final class NIOTSConnectionBootstrap {
         self.channelOption(NIOTSChannelOptions.multipathServiceType, value: type)
     }
 
+    /// Customise the `NWParameters` to be used when creating the connection.
+    public func configureNWParameters(
+        _ configurator: @Sendable @escaping (inout NWParameters) -> Void
+    ) -> Self {
+        self.nwParametersConfigurator = configurator
+        return self
+    }
+
     /// Specify the `host` and `port` to connect to for the TCP `Channel` that will be established.
     ///
     /// - parameters:
@@ -243,14 +252,16 @@ public final class NIOTSConnectionBootstrap {
                 wrapping: newConnection,
                 on: self.group.next() as! NIOTSEventLoop,
                 tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions
+                tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator
             )
         } else {
             conn = NIOTSConnectionChannel(
                 eventLoop: self.group.next() as! NIOTSEventLoop,
                 qos: self.qos,
                 tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions
+                tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator
             )
         }
         let initializer = self.channelInitializer
@@ -437,14 +448,16 @@ extension NIOTSConnectionBootstrap {
                 wrapping: newConnection,
                 on: self.group.next() as! NIOTSEventLoop,
                 tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions
+                tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator
             )
         } else {
             connectionChannel = NIOTSConnectionChannel(
                 eventLoop: self.group.next() as! NIOTSEventLoop,
                 qos: self.qos,
                 tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions
+                tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator
             )
         }
         let initializer = self.channelInitializer

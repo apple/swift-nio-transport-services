@@ -66,6 +66,7 @@ public final class NIOTSDatagramListenerBootstrap {
     private var udpOptions: NWProtocolUDP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
     private var bindTimeout: TimeAmount?
+    private var nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
 
     /// Create a ``NIOTSListenerBootstrap`` for the `EventLoopGroup` `group`.
     ///
@@ -236,6 +237,14 @@ public final class NIOTSDatagramListenerBootstrap {
         return self
     }
 
+    /// Customise the `NWParameters` to be used when creating the connection.
+    public func configureNWParameters(
+        _ configurator: @Sendable @escaping (inout NWParameters) -> Void
+    ) -> Self {
+        self.nwParametersConfigurator = configurator
+        return self
+    }
+
     /// Bind the `NIOTSListenerChannel` to `host` and `port`.
     ///
     /// - parameters:
@@ -327,10 +336,12 @@ public final class NIOTSDatagramListenerBootstrap {
                 qos: self.serverQoS,
                 udpOptions: self.udpOptions,
                 tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator,
                 childLoopGroup: self.childGroup,
                 childChannelQoS: self.childQoS,
                 childUDPOptions: self.udpOptions,
-                childTLSOptions: self.tlsOptions
+                childTLSOptions: self.tlsOptions,
+                childNWParametersConfigurator: self.nwParametersConfigurator
             )
         } else {
             serverChannel = NIOTSDatagramListenerChannel(
@@ -338,10 +349,12 @@ public final class NIOTSDatagramListenerBootstrap {
                 qos: self.serverQoS,
                 udpOptions: self.udpOptions,
                 tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator,
                 childLoopGroup: self.childGroup,
                 childChannelQoS: self.childQoS,
                 childUDPOptions: self.udpOptions,
-                childTLSOptions: self.tlsOptions
+                childTLSOptions: self.tlsOptions,
+                childNWParametersConfigurator: self.nwParametersConfigurator
             )
         }
 
