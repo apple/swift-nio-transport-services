@@ -146,10 +146,12 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
         self.connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
         self.protocolOptions = protocolOptions
         self.tlsOptions = tlsOptions
+        self.nwParametersConfigurator = nwParametersConfigurator
         self.childLoopGroup = childLoopGroup
         self.childChannelQoS = childChannelQoS
         self.childProtocolOptions = childProtocolOptions
         self.childTLSOptions = childTLSOptions
+        self.childNWParametersConfigurator = childNWParametersConfigurator
 
         // Must come last, as it requires self to be completely initialized.
         self._pipeline = ChannelPipeline(channel: self)
