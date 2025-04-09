@@ -67,7 +67,7 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     /// The TLS options for this listener.
     internal let tlsOptions: NWProtocolTLS.Options?
 
-    internal var nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+    internal var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     /// The `DispatchQueue` that socket events for this connection will be dispatched onto.
     internal let connectionQueue: DispatchQueue
@@ -115,7 +115,7 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     /// The TLS options to use for child channels.
     internal let childTLSOptions: NWProtocolTLS.Options?
 
-    internal var childNWParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+    internal var childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
     internal var addressCache = AddressCache(local: nil, remote: nil)
@@ -134,12 +134,12 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
         qos: DispatchQoS? = nil,
         protocolOptions: ProtocolOptions,
         tlsOptions: NWProtocolTLS.Options?,
-        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childProtocolOptions: ProtocolOptions,
         childTLSOptions: NWProtocolTLS.Options?,
-        childNWParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
@@ -161,12 +161,12 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
         qos: DispatchQoS? = nil,
         protocolOptions: ProtocolOptions,
         tlsOptions: NWProtocolTLS.Options?,
-        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childProtocolOptions: ProtocolOptions,
         childTLSOptions: NWProtocolTLS.Options?,
-        childNWParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             eventLoop: eventLoop,

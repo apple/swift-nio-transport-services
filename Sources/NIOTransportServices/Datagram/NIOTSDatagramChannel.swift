@@ -140,11 +140,11 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     internal var allowLocalEndpointReuse = false
     internal var multipathServiceType: NWParameters.MultipathServiceType = .disabled
 
-    private let nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+    private let nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     var parameters: NWParameters {
-        var parameters = NWParameters(dtls: self.tlsOptions, udp: self.udpOptions)
-        self.nwParametersConfigurator?(&parameters)
+        let parameters = NWParameters(dtls: self.tlsOptions, udp: self.udpOptions)
+        self.nwParametersConfigurator?(parameters)
         return parameters
     }
 
@@ -187,7 +187,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
         maximumReceiveLength: Int = 8192,
         udpOptions: NWProtocolUDP.Options,
         tlsOptions: NWProtocolTLS.Options?,
-        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
@@ -213,7 +213,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
         maximumReceiveLength: Int = 8192,
         udpOptions: NWProtocolUDP.Options,
         tlsOptions: NWProtocolTLS.Options?,
-        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             eventLoop: eventLoop,

@@ -81,12 +81,12 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
         qos: DispatchQoS? = nil,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
-        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childTCPOptions: NWProtocolTCP.Options,
         childTLSOptions: NWProtocolTLS.Options?,
-        childNWParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             eventLoop: eventLoop,
@@ -108,12 +108,12 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
         qos: DispatchQoS? = nil,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
-        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childTCPOptions: NWProtocolTCP.Options,
         childTLSOptions: NWProtocolTLS.Options?,
-        childNWParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             wrapping: listener,
