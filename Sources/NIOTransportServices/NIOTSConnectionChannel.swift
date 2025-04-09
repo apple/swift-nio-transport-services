@@ -164,11 +164,11 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// An `EventLoopPromise` that will be succeeded or failed when a connection attempt succeeds or fails.
     internal var connectPromise: EventLoopPromise<Void>?
 
-    private let nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+    private let nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     internal var parameters: NWParameters {
-        var parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
-        self.nwParametersConfigurator?(&parameters)
+        let parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)
+        self.nwParametersConfigurator?(parameters)
         return parameters
     }
 
@@ -247,7 +247,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         maximumReceiveLength: Int = 8192,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
-        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
@@ -273,7 +273,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         maximumReceiveLength: Int = 8192,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
-        nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             eventLoop: eventLoop,

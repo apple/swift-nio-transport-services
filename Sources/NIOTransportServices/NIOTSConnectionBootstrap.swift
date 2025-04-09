@@ -62,7 +62,7 @@ public final class NIOTSConnectionBootstrap {
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
     private var protocolHandlers: (@Sendable () -> [ChannelHandler])? = nil
-    private var nwParametersConfigurator: (@Sendable (inout NWParameters) -> Void)?
+    private var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
@@ -168,7 +168,7 @@ public final class NIOTSConnectionBootstrap {
 
     /// Customise the `NWParameters` to be used when creating the connection.
     public func configureNWParameters(
-        _ configurator: @Sendable @escaping (inout NWParameters) -> Void
+        _ configurator: @Sendable @escaping (NWParameters) -> Void
     ) -> Self {
         self.nwParametersConfigurator = configurator
         return self
