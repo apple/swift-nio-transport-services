@@ -371,6 +371,36 @@ final class NIOTSBootstrapTests: XCTestCase {
         XCTAssertEqual(try listenerChannel.getOption(NIOTSChannelOptions.multipathServiceType).wait(), .handover)
         XCTAssertEqual(try connectionChannel.getOption(NIOTSChannelOptions.multipathServiceType).wait(), .handover)
     }
+
+    func testNWParametersConfigurator() throws {
+        let group = NIOTSEventLoopGroup()
+        defer {
+            try! group.syncShutdownGracefully()
+        }
+
+        let configuratorListenerCounter = NIOLockedValueBox(0)
+        let configuratorConnectionCounter = NIOLockedValueBox(0)
+
+        let listenerChannel = try NIOTSListenerBootstrap(group: group)
+            .configureNWParameters { _ in
+                configuratorListenerCounter.withLockedValue { $0 += 1 }
+            }
+            .bind(host: "localhost", port: 0)
+            .wait()
+
+        let connectionChannel: Channel = try NIOTSConnectionBootstrap(group: group)
+            .configureNWParameters { _ in
+                configuratorConnectionCounter.withLockedValue { $0 += 1 }
+            }
+            .connect(to: listenerChannel.localAddress!)
+            .wait()
+
+        try listenerChannel.close().wait()
+        try connectionChannel.close().wait()
+
+        XCTAssertEqual(1, configuratorListenerCounter.withLockedValue { $0 })
+        XCTAssertEqual(1, configuratorConnectionCounter.withLockedValue { $0 })
+    }
 }
 
 extension Channel {
