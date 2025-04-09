@@ -410,6 +410,8 @@ extension StateManagedListenerChannel {
 
         parameters.multipathServiceType = self.multipathServiceType
 
+        self.nwParametersConfigurator?(parameters)
+
         let listener: NWListener
         do {
             listener = try NWListener(using: parameters)
