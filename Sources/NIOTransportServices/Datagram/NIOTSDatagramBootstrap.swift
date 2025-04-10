@@ -47,6 +47,7 @@ public final class NIOTSDatagramBootstrap {
     private var qos: DispatchQoS?
     private var udpOptions: NWProtocolUDP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
+    private var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     /// Create a `NIOTSDatagramConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
@@ -133,6 +134,14 @@ public final class NIOTSDatagramBootstrap {
         return self
     }
 
+    /// Customise the `NWParameters` to be used when creating the connection.
+    public func configureNWParameters(
+        _ configurator: @Sendable @escaping (NWParameters) -> Void
+    ) -> Self {
+        self.nwParametersConfigurator = configurator
+        return self
+    }
+
     /// Specify the `host` and `port` to connect to for the UDP `Channel` that will be established.
     ///
     /// - parameters:
@@ -188,7 +197,8 @@ public final class NIOTSDatagramBootstrap {
             eventLoop: self.group.next() as! NIOTSEventLoop,
             qos: self.qos,
             udpOptions: self.udpOptions,
-            tlsOptions: self.tlsOptions
+            tlsOptions: self.tlsOptions,
+            nwParametersConfigurator: self.nwParametersConfigurator
         )
         let initializer = self.channelInitializer ?? { @Sendable _ in conn.eventLoop.makeSucceededFuture(()) }
 

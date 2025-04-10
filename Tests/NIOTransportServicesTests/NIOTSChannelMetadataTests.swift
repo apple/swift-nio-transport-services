@@ -37,13 +37,14 @@ final class NIOTSChannelMetadataTests: XCTestCase {
         }.wait()
 
     }
-    func testThowsIfCalledOnANonInitializedChannel() {
+    func testThrowsIfCalledOnANonInitializedChannel() {
         let eventLoopGroup = NIOTSEventLoopGroup()
         defer { XCTAssertNoThrow(try eventLoopGroup.syncShutdownGracefully()) }
         let channel = NIOTSConnectionChannel(
             eventLoop: eventLoopGroup.next() as! NIOTSEventLoop,
             tcpOptions: .init(),
-            tlsOptions: .init()
+            tlsOptions: .init(),
+            nwParametersConfigurator: nil
         )
         XCTAssertThrowsError(try channel.getMetadata(definition: NWProtocolTLS.definition).wait()) { error in
             XCTAssertTrue(error is NIOTSConnectionNotInitialized, "unexpected error \(error)")

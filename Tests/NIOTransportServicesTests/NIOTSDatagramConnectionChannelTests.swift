@@ -18,6 +18,7 @@ import Network
 import NIOCore
 import NIOTransportServices
 import Foundation
+import NIOConcurrencyHelpers
 
 extension Channel {
     func wait<T: Sendable>(for type: T.Type, count: Int) throws -> [T] {
@@ -230,6 +231,36 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
         let serverHandle = try promise.futureResult.wait()
         _ = try serverHandle.waitForDatagrams(count: 1)
         XCTAssertNoThrow(try connection.close().wait())
+    }
+
+    func testNWParametersConfigurator() throws {
+        let group = NIOTSEventLoopGroup()
+        defer {
+            try! group.syncShutdownGracefully()
+        }
+
+        let configuratorListenerCounter = NIOLockedValueBox(0)
+        let configuratorConnectionCounter = NIOLockedValueBox(0)
+
+        let listenerChannel = try NIOTSDatagramListenerBootstrap(group: group)
+            .configureNWParameters { _ in
+                configuratorListenerCounter.withLockedValue { $0 += 1 }
+            }
+            .bind(host: "localhost", port: 0)
+            .wait()
+
+        let connectionChannel: Channel = try NIOTSDatagramBootstrap(group: group)
+            .configureNWParameters { _ in
+                configuratorConnectionCounter.withLockedValue { $0 += 1 }
+            }
+            .connect(to: listenerChannel.localAddress!)
+            .wait()
+
+        try listenerChannel.close().wait()
+        try connectionChannel.close().wait()
+
+        XCTAssertEqual(1, configuratorListenerCounter.withLockedValue { $0 })
+        XCTAssertEqual(1, configuratorConnectionCounter.withLockedValue { $0 })
     }
 
     func testCanExtractTheConnection() throws {

@@ -67,6 +67,9 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     /// The TLS options for this listener.
     internal let tlsOptions: NWProtocolTLS.Options?
 
+    /// A customization point for this listener's `NWParameters`.
+    internal let nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
+
     /// The `DispatchQueue` that socket events for this connection will be dispatched onto.
     internal let connectionQueue: DispatchQueue
 
@@ -113,6 +116,9 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     /// The TLS options to use for child channels.
     internal let childTLSOptions: NWProtocolTLS.Options?
 
+    /// A customization point for each child's `NWParameters`.
+    internal let childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
+
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
     internal var addressCache = AddressCache(local: nil, remote: nil)
 
@@ -130,20 +136,24 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
         qos: DispatchQoS? = nil,
         protocolOptions: ProtocolOptions,
         tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childProtocolOptions: ProtocolOptions,
-        childTLSOptions: NWProtocolTLS.Options?
+        childTLSOptions: NWProtocolTLS.Options?,
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.tsEventLoop = eventLoop
         self.closePromise = eventLoop.makePromise()
         self.connectionQueue = eventLoop.channelQueue(label: "nio.transportservices.listenerchannel", qos: qos)
         self.protocolOptions = protocolOptions
         self.tlsOptions = tlsOptions
+        self.nwParametersConfigurator = nwParametersConfigurator
         self.childLoopGroup = childLoopGroup
         self.childChannelQoS = childChannelQoS
         self.childProtocolOptions = childProtocolOptions
         self.childTLSOptions = childTLSOptions
+        self.childNWParametersConfigurator = childNWParametersConfigurator
 
         // Must come last, as it requires self to be completely initialized.
         self._pipeline = ChannelPipeline(channel: self)
@@ -155,20 +165,24 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
         qos: DispatchQoS? = nil,
         protocolOptions: ProtocolOptions,
         tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childProtocolOptions: ProtocolOptions,
-        childTLSOptions: NWProtocolTLS.Options?
+        childTLSOptions: NWProtocolTLS.Options?,
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             eventLoop: eventLoop,
             qos: qos,
             protocolOptions: protocolOptions,
             tlsOptions: tlsOptions,
+            nwParametersConfigurator: nwParametersConfigurator,
             childLoopGroup: childLoopGroup,
             childChannelQoS: childChannelQoS,
             childProtocolOptions: childProtocolOptions,
-            childTLSOptions: childTLSOptions
+            childTLSOptions: childTLSOptions,
+            childNWParametersConfigurator: childNWParametersConfigurator
         )
         self.nwListener = listener
     }
@@ -397,6 +411,8 @@ extension StateManagedListenerChannel {
         parameters.includePeerToPeer = self.enablePeerToPeer
 
         parameters.multipathServiceType = self.multipathServiceType
+
+        self.nwParametersConfigurator?(parameters)
 
         let listener: NWListener
         do {

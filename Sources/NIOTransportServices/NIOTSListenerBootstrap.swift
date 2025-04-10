@@ -66,6 +66,7 @@ public final class NIOTSListenerBootstrap {
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
     private var bindTimeout: TimeAmount?
+    private var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     /// Create a ``NIOTSListenerBootstrap`` for the `EventLoopGroup` `group`.
     ///
@@ -239,6 +240,14 @@ public final class NIOTSListenerBootstrap {
         return self
     }
 
+    /// Customise the `NWParameters` to be used when creating the connection.
+    public func configureNWParameters(
+        _ configurator: @Sendable @escaping (NWParameters) -> Void
+    ) -> Self {
+        self.nwParametersConfigurator = configurator
+        return self
+    }
+
     /// Specifies a type of Multipath service to use for this listener, instead of the default
     /// service type for the event loop.
     ///
@@ -337,10 +346,12 @@ public final class NIOTSListenerBootstrap {
                 qos: self.serverQoS,
                 tcpOptions: self.tcpOptions,
                 tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator,
                 childLoopGroup: self.childGroup,
                 childChannelQoS: self.childQoS,
                 childTCPOptions: self.tcpOptions,
-                childTLSOptions: self.tlsOptions
+                childTLSOptions: self.tlsOptions,
+                childNWParametersConfigurator: self.nwParametersConfigurator
             )
         } else {
             serverChannel = NIOTSListenerChannel(
@@ -348,10 +359,12 @@ public final class NIOTSListenerBootstrap {
                 qos: self.serverQoS,
                 tcpOptions: self.tcpOptions,
                 tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator,
                 childLoopGroup: self.childGroup,
                 childChannelQoS: self.childQoS,
                 childTCPOptions: self.tcpOptions,
-                childTLSOptions: self.tlsOptions
+                childTLSOptions: self.tlsOptions,
+                childNWParametersConfigurator: self.nwParametersConfigurator
             )
         }
 
@@ -558,10 +571,12 @@ extension NIOTSListenerBootstrap {
                 qos: self.serverQoS,
                 tcpOptions: self.tcpOptions,
                 tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator,
                 childLoopGroup: self.childGroup,
                 childChannelQoS: self.childQoS,
                 childTCPOptions: self.tcpOptions,
-                childTLSOptions: self.tlsOptions
+                childTLSOptions: self.tlsOptions,
+                childNWParametersConfigurator: self.nwParametersConfigurator
             )
         } else {
             serverChannel = NIOTSListenerChannel(
@@ -569,10 +584,12 @@ extension NIOTSListenerBootstrap {
                 qos: self.serverQoS,
                 tcpOptions: self.tcpOptions,
                 tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator,
                 childLoopGroup: self.childGroup,
                 childChannelQoS: self.childQoS,
                 childTCPOptions: self.tcpOptions,
-                childTLSOptions: self.tlsOptions
+                childTLSOptions: self.tlsOptions,
+                childNWParametersConfigurator: self.nwParametersConfigurator
             )
         }
 
