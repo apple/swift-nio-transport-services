@@ -67,7 +67,8 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     /// The TLS options for this listener.
     internal let tlsOptions: NWProtocolTLS.Options?
 
-    internal var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
+    /// A customization point for this listener's `NWParameters`.
+    internal let nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     /// The `DispatchQueue` that socket events for this connection will be dispatched onto.
     internal let connectionQueue: DispatchQueue
@@ -115,7 +116,8 @@ internal class StateManagedListenerChannel<ChildChannel: StateManagedChannel>: S
     /// The TLS options to use for child channels.
     internal let childTLSOptions: NWProtocolTLS.Options?
 
-    internal var childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
+    /// A customization point for each child's `NWParameters`.
+    internal let childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     /// The cache of the local and remote socket addresses. Must be accessed using _addressCacheLock.
     internal var addressCache = AddressCache(local: nil, remote: nil)
