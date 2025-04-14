@@ -16,7 +16,7 @@
 import XCTest
 import Network
 import NIOCore
-import NIOTransportServices
+@testable import NIOTransportServices
 import Foundation
 import NIOConcurrencyHelpers
 
@@ -233,34 +233,44 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
         XCTAssertNoThrow(try connection.close().wait())
     }
 
-    func testNWParametersConfigurator() throws {
+    func testNWParametersConfigurator() async throws {
         let group = NIOTSEventLoopGroup()
-        defer {
-            try! group.syncShutdownGracefully()
-        }
 
         let configuratorListenerCounter = NIOLockedValueBox(0)
         let configuratorConnectionCounter = NIOLockedValueBox(0)
 
-        let listenerChannel = try NIOTSDatagramListenerBootstrap(group: group)
+        let listenerChannel = try await NIOTSDatagramListenerBootstrap(group: group)
+//            .childChannelInitializer { connectionChannel in
+//                print((connectionChannel as! NIOTSDatagramChannel).connectPromise)
+//                return connectionChannel.eventLoop.makeSucceededFuture(())
+//            }
             .configureNWParameters { _ in
                 configuratorListenerCounter.withLockedValue { $0 += 1 }
             }
             .bind(host: "localhost", port: 0)
-            .wait()
+            .get()
 
-        let connectionChannel: Channel = try NIOTSDatagramBootstrap(group: group)
+        let connectionChannel: Channel = try await NIOTSDatagramBootstrap(group: group)
             .configureNWParameters { _ in
                 configuratorConnectionCounter.withLockedValue { $0 += 1 }
             }
             .connect(to: listenerChannel.localAddress!)
-            .wait()
+            .get()
 
-        try listenerChannel.close().wait()
-        try connectionChannel.close().wait()
+        // Need to write something so the server can activate the connection channel: this is UDP,
+        // so there is no handshaking that happens and thus the server cannot know that the
+        // connection has been established and the channel can be activated.
+        try await connectionChannel.writeAndFlush(ByteBuffer(bytes: [42]))
 
-        XCTAssertEqual(1, configuratorListenerCounter.withLockedValue { $0 })
+        try await Task.sleep(for: .milliseconds(100))
+
+        try await listenerChannel.close().get()
+        try await connectionChannel.close().get()
+
+        XCTAssertEqual(2, configuratorListenerCounter.withLockedValue { $0 })
         XCTAssertEqual(1, configuratorConnectionCounter.withLockedValue { $0 })
+
+        try await group.shutdownGracefully()
     }
 
     func testCanExtractTheConnection() throws {

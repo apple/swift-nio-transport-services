@@ -18,7 +18,7 @@ import XCTest
 import Network
 import NIOCore
 import NIOEmbedded
-import NIOTransportServices
+@testable import NIOTransportServices
 import NIOConcurrencyHelpers
 import Foundation
 
@@ -372,34 +372,40 @@ final class NIOTSBootstrapTests: XCTestCase {
         XCTAssertEqual(try connectionChannel.getOption(NIOTSChannelOptions.multipathServiceType).wait(), .handover)
     }
 
-    func testNWParametersConfigurator() throws {
+    func testNWParametersConfigurator() async throws {
         let group = NIOTSEventLoopGroup()
-        defer {
-            try! group.syncShutdownGracefully()
-        }
 
         let configuratorListenerCounter = NIOLockedValueBox(0)
         let configuratorConnectionCounter = NIOLockedValueBox(0)
 
-        let listenerChannel = try NIOTSListenerBootstrap(group: group)
+        let listenerChannel = try await NIOTSListenerBootstrap(group: group)
             .configureNWParameters { _ in
                 configuratorListenerCounter.withLockedValue { $0 += 1 }
             }
             .bind(host: "localhost", port: 0)
-            .wait()
+            .get()
 
-        let connectionChannel: Channel = try NIOTSConnectionBootstrap(group: group)
+        let connectionChannel: Channel = try await NIOTSConnectionBootstrap(group: group)
             .configureNWParameters { _ in
                 configuratorConnectionCounter.withLockedValue { $0 += 1 }
             }
             .connect(to: listenerChannel.localAddress!)
-            .wait()
+            .get()
 
-        try listenerChannel.close().wait()
-        try connectionChannel.close().wait()
+        // Need to wait for the connection channel to be activated. We cannot wait for the connect
+        // promise (`StateManagedNWConnectionChannel/connectPromise`) from here, because it is
+        // nulled out as soon as it's completed, and the listener channel doesn't wait on it either.
+        // If we don't wait, we can race with the connection channel's parameter configurator
+        // closure being run, and the assertion below would fail.
+        try await Task.sleep(for: .milliseconds(100))
 
-        XCTAssertEqual(1, configuratorListenerCounter.withLockedValue { $0 })
+        try await listenerChannel.close().get()
+        try await connectionChannel.close().get()
+
+        XCTAssertEqual(2, configuratorListenerCounter.withLockedValue { $0 })
         XCTAssertEqual(1, configuratorConnectionCounter.withLockedValue { $0 })
+
+        try await group.shutdownGracefully()
     }
 }
 
