@@ -16,7 +16,7 @@
 import XCTest
 import Network
 import NIOCore
-@testable import NIOTransportServices
+import NIOTransportServices
 import Foundation
 import NIOConcurrencyHelpers
 
@@ -234,16 +234,34 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
     }
 
     func testNWParametersConfigurator() async throws {
-        let group = NIOTSEventLoopGroup()
+        final class WaitForConnectionHandler: ChannelInboundHandler, Sendable {
+            typealias InboundIn = Never
+
+            let connectionPromise: EventLoopPromise<Void>
+
+            init(connectionPromise: EventLoopPromise<Void>) {
+                self.connectionPromise = connectionPromise
+            }
+
+            func channelActive(context: ChannelHandlerContext) {
+                self.connectionPromise.succeed()
+            }
+        }
+
+        let group = NIOTSEventLoopGroup(loopCount: 1)
 
         let configuratorListenerCounter = NIOLockedValueBox(0)
         let configuratorConnectionCounter = NIOLockedValueBox(0)
+        let waitForConnectionHandler = WaitForConnectionHandler(
+            connectionPromise: group.next().makePromise()
+        )
 
         let listenerChannel = try await NIOTSDatagramListenerBootstrap(group: group)
-//            .childChannelInitializer { connectionChannel in
-//                print((connectionChannel as! NIOTSDatagramChannel).connectPromise)
-//                return connectionChannel.eventLoop.makeSucceededFuture(())
-//            }
+            .childChannelInitializer { connectionChannel in
+                connectionChannel.eventLoop.makeCompletedFuture {
+                    try connectionChannel.pipeline.syncOperations.addHandler(waitForConnectionHandler)
+                }
+            }
             .configureNWParameters { _ in
                 configuratorListenerCounter.withLockedValue { $0 += 1 }
             }
@@ -262,7 +280,8 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
         // connection has been established and the channel can be activated.
         try await connectionChannel.writeAndFlush(ByteBuffer(bytes: [42]))
 
-        try await Task.sleep(for: .milliseconds(100))
+        // Wait for the server to activate the connection channel to the client.
+        try await waitForConnectionHandler.connectionPromise.futureResult.get()
 
         try await listenerChannel.close().get()
         try await connectionChannel.close().get()

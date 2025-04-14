@@ -373,12 +373,34 @@ final class NIOTSBootstrapTests: XCTestCase {
     }
 
     func testNWParametersConfigurator() async throws {
-        let group = NIOTSEventLoopGroup()
+        final class WaitForConnectionHandler: ChannelInboundHandler, Sendable {
+            typealias InboundIn = Never
+
+            let connectionPromise: EventLoopPromise<Void>
+
+            init(connectionPromise: EventLoopPromise<Void>) {
+                self.connectionPromise = connectionPromise
+            }
+
+            func channelActive(context: ChannelHandlerContext) {
+                self.connectionPromise.succeed()
+            }
+        }
+
+        let group = NIOTSEventLoopGroup(loopCount: 1)
 
         let configuratorListenerCounter = NIOLockedValueBox(0)
         let configuratorConnectionCounter = NIOLockedValueBox(0)
+        let waitForConnectionHandler = WaitForConnectionHandler(
+            connectionPromise: group.next().makePromise()
+        )
 
         let listenerChannel = try await NIOTSListenerBootstrap(group: group)
+            .childChannelInitializer { connectionChannel in
+                connectionChannel.eventLoop.makeCompletedFuture {
+                    try connectionChannel.pipeline.syncOperations.addHandler(waitForConnectionHandler)
+                }
+            }
             .configureNWParameters { _ in
                 configuratorListenerCounter.withLockedValue { $0 += 1 }
             }
@@ -392,12 +414,8 @@ final class NIOTSBootstrapTests: XCTestCase {
             .connect(to: listenerChannel.localAddress!)
             .get()
 
-        // Need to wait for the connection channel to be activated. We cannot wait for the connect
-        // promise (`StateManagedNWConnectionChannel/connectPromise`) from here, because it is
-        // nulled out as soon as it's completed, and the listener channel doesn't wait on it either.
-        // If we don't wait, we can race with the connection channel's parameter configurator
-        // closure being run, and the assertion below would fail.
-        try await Task.sleep(for: .milliseconds(100))
+        // Wait for the server to activate the connection channel to the client.
+        try await waitForConnectionHandler.connectionPromise.futureResult.get()
 
         try await listenerChannel.close().get()
         try await connectionChannel.close().get()
