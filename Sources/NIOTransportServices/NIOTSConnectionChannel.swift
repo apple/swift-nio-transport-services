@@ -164,7 +164,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// An `EventLoopPromise` that will be succeeded or failed when a connection attempt succeeds or fails.
     internal var connectPromise: EventLoopPromise<Void>?
 
-    private let nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
+    internal let nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     internal var parameters: NWParameters {
         let parameters = NWParameters(tls: self.tlsOptions, tcp: self.tcpOptions)

@@ -140,7 +140,7 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
     internal var allowLocalEndpointReuse = false
     internal var multipathServiceType: NWParameters.MultipathServiceType = .disabled
 
-    private let nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
+    internal let nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     var parameters: NWParameters {
         let parameters = NWParameters(dtls: self.tlsOptions, udp: self.udpOptions)
