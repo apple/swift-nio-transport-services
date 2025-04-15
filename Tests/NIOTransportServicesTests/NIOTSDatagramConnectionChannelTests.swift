@@ -245,51 +245,50 @@ final class NIOTSDatagramConnectionChannelTests: XCTestCase {
 
             func channelActive(context: ChannelHandlerContext) {
                 self.connectionPromise.succeed()
+                context.fireChannelActive()
             }
         }
 
-        let group = NIOTSEventLoopGroup(loopCount: 1)
+        try await withEventLoopGroup { group in
+            let configuratorListenerCounter = NIOLockedValueBox(0)
+            let configuratorConnectionCounter = NIOLockedValueBox(0)
+            let waitForConnectionHandler = WaitForConnectionHandler(
+                connectionPromise: group.next().makePromise()
+            )
 
-        let configuratorListenerCounter = NIOLockedValueBox(0)
-        let configuratorConnectionCounter = NIOLockedValueBox(0)
-        let waitForConnectionHandler = WaitForConnectionHandler(
-            connectionPromise: group.next().makePromise()
-        )
-
-        let listenerChannel = try await NIOTSDatagramListenerBootstrap(group: group)
-            .childChannelInitializer { connectionChannel in
-                connectionChannel.eventLoop.makeCompletedFuture {
-                    try connectionChannel.pipeline.syncOperations.addHandler(waitForConnectionHandler)
+            let listenerChannel = try await NIOTSDatagramListenerBootstrap(group: group)
+                .childChannelInitializer { connectionChannel in
+                    connectionChannel.eventLoop.makeCompletedFuture {
+                        try connectionChannel.pipeline.syncOperations.addHandler(waitForConnectionHandler)
+                    }
                 }
-            }
-            .configureNWParameters { _ in
-                configuratorListenerCounter.withLockedValue { $0 += 1 }
-            }
-            .bind(host: "localhost", port: 0)
-            .get()
+                .configureNWParameters { _ in
+                    configuratorListenerCounter.withLockedValue { $0 += 1 }
+                }
+                .bind(host: "localhost", port: 0)
+                .get()
 
-        let connectionChannel: Channel = try await NIOTSDatagramBootstrap(group: group)
-            .configureNWParameters { _ in
-                configuratorConnectionCounter.withLockedValue { $0 += 1 }
-            }
-            .connect(to: listenerChannel.localAddress!)
-            .get()
+            let connectionChannel: Channel = try await NIOTSDatagramBootstrap(group: group)
+                .configureNWParameters { _ in
+                    configuratorConnectionCounter.withLockedValue { $0 += 1 }
+                }
+                .connect(to: listenerChannel.localAddress!)
+                .get()
 
-        // Need to write something so the server can activate the connection channel: this is UDP,
-        // so there is no handshaking that happens and thus the server cannot know that the
-        // connection has been established and the channel can be activated.
-        try await connectionChannel.writeAndFlush(ByteBuffer(bytes: [42]))
+            // Need to write something so the server can activate the connection channel: this is UDP,
+            // so there is no handshaking that happens and thus the server cannot know that the
+            // connection has been established and the channel can be activated.
+            try await connectionChannel.writeAndFlush(ByteBuffer(bytes: [42]))
 
-        // Wait for the server to activate the connection channel to the client.
-        try await waitForConnectionHandler.connectionPromise.futureResult.get()
+            // Wait for the server to activate the connection channel to the client.
+            try await waitForConnectionHandler.connectionPromise.futureResult.get()
 
-        try await listenerChannel.close().get()
-        try await connectionChannel.close().get()
+            try await listenerChannel.close().get()
+            try await connectionChannel.close().get()
 
-        XCTAssertEqual(2, configuratorListenerCounter.withLockedValue { $0 })
-        XCTAssertEqual(1, configuratorConnectionCounter.withLockedValue { $0 })
-
-        try await group.shutdownGracefully()
+            XCTAssertEqual(2, configuratorListenerCounter.withLockedValue { $0 })
+            XCTAssertEqual(1, configuratorConnectionCounter.withLockedValue { $0 })
+        }
     }
 
     func testCanExtractTheConnection() throws {
