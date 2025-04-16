@@ -114,7 +114,7 @@ final class ReadRecorder<DataType: Sendable>: ChannelInboundHandler {
 
 // Mimicks the DatagramChannelTest from apple/swift-nio
 @available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
-final class NIOTSDatagramConnectionChannelTests: XCTestCase {
+final class NIOTSDatagramBootstrapTests: XCTestCase {
     private var group: NIOTSEventLoopGroup!
 
     private func buildServerChannel(
