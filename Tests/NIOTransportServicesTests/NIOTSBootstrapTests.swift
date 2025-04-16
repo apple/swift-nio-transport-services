@@ -371,6 +371,49 @@ final class NIOTSBootstrapTests: XCTestCase {
         XCTAssertEqual(try listenerChannel.getOption(NIOTSChannelOptions.multipathServiceType).wait(), .handover)
         XCTAssertEqual(try connectionChannel.getOption(NIOTSChannelOptions.multipathServiceType).wait(), .handover)
     }
+
+    func testNWParametersConfigurator() async throws {
+        try await withEventLoopGroup { group in
+            let configuratorServerListenerCounter = NIOLockedValueBox(0)
+            let configuratorServerConnectionCounter = NIOLockedValueBox(0)
+            let configuratorClientConnectionCounter = NIOLockedValueBox(0)
+            let waitForConnectionHandler = WaitForConnectionHandler(
+                connectionPromise: group.next().makePromise()
+            )
+
+            let listenerChannel = try await NIOTSListenerBootstrap(group: group)
+                .childChannelInitializer { connectionChannel in
+                    connectionChannel.eventLoop.makeCompletedFuture {
+                        try connectionChannel.pipeline.syncOperations.addHandler(waitForConnectionHandler)
+                    }
+                }
+                .configureNWParameters { _ in
+                    configuratorServerListenerCounter.withLockedValue { $0 += 1 }
+                }
+                .configureChildNWParameters { _ in
+                    configuratorServerConnectionCounter.withLockedValue { $0 += 1 }
+                }
+                .bind(host: "localhost", port: 0)
+                .get()
+
+            let connectionChannel: Channel = try await NIOTSConnectionBootstrap(group: group)
+                .configureNWParameters { _ in
+                    configuratorClientConnectionCounter.withLockedValue { $0 += 1 }
+                }
+                .connect(to: listenerChannel.localAddress!)
+                .get()
+
+            // Wait for the server to activate the connection channel to the client.
+            try await waitForConnectionHandler.connectionPromise.futureResult.get()
+
+            try await listenerChannel.close().get()
+            try await connectionChannel.close().get()
+
+            XCTAssertEqual(1, configuratorServerListenerCounter.withLockedValue { $0 })
+            XCTAssertEqual(1, configuratorServerConnectionCounter.withLockedValue { $0 })
+            XCTAssertEqual(1, configuratorClientConnectionCounter.withLockedValue { $0 })
+        }
+    }
 }
 
 extension Channel {

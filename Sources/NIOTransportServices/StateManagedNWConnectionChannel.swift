@@ -83,6 +83,8 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
 
     var multipathServiceType: NWParameters.MultipathServiceType { get }
 
+    var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)? { get }
+
     func setChannelSpecificOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws
 
     func getChannelSpecificOption0<Option: ChannelOption>(option: Option) throws -> Option.Value
@@ -242,6 +244,7 @@ extension StateManagedNWConnectionChannel {
         connection.betterPathUpdateHandler = self.betterPathHandler
         connection.viabilityUpdateHandler = self.viabilityUpdateHandler
         connection.pathUpdateHandler = self.pathChangedHandler(newPath:)
+        self.nwParametersConfigurator?(connection.parameters)
         connection.start(queue: self.connectionQueue)
     }
 
