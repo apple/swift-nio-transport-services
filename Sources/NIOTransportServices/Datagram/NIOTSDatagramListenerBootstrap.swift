@@ -17,7 +17,8 @@ import NIOCore
 import Dispatch
 import Network
 
-/// A ``NIOTSListenerBootstrap`` is an easy way to bootstrap a `NIOTSListenerChannel` when creating network servers.
+/// A ``NIOTSDatagramListenerBootstrap`` is an easy way to bootstrap a `NIOTSDatagramListenerChannel` when
+/// creating network servers.
 ///
 /// Example:
 ///
@@ -26,7 +27,7 @@ import Network
 ///     defer {
 ///         try! group.syncShutdownGracefully()
 ///     }
-///     let bootstrap = NIOTSListenerBootstrap(group: group)
+///     let bootstrap = NIOTSDatagramListenerBootstrap(group: group)
 ///         // Specify backlog and enable SO_REUSEADDR for the server itself
 ///         .serverChannelOption(ChannelOptions.backlog, value: 256)
 ///         .serverChannelOption(ChannelOptions.socketOption(.reuseaddr), value: 1)
@@ -46,13 +47,13 @@ import Network
 ///     try! channel.closeFuture.wait() // wait forever as we never close the Channel
 /// ```
 ///
-/// The `EventLoopFuture` returned by `bind` will fire with a `NIOTSListenerChannel`. This is the channel that owns the
-/// listening socket. Each time it accepts a new connection it will fire a `NIOTSConnectionChannel` through the
-/// `ChannelPipeline` via `fireChannelRead`: as a result, the `NIOTSListenerChannel` operates on `Channel`s as inbound
-/// messages. Outbound messages are not supported on a `NIOTSListenerChannel` which means that each write attempt will
-/// fail.
+/// The `EventLoopFuture` returned by `bind` will fire with a `NIOTSDatagramListenerChannel`. This is the channel that
+/// owns the listening socket. Each time it accepts a new connection it will fire a `NIOTSDatagramChannel` through the
+/// `ChannelPipeline` via `fireChannelRead`: as a result, the `NIOTSDatagramListenerChannel` operates on
+/// `Channel`s as inbound messages. Outbound messages are not supported on a `NIOTSDatagramChannel` which means that
+/// each write attempt will fail.
 ///
-/// Accepted `NIOTSConnectionChannel`s operate on `ByteBuffer` as inbound data, and `IOData` as outbound data.
+/// Accepted `NIOTSDatagramChannel`s operate on `ByteBuffer` as inbound data, and `IOData` as outbound data.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSDatagramListenerBootstrap {
     private let group: EventLoopGroup
@@ -71,7 +72,7 @@ public final class NIOTSDatagramListenerBootstrap {
     private var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     private var childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
-    /// Create a ``NIOTSListenerBootstrap`` for the `EventLoopGroup` `group`.
+    /// Create a ``NIOTSDatagramListenerBootstrap`` for the `EventLoopGroup` `group`.
     ///
     /// This initializer only exists to be more in-line with the NIO core bootstraps, in that they
     /// may be constructed with an `EventLoopGroup` and by extension an `EventLoop`. As such an
@@ -82,20 +83,20 @@ public final class NIOTSDatagramListenerBootstrap {
     /// > Note: The "real" solution is described in https://github.com/apple/swift-nio/issues/674.
     ///
     /// - parameters:
-    ///     - group: The `EventLoopGroup` to use for the `NIOTSListenerChannel`.
+    ///     - group: The `EventLoopGroup` to use for the `NIOTSDatagramListenerChannel`.
     public convenience init(group: EventLoopGroup) {
         self.init(group: group, childGroup: group)
     }
 
-    /// Create a ``NIOTSListenerBootstrap`` for the ``NIOTSEventLoopGroup`` `group`.
+    /// Create a ``NIOTSDatagramListenerBootstrap`` for the ``NIOTSEventLoopGroup`` `group`.
     ///
     /// - parameters:
-    ///     - group: The ``NIOTSEventLoopGroup`` to use for the `NIOTSListenerChannel`.
+    ///     - group: The ``NIOTSEventLoopGroup`` to use for the `NIOTSDatagramListenerChannel`.
     public convenience init(group: NIOTSEventLoopGroup) {
         self.init(group: group as EventLoopGroup)
     }
 
-    /// Create a ``NIOTSListenerBootstrap``.
+    /// Create a ``NIOTSDatagramListenerBootstrap``.
     ///
     /// This initializer only exists to be more in-line with the NIO core bootstraps, in that they
     /// may be constructed with an `EventLoopGroup` and by extension an `EventLoop`. As such an
@@ -106,9 +107,9 @@ public final class NIOTSDatagramListenerBootstrap {
     /// > Note: The "real" solution is described in https://github.com/apple/swift-nio/issues/674.
     ///
     /// - parameters:
-    ///     - group: The `EventLoopGroup` to use for the `bind` of the `NIOTSListenerChannel`
-    ///         and to accept new `NIOTSConnectionChannel`s with.
-    ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSConnectionChannel`s on.
+    ///     - group: The `EventLoopGroup` to use for the `bind` of the `NIOTSDatagramListenerChannel`
+    ///         and to accept new `NIOTSDatagramChannel`s with.
+    ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSDatagramChannel`s on.
     public convenience init(group: EventLoopGroup, childGroup: EventLoopGroup) {
         guard NIOTSBootstraps.isCompatible(group: group) && NIOTSBootstraps.isCompatible(group: childGroup) else {
             preconditionFailure(
@@ -121,13 +122,13 @@ public final class NIOTSDatagramListenerBootstrap {
         self.init(validatingGroup: group, childGroup: childGroup)!
     }
 
-    /// Create a ``NIOTSListenerBootstrap`` on the `EventLoopGroup` `group` which accepts `Channel`s on `childGroup`,
-    /// validating that the `EventLoopGroup`s are compatible with ``NIOTSListenerBootstrap``.
+    /// Create a ``NIOTSDatagramListenerBootstrap`` on the `EventLoopGroup` `group` which accepts `Channel`s
+    /// on `childGroup`, validating that the `EventLoopGroup`s are compatible with ``NIOTSDatagramListenerBootstrap``.
     ///
     /// - parameters:
-    ///     - group: The `EventLoopGroup` to use for the `bind` of the `NIOTSListenerChannel`
-    ///         and to accept new `NIOTSConnectionChannel`s with.
-    ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSConnectionChannel`s on.
+    ///     - group: The `EventLoopGroup` to use for the `bind` of the `NIOTSDatagramListenerChannel`
+    ///         and to accept new `NIOTSDatagramChannel`s with.
+    ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSDatagramChannel`s on.
     public init?(validatingGroup group: EventLoopGroup, childGroup: EventLoopGroup? = nil) {
         let childGroup = childGroup ?? group
         guard NIOTSBootstraps.isCompatible(group: group) && NIOTSBootstraps.isCompatible(group: childGroup) else {
@@ -138,22 +139,22 @@ public final class NIOTSDatagramListenerBootstrap {
         self.childGroup = childGroup
     }
 
-    /// Create a ``NIOTSListenerBootstrap``.
+    /// Create a ``NIOTSDatagramListenerBootstrap``.
     ///
     /// - parameters:
-    ///     - group: The ``NIOTSEventLoopGroup`` to use for the `bind` of the `NIOTSListenerChannel`
-    ///         and to accept new `NIOTSConnectionChannel`s with.
-    ///     - childGroup: The ``NIOTSEventLoopGroup`` to run the accepted `NIOTSConnectionChannel`s on.
+    ///     - group: The ``NIOTSEventLoopGroup`` to use for the `bind` of the `NIOTSDatagramListenerChannel`
+    ///         and to accept new `NIOTSDatagramChannel`s with.
+    ///     - childGroup: The ``NIOTSEventLoopGroup`` to run the accepted `NIOTSDatagramChannel`s on.
     public convenience init(group: NIOTSEventLoopGroup, childGroup: NIOTSEventLoopGroup) {
         self.init(group: group as EventLoopGroup, childGroup: childGroup as EventLoopGroup)
     }
 
-    /// Initialize the `NIOTSListenerChannel` with `initializer`. The most common task in initializer is to add
+    /// Initialize the `NIOTSDatagramListenerChannel` with `initializer`. The most common task in initializer is to add
     /// `ChannelHandler`s to the `ChannelPipeline`.
     ///
-    /// The `NIOTSListenerChannel` uses the accepted `NIOTSConnectionChannel`s as inbound messages.
+    /// The `NIOTSDatagramListenerChannel` uses the accepted `NIOTSDatagramChannel`s as inbound messages.
     ///
-    /// > Note: To set the initializer for the accepted `NIOTSConnectionChannel`s, look at
+    /// > Note: To set the initializer for the accepted `NIOTSDatagramChannel`s, look at
     ///     ``childChannelInitializer(_:)``.
     ///
     /// - parameters:
@@ -165,7 +166,7 @@ public final class NIOTSDatagramListenerBootstrap {
         return self
     }
 
-    /// Initialize the accepted `NIOTSConnectionChannel`s with `initializer`. The most common task in initializer is to add
+    /// Initialize the accepted `NIOTSDatagramChannel`s with `initializer`. The most common task in initializer is to add
     /// `ChannelHandler`s to the `ChannelPipeline`. Note that if the `initializer` fails then the error will be
     /// fired in the *parent* channel.
     ///
@@ -179,9 +180,9 @@ public final class NIOTSDatagramListenerBootstrap {
         return self
     }
 
-    /// Specifies a `ChannelOption` to be applied to the `NIOTSListenerChannel`.
+    /// Specifies a `ChannelOption` to be applied to the `NIOTSDatagramListenerChannel`.
     ///
-    /// > Note: To specify options for the accepted `NIOTSConnectionChannel`s, look at ``childChannelOption(_:value:)``.
+    /// > Note: To specify options for the accepted `NIOTSDatagramChannel`s, look at ``childChannelOption(_:value:)``.
     ///
     /// - parameters:
     ///     - option: The option to be applied.
@@ -191,7 +192,7 @@ public final class NIOTSDatagramListenerBootstrap {
         return self
     }
 
-    /// Specifies a `ChannelOption` to be applied to the accepted `NIOTSConnectionChannel`s.
+    /// Specifies a `ChannelOption` to be applied to the accepted `NIOTSDatagramChannel`s.
     ///
     /// - parameters:
     ///     - option: The option to be applied.
@@ -268,7 +269,7 @@ public final class NIOTSDatagramListenerBootstrap {
         return self
     }
 
-    /// Bind the `NIOTSListenerChannel` to `host` and `port`.
+    /// Bind the `NIOTSDatagramListenerChannel` to `host` and `port`.
     ///
     /// - parameters:
     ///     - host: The host to bind on.
@@ -292,7 +293,7 @@ public final class NIOTSDatagramListenerBootstrap {
         }
     }
 
-    /// Bind the `NIOTSListenerChannel` to `address`.
+    /// Bind the `NIOTSDatagramListenerChannel` to `address`.
     ///
     /// - parameters:
     ///     - address: The `SocketAddress` to bind on.
@@ -302,7 +303,7 @@ public final class NIOTSDatagramListenerBootstrap {
         }
     }
 
-    /// Bind the `NIOTSListenerChannel` to a UNIX Domain Socket.
+    /// Bind the `NIOTSDatagramListenerChannel` to a UNIX Domain Socket.
     ///
     /// - parameters:
     ///     - unixDomainSocketPath: The _Unix domain socket_ path to bind to. `unixDomainSocketPath` must not exist, it will be created by the system.
@@ -317,7 +318,7 @@ public final class NIOTSDatagramListenerBootstrap {
         }
     }
 
-    /// Bind the `NIOTSListenerChannel` to a given `NWEndpoint`.
+    /// Bind the `NIOTSDatagramListenerChannel` to a given `NWEndpoint`.
     ///
     /// - parameters:
     ///     - endpoint: The `NWEndpoint` to bind this channel to.
@@ -327,7 +328,7 @@ public final class NIOTSDatagramListenerBootstrap {
         }
     }
 
-    /// Bind the `NIOTSListenerChannel` to an existing `NWListener`.
+    /// Bind the `NIOTSDatagramListenerChannel` to an existing `NWListener`.
     ///
     /// - parameters:
     ///     - listener: The NWListener to wrap.
