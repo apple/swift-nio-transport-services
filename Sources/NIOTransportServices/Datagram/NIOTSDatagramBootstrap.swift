@@ -17,7 +17,7 @@ import NIOCore
 import Dispatch
 import Network
 
-/// A `NIOTSDatagramBootstrap` is an easy way to bootstrap a `NIOTSDatagramChannel` when creating network clients.
+/// A `NIOTSDatagramBootstrap` is an easy way to bootstrap a `NIOTSDatagramConnectionChannel` when creating network clients.
 ///
 /// Usually you re-use a `NIOTSDatagramBootstrap` once you set it up, calling `connect` multiple times on the same bootstrap.
 /// This way you ensure that the same `EventLoop`s will be shared across all your connections.
@@ -37,7 +37,7 @@ import Network
 ///     /* the Channel is now connected */
 /// ```
 ///
-/// The connected `NIOTSDatagramChannel` will operate on `ByteBuffer` as inbound and outbound messages.
+/// The connected `NIOTSDatagramConnectionChannel` will operate on `ByteBuffer` as inbound and outbound messages.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSDatagramBootstrap {
     private let group: EventLoopGroup
@@ -193,7 +193,7 @@ public final class NIOTSDatagramBootstrap {
     private func connect0(
         _ binder: @Sendable @escaping (Channel, EventLoopPromise<Void>) -> Void
     ) -> EventLoopFuture<Channel> {
-        let conn: Channel = NIOTSDatagramChannel(
+        let conn: Channel = NIOTSDatagramConnectionChannel(
             eventLoop: self.group.next() as! NIOTSEventLoop,
             qos: self.qos,
             udpOptions: self.udpOptions,

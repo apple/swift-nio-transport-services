@@ -48,12 +48,12 @@ import Network
 /// ```
 ///
 /// The `EventLoopFuture` returned by `bind` will fire with a `NIOTSDatagramListenerChannel`. This is the channel that
-/// owns the listening socket. Each time it accepts a new connection it will fire a `NIOTSDatagramChannel` through the
+/// owns the listening socket. Each time it accepts a new connection it will fire a `NIOTSDatagramConnectionChannel` through the
 /// `ChannelPipeline` via `fireChannelRead`: as a result, the `NIOTSDatagramListenerChannel` operates on
-/// `Channel`s as inbound messages. Outbound messages are not supported on a `NIOTSDatagramChannel` which means that
+/// `Channel`s as inbound messages. Outbound messages are not supported on a `NIOTSDatagramConnectionChannel` which means that
 /// each write attempt will fail.
 ///
-/// Accepted `NIOTSDatagramChannel`s operate on `ByteBuffer` as inbound data, and `IOData` as outbound data.
+/// Accepted `NIOTSDatagramConnectionChannel`s operate on `ByteBuffer` as inbound data, and `IOData` as outbound data.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSDatagramListenerBootstrap {
     private let group: EventLoopGroup
@@ -108,8 +108,8 @@ public final class NIOTSDatagramListenerBootstrap {
     ///
     /// - parameters:
     ///     - group: The `EventLoopGroup` to use for the `bind` of the `NIOTSDatagramListenerChannel`
-    ///         and to accept new `NIOTSDatagramChannel`s with.
-    ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSDatagramChannel`s on.
+    ///         and to accept new `NIOTSDatagramConnectionChannel`s with.
+    ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSDatagramConnectionChannel`s on.
     public convenience init(group: EventLoopGroup, childGroup: EventLoopGroup) {
         guard NIOTSBootstraps.isCompatible(group: group) && NIOTSBootstraps.isCompatible(group: childGroup) else {
             preconditionFailure(
@@ -127,8 +127,8 @@ public final class NIOTSDatagramListenerBootstrap {
     ///
     /// - parameters:
     ///     - group: The `EventLoopGroup` to use for the `bind` of the `NIOTSDatagramListenerChannel`
-    ///         and to accept new `NIOTSDatagramChannel`s with.
-    ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSDatagramChannel`s on.
+    ///         and to accept new `NIOTSDatagramConnectionChannel`s with.
+    ///     - childGroup: The `EventLoopGroup` to run the accepted `NIOTSDatagramConnectionChannel`s on.
     public init?(validatingGroup group: EventLoopGroup, childGroup: EventLoopGroup? = nil) {
         let childGroup = childGroup ?? group
         guard NIOTSBootstraps.isCompatible(group: group) && NIOTSBootstraps.isCompatible(group: childGroup) else {
@@ -143,8 +143,8 @@ public final class NIOTSDatagramListenerBootstrap {
     ///
     /// - parameters:
     ///     - group: The ``NIOTSEventLoopGroup`` to use for the `bind` of the `NIOTSDatagramListenerChannel`
-    ///         and to accept new `NIOTSDatagramChannel`s with.
-    ///     - childGroup: The ``NIOTSEventLoopGroup`` to run the accepted `NIOTSDatagramChannel`s on.
+    ///         and to accept new `NIOTSDatagramConnectionChannel`s with.
+    ///     - childGroup: The ``NIOTSEventLoopGroup`` to run the accepted `NIOTSDatagramConnectionChannel`s on.
     public convenience init(group: NIOTSEventLoopGroup, childGroup: NIOTSEventLoopGroup) {
         self.init(group: group as EventLoopGroup, childGroup: childGroup as EventLoopGroup)
     }
@@ -152,9 +152,9 @@ public final class NIOTSDatagramListenerBootstrap {
     /// Initialize the `NIOTSDatagramListenerChannel` with `initializer`. The most common task in initializer is to add
     /// `ChannelHandler`s to the `ChannelPipeline`.
     ///
-    /// The `NIOTSDatagramListenerChannel` uses the accepted `NIOTSDatagramChannel`s as inbound messages.
+    /// The `NIOTSDatagramListenerChannel` uses the accepted `NIOTSDatagramConnectionChannel`s as inbound messages.
     ///
-    /// > Note: To set the initializer for the accepted `NIOTSDatagramChannel`s, look at
+    /// > Note: To set the initializer for the accepted `NIOTSDatagramConnectionChannel`s, look at
     ///     ``childChannelInitializer(_:)``.
     ///
     /// - parameters:
@@ -166,7 +166,7 @@ public final class NIOTSDatagramListenerBootstrap {
         return self
     }
 
-    /// Initialize the accepted `NIOTSDatagramChannel`s with `initializer`. The most common task in initializer is to add
+    /// Initialize the accepted `NIOTSDatagramConnectionChannel`s with `initializer`. The most common task in initializer is to add
     /// `ChannelHandler`s to the `ChannelPipeline`. Note that if the `initializer` fails then the error will be
     /// fired in the *parent* channel.
     ///
@@ -182,7 +182,7 @@ public final class NIOTSDatagramListenerBootstrap {
 
     /// Specifies a `ChannelOption` to be applied to the `NIOTSDatagramListenerChannel`.
     ///
-    /// > Note: To specify options for the accepted `NIOTSDatagramChannel`s, look at ``childChannelOption(_:value:)``.
+    /// > Note: To specify options for the accepted `NIOTSDatagramConnectionChannel`s, look at ``childChannelOption(_:value:)``.
     ///
     /// - parameters:
     ///     - option: The option to be applied.
@@ -192,7 +192,7 @@ public final class NIOTSDatagramListenerBootstrap {
         return self
     }
 
-    /// Specifies a `ChannelOption` to be applied to the accepted `NIOTSDatagramChannel`s.
+    /// Specifies a `ChannelOption` to be applied to the accepted `NIOTSDatagramConnectionChannel`s.
     ///
     /// - parameters:
     ///     - option: The option to be applied.
@@ -389,7 +389,7 @@ public final class NIOTSDatagramListenerBootstrap {
                 eventLoop.assertInEventLoop()
                 return eventLoop.makeCompletedFuture {
                     try serverChannel.pipeline.syncOperations.addHandler(
-                        AcceptHandler<NIOTSDatagramChannel>(
+                        AcceptHandler<NIOTSDatagramConnectionChannel>(
                             childChannelInitializer: childChannelInit,
                             childChannelOptions: childChannelOptions
                         )
