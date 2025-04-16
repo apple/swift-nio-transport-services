@@ -17,9 +17,9 @@ import NIOCore
 import Dispatch
 import Network
 
-/// A `NIOTSConnectionBootstrap` is an easy way to bootstrap a `NIOTSConnectionChannel` when creating network clients.
+/// A ``NIOTSConnectionBootstrap`` is an easy way to bootstrap a `NIOTSConnectionChannel` when creating network clients.
 ///
-/// Usually you re-use a `NIOTSConnectionBootstrap` once you set it up, calling `connect` multiple times on the same bootstrap.
+/// Usually you re-use a ``NIOTSConnectionBootstrap`` once you set it up, calling `connect` multiple times on the same bootstrap.
 /// This way you ensure that the same `EventLoop`s will be shared across all your connections.
 ///
 /// Example:
@@ -64,9 +64,9 @@ public final class NIOTSConnectionBootstrap {
     private var protocolHandlers: (@Sendable () -> [ChannelHandler])? = nil
     private var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
-    /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
+    /// Create a ``NIOTSConnectionBootstrap`` on the `EventLoopGroup` `group`.
     ///
-    /// The `EventLoopGroup` `group` must be compatible, otherwise the program will crash. `NIOTSConnectionBootstrap` is
+    /// The `EventLoopGroup` `group` must be compatible, otherwise the program will crash. ``NIOTSConnectionBootstrap`` is
     /// compatible only with ``NIOTSEventLoopGroup`` as well as the `EventLoop`s returned by
     /// ``NIOTSEventLoopGroup/next()``. See ``init(validatingGroup:)`` for a fallible initializer for
     /// situations where it's impossible to tell ahead of time if the `EventLoopGroup` is compatible or not.
@@ -84,7 +84,7 @@ public final class NIOTSConnectionBootstrap {
         self.init(validatingGroup: group)!
     }
 
-    /// Create a `NIOTSConnectionBootstrap` on the ``NIOTSEventLoopGroup`` `group`.
+    /// Create a ``NIOTSConnectionBootstrap`` on the ``NIOTSEventLoopGroup`` `group`.
     ///
     /// - parameters:
     ///     - group: The ``NIOTSEventLoopGroup`` to use.
@@ -92,7 +92,7 @@ public final class NIOTSConnectionBootstrap {
         self.init(group: group as EventLoopGroup)
     }
 
-    /// Create a `NIOTSConnectionBootstrap` on the ``NIOTSEventLoopGroup`` `group`, validating
+    /// Create a ``NIOTSConnectionBootstrap`` on the ``NIOTSEventLoopGroup`` `group`, validating
     /// that the `EventLoopGroup` is compatible with ``NIOTSConnectionBootstrap``.
     ///
     /// - parameters:

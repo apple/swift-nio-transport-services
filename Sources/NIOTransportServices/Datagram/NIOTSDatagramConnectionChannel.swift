@@ -24,7 +24,7 @@ import Network
 import Security
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
+internal final class NIOTSDatagramConnectionChannel: StateManagedNWConnectionChannel {
     typealias ActiveSubstate = UDPSubstate
 
     enum UDPSubstate: NWConnectionSubstate {
@@ -34,11 +34,11 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
             self = .open
         }
 
-        static func closeInput(state: inout ChannelState<NIOTSDatagramChannel.UDPSubstate>) throws {
+        static func closeInput(state: inout ChannelState<NIOTSDatagramConnectionChannel.UDPSubstate>) throws {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
 
-        static func closeOutput(state: inout ChannelState<NIOTSDatagramChannel.UDPSubstate>) throws {
+        static func closeOutput(state: inout ChannelState<NIOTSDatagramConnectionChannel.UDPSubstate>) throws {
             throw NIOTSErrors.InvalidChannelStateTransition()
         }
     }
@@ -230,11 +230,11 @@ internal final class NIOTSDatagramChannel: StateManagedNWConnectionChannel {
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSDatagramChannel {
+extension NIOTSDatagramConnectionChannel {
     internal struct SynchronousOptions: NIOSynchronousChannelOptions {
-        private let channel: NIOTSDatagramChannel
+        private let channel: NIOTSDatagramConnectionChannel
 
-        fileprivate init(channel: NIOTSDatagramChannel) {
+        fileprivate init(channel: NIOTSDatagramConnectionChannel) {
             self.channel = channel
         }
 
@@ -253,5 +253,5 @@ extension NIOTSDatagramChannel {
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-extension NIOTSDatagramChannel: @unchecked Sendable {}
+extension NIOTSDatagramConnectionChannel: @unchecked Sendable {}
 #endif

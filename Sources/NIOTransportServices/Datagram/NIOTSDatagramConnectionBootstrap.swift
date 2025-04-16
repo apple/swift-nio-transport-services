@@ -17,9 +17,13 @@ import NIOCore
 import Dispatch
 import Network
 
-/// A `NIOTSDatagramBootstrap` is an easy way to bootstrap a `NIOTSDatagramChannel` when creating network clients.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+@available(*, deprecated, renamed: "NIOTSDatagramConnectionBootstrap")
+public typealias NIOTSDatagramBootstrap = NIOTSDatagramConnectionBootstrap
+
+/// A `NIOTSDatagramConnectionBootstrap` is an easy way to bootstrap a `NIOTSDatagramConnectionChannel` when creating network clients.
 ///
-/// Usually you re-use a `NIOTSDatagramBootstrap` once you set it up, calling `connect` multiple times on the same bootstrap.
+/// Usually you re-use a `NIOTSDatagramConnectionBootstrap` once you set it up, calling `connect` multiple times on the same bootstrap.
 /// This way you ensure that the same `EventLoop`s will be shared across all your connections.
 ///
 /// Example:
@@ -29,7 +33,7 @@ import Network
 ///     defer {
 ///         try! group.syncShutdownGracefully()
 ///     }
-///     let bootstrap = NIOTSDatagramBootstrap(group: group)
+///     let bootstrap = NIOTSDatagramConnectionBootstrap(group: group)
 ///         .channelInitializer { channel in
 ///             channel.pipeline.addHandler(MyChannelHandler())
 ///         }
@@ -37,9 +41,9 @@ import Network
 ///     /* the Channel is now connected */
 /// ```
 ///
-/// The connected `NIOTSDatagramChannel` will operate on `ByteBuffer` as inbound and outbound messages.
+/// The connected `NIOTSDatagramConnectionChannel` will operate on `ByteBuffer` as inbound and outbound messages.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public final class NIOTSDatagramBootstrap {
+public final class NIOTSDatagramConnectionBootstrap {
     private let group: EventLoopGroup
     private var channelInitializer: (@Sendable (Channel) -> EventLoopFuture<Void>)?
     private var connectTimeout: TimeAmount = TimeAmount.seconds(10)
@@ -193,7 +197,7 @@ public final class NIOTSDatagramBootstrap {
     private func connect0(
         _ binder: @Sendable @escaping (Channel, EventLoopPromise<Void>) -> Void
     ) -> EventLoopFuture<Channel> {
-        let conn: Channel = NIOTSDatagramChannel(
+        let conn: Channel = NIOTSDatagramConnectionChannel(
             eventLoop: self.group.next() as! NIOTSEventLoop,
             qos: self.qos,
             udpOptions: self.udpOptions,
@@ -229,5 +233,5 @@ public final class NIOTSDatagramBootstrap {
 }
 
 @available(*, unavailable)
-extension NIOTSDatagramBootstrap: Sendable {}
+extension NIOTSDatagramConnectionBootstrap: Sendable {}
 #endif
