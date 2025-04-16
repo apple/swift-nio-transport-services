@@ -20,8 +20,9 @@ func withEventLoopGroup(_ test: (EventLoopGroup) async throws -> Void) async ret
     let group = NIOTSEventLoopGroup()
     do {
         try await test(group)
+        try? await group.shutdownGracefully()
     } catch {
-        try await group.shutdownGracefully()
+        try? await group.shutdownGracefully()
         throw error
     }
 }
