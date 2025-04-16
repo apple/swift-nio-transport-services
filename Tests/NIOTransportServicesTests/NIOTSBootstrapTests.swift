@@ -372,22 +372,45 @@ final class NIOTSBootstrapTests: XCTestCase {
         XCTAssertEqual(try connectionChannel.getOption(NIOTSChannelOptions.multipathServiceType).wait(), .handover)
     }
 
-    func testNWParametersConfigurator() async throws {
-        final class WaitForConnectionHandler: ChannelInboundHandler, Sendable {
-            typealias InboundIn = Never
+    func testNWParametersConfigurator_ListenerUsesChildConfigurator() async throws {
+        try await withEventLoopGroup { group in
+            let configuratorListenerCounter = NIOLockedValueBox(0)
+            let configuratorConnectionCounter = NIOLockedValueBox(0)
+            let waitForConnectionHandler = WaitForConnectionHandler(
+                connectionPromise: group.next().makePromise()
+            )
 
-            let connectionPromise: EventLoopPromise<Void>
+            let listenerChannel = try await NIOTSListenerBootstrap(group: group)
+                .childChannelInitializer { connectionChannel in
+                    connectionChannel.eventLoop.makeCompletedFuture {
+                        try connectionChannel.pipeline.syncOperations.addHandler(waitForConnectionHandler)
+                    }
+                }
+                .configureNWParameters { _ in
+                    configuratorListenerCounter.withLockedValue { $0 += 1 }
+                }
+                .configureChildNWParameters { _ in
+                    configuratorConnectionCounter.withLockedValue { $0 += 1 }
+                }
+                .bind(host: "localhost", port: 0)
+                .get()
 
-            init(connectionPromise: EventLoopPromise<Void>) {
-                self.connectionPromise = connectionPromise
-            }
+            let connectionChannel: Channel = try await NIOTSConnectionBootstrap(group: group)
+                .connect(to: listenerChannel.localAddress!)
+                .get()
 
-            func channelActive(context: ChannelHandlerContext) {
-                self.connectionPromise.succeed()
-                context.fireChannelActive()
-            }
+            // Wait for the server to activate the connection channel to the client.
+            try await waitForConnectionHandler.connectionPromise.futureResult.get()
+
+            try await listenerChannel.close().get()
+            try await connectionChannel.close().get()
+
+            XCTAssertEqual(1, configuratorListenerCounter.withLockedValue { $0 })
+            XCTAssertEqual(1, configuratorConnectionCounter.withLockedValue { $0 })
         }
+    }
 
+    func testNWParametersConfigurator_ClientUsesConfigurator() async throws {
         try await withEventLoopGroup { group in
             let configuratorListenerCounter = NIOLockedValueBox(0)
             let configuratorConnectionCounter = NIOLockedValueBox(0)
@@ -414,13 +437,18 @@ final class NIOTSBootstrapTests: XCTestCase {
                 .connect(to: listenerChannel.localAddress!)
                 .get()
 
+            // Need to write something so the server can activate the connection channel: this is UDP,
+            // so there is no handshaking that happens and thus the server cannot know that the
+            // connection has been established and the channel can be activated until we receive something.
+            try await connectionChannel.writeAndFlush(ByteBuffer(bytes: [42]))
+
             // Wait for the server to activate the connection channel to the client.
             try await waitForConnectionHandler.connectionPromise.futureResult.get()
 
             try await listenerChannel.close().get()
             try await connectionChannel.close().get()
 
-            XCTAssertEqual(2, configuratorListenerCounter.withLockedValue { $0 })
+            XCTAssertEqual(1, configuratorListenerCounter.withLockedValue { $0 })
             XCTAssertEqual(1, configuratorConnectionCounter.withLockedValue { $0 })
         }
     }

@@ -64,9 +64,12 @@ public final class NIOTSListenerBootstrap {
     private var serverQoS: DispatchQoS?
     private var childQoS: DispatchQoS?
     private var tcpOptions: NWProtocolTCP.Options = .init()
+    private var childTCPOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
+    private var childTLSOptions: NWProtocolTLS.Options?
     private var bindTimeout: TimeAmount?
     private var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
+    private var childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     /// Create a ``NIOTSListenerBootstrap`` for the `EventLoopGroup` `group`.
     ///
@@ -228,23 +231,43 @@ public final class NIOTSListenerBootstrap {
         return self
     }
 
-    /// Specifies the TCP options to use on the child `Channel`s.
+    /// Specifies the TCP options to use on the listener.
     public func tcpOptions(_ options: NWProtocolTCP.Options) -> Self {
         self.tcpOptions = options
         return self
     }
 
-    /// Specifies the TLS options to use on the child `Channel`s.
+    /// Specifies the TCP options to use on the child `Channel`s.
+    public func childTCPOptions(_ options: NWProtocolTCP.Options) -> Self {
+        self.childTCPOptions = options
+        return self
+    }
+
+    /// Specifies the TLS options to use on the listener.
     public func tlsOptions(_ options: NWProtocolTLS.Options) -> Self {
         self.tlsOptions = options
         return self
     }
 
-    /// Customise the `NWParameters` to be used when creating the connection.
+    /// Specifies the TLS options to use on the child `Channel`s.
+    public func childTLSOptions(_ options: NWProtocolTLS.Options) -> Self {
+        self.childTLSOptions = options
+        return self
+    }
+
+    /// Customise the `NWParameters` to be used when creating the `NWConnection` for the listener.
     public func configureNWParameters(
         _ configurator: @Sendable @escaping (NWParameters) -> Void
     ) -> Self {
         self.nwParametersConfigurator = configurator
+        return self
+    }
+
+    /// Customise the `NWParameters` to be used when creating the `NWConnection`s for the child `Channel`s.
+    public func configureChildNWParameters(
+        _ configurator: @Sendable @escaping (NWParameters) -> Void
+    ) -> Self {
+        self.childNWParametersConfigurator = configurator
         return self
     }
 
@@ -349,9 +372,9 @@ public final class NIOTSListenerBootstrap {
                 nwParametersConfigurator: self.nwParametersConfigurator,
                 childLoopGroup: self.childGroup,
                 childChannelQoS: self.childQoS,
-                childTCPOptions: self.tcpOptions,
-                childTLSOptions: self.tlsOptions,
-                childNWParametersConfigurator: self.nwParametersConfigurator
+                childTCPOptions: self.childTCPOptions,
+                childTLSOptions: self.childTLSOptions,
+                childNWParametersConfigurator: self.childNWParametersConfigurator
             )
         } else {
             serverChannel = NIOTSListenerChannel(
@@ -362,9 +385,9 @@ public final class NIOTSListenerBootstrap {
                 nwParametersConfigurator: self.nwParametersConfigurator,
                 childLoopGroup: self.childGroup,
                 childChannelQoS: self.childQoS,
-                childTCPOptions: self.tcpOptions,
-                childTLSOptions: self.tlsOptions,
-                childNWParametersConfigurator: self.nwParametersConfigurator
+                childTCPOptions: self.childTCPOptions,
+                childTLSOptions: self.childTLSOptions,
+                childNWParametersConfigurator: self.childNWParametersConfigurator
             )
         }
 

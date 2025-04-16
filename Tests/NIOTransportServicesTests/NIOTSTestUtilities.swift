@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if canImport(Network)
 import NIOCore
 import NIOTransportServices
 
@@ -24,3 +25,19 @@ func withEventLoopGroup(_ test: (EventLoopGroup) async throws -> Void) async ret
         throw error
     }
 }
+
+final class WaitForConnectionHandler: ChannelInboundHandler, Sendable {
+    typealias InboundIn = Never
+
+    let connectionPromise: EventLoopPromise<Void>
+
+    init(connectionPromise: EventLoopPromise<Void>) {
+        self.connectionPromise = connectionPromise
+    }
+
+    func channelActive(context: ChannelHandlerContext) {
+        self.connectionPromise.succeed()
+        context.fireChannelActive()
+    }
+}
+#endif

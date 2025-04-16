@@ -272,11 +272,15 @@ class NIOTSConnectionChannelTests: XCTestCase {
     }
 
     func testSettingTCPOptionsWholesale() throws {
-        let tcpOptions = NWProtocolTCP.Options()
-        tcpOptions.disableAckStretching = true
+        let listenerTCPOptions = NWProtocolTCP.Options()
+        listenerTCPOptions.disableAckStretching = true
+
+        let connectionTCPOptions = NWProtocolTCP.Options()
+        connectionTCPOptions.disableAckStretching = true
 
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .tcpOptions(tcpOptions)
+            .tcpOptions(listenerTCPOptions)
+            .childTCPOptions(connectionTCPOptions)
             .serverChannelInitializer { channel in
                 channel.getOption(ChannelOptions.socket(IPPROTO_TCP, TCP_SENDMOREACKS)).map { value in
                     XCTAssertEqual(value, 1)
@@ -293,7 +297,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         let connection = try NIOTSConnectionBootstrap(group: self.group)
-            .tcpOptions(tcpOptions)
+            .tcpOptions(connectionTCPOptions)
             .channelInitializer { channel in
                 channel.getOption(ChannelOptions.socket(IPPROTO_TCP, TCP_SENDMOREACKS)).map { value in
                     XCTAssertEqual(value, 1)
