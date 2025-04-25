@@ -20,9 +20,10 @@ import Network
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public typealias NIOTSDatagramBootstrap = NIOTSDatagramConnectionBootstrap
 
-/// A `NIOTSDatagramConnectionBootstrap` is an easy way to bootstrap a `NIOTSDatagramConnectionChannel` when creating network clients.
+/// A ``NIOTSDatagramConnectionBootstrap`` is an easy way to bootstrap a UDP channel when creating network clients.
 ///
-/// Usually you re-use a `NIOTSDatagramConnectionBootstrap` once you set it up, calling `connect` multiple times on the same bootstrap.
+/// Usually you re-use a ``NIOTSDatagramConnectionBootstrap`` once you set it up, calling `connect` multiple times on the
+/// same bootstrap.
 /// This way you ensure that the same `EventLoop`s will be shared across all your connections.
 ///
 /// Example:
@@ -40,7 +41,7 @@ public typealias NIOTSDatagramBootstrap = NIOTSDatagramConnectionBootstrap
 ///     /* the Channel is now connected */
 /// ```
 ///
-/// The connected `NIOTSDatagramConnectionChannel` will operate on `ByteBuffer` as inbound and outbound messages.
+/// The connected channel will operate on `ByteBuffer` as inbound and outbound messages.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSDatagramConnectionBootstrap {
     private let group: EventLoopGroup
@@ -76,7 +77,7 @@ public final class NIOTSDatagramConnectionBootstrap {
         self.init(group: group as EventLoopGroup)
     }
 
-    /// Initialize the connected `NIOTSDatagramConnectionChannel` with `initializer`. The most common task in initializer is to add
+    /// Initialize the connected channel with `initializer`. The most common task in initializer is to add
     /// `ChannelHandler`s to the `ChannelPipeline`.
     ///
     /// The connected `Channel` will operate on `ByteBuffer` as inbound and outbound messages.
@@ -89,7 +90,7 @@ public final class NIOTSDatagramConnectionBootstrap {
         return self
     }
 
-    /// Specifies a `ChannelOption` to be applied to the `NIOTSDatagramConnectionChannel`.
+    /// Specifies a `ChannelOption` to be applied to the channel.
     ///
     /// - parameters:
     ///     - option: The option to be applied.
