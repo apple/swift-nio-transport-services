@@ -22,7 +22,7 @@ import Network
 import Atomics
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<NIOTSDatagramChannel> {
+internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<NIOTSDatagramConnectionChannel> {
     /// The TCP options for this listener.
     private var udpOptions: NWProtocolUDP.Options {
         get {
@@ -135,7 +135,7 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
             return
         }
 
-        let newChannel = NIOTSDatagramChannel(
+        let newChannel = NIOTSDatagramConnectionChannel(
             wrapping: connection,
             on: self.childLoopGroup.next() as! NIOTSEventLoop,
             parent: self,
