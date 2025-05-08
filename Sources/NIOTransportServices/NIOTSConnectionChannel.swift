@@ -231,11 +231,11 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
 
     /// A lock that guards the _addressCache.
     internal let _addressCacheLock = NIOLock()
-    
-    /// The `PooledRecvBufferAllocator` used to allocate buffers for incoming data
-    internal var recvBufferPool: PooledRecvBufferAllocator
-    
-    /// A constant to hold the maximum amount of buffers that should be created by the `PooledRecvBufferAllocator`
+
+    /// The `NIOPooledRecvBufferAllocator` used to allocate buffers for incoming data
+    internal var recvBufferPool: NIOPooledRecvBufferAllocator
+
+    /// A constant to hold the maximum amount of buffers that should be created by the `NIOPooledRecvBufferAllocator`
     ///
     /// Once we allow multiple messages per read on the channel, this should become a `maxMessagesPerRead` property
     /// and a corresponding channel option that users can configure.
@@ -418,11 +418,11 @@ extension NIOTSConnectionChannel {
             // It would be nice if we didn't have to do this copy, but I'm not sure how to avoid it with the current Data
             // APIs.
             let (buffer, bytesReceived) = self.recvBufferPool.buffer(allocator: allocator) { $0.writeBytes(content) }
-            
+
             self.recvBufferPool.record(actualReadBytes: bytesReceived)
             self.pipeline.fireChannelRead(NIOAny(buffer))
             self.pipeline.fireChannelReadComplete()
-            
+
         }
 
         // Next, we want to check if there's an error. If there is, we're going to deliver it, and then close the connection with
