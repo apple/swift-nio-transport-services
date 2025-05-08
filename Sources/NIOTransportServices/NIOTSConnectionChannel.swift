@@ -256,7 +256,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         maximumReceiveLength: Int = 8192,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
-        recvAllocator: RecvByteBufferAllocator = AdaptiveRecvByteBufferAllocator()
+        recvAllocator: RecvByteBufferAllocator = AdaptiveRecvByteBufferAllocator(),
         nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.tsEventLoop = eventLoop
@@ -284,7 +284,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         maximumReceiveLength: Int = 8192,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
-        recvAllocator: RecvByteBufferAllocator = AdaptiveRecvByteBufferAllocator()
+        recvAllocator: RecvByteBufferAllocator = AdaptiveRecvByteBufferAllocator(),
         nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
@@ -295,7 +295,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
             maximumReceiveLength: maximumReceiveLength,
             tcpOptions: tcpOptions,
             tlsOptions: tlsOptions,
-            recvAllocator: recvAllocator
+            recvAllocator: recvAllocator,
             nwParametersConfigurator: nwParametersConfigurator
         )
         self.connection = connection
@@ -428,7 +428,7 @@ extension NIOTSConnectionChannel {
             let (buffer, bytesReceived) = self.recvBufferPool.buffer(allocator: allocator) { $0.writeBytes(content) }
 
             self.recvBufferPool.record(actualReadBytes: bytesReceived)
-            self.pipeline.fireChannelRead(NIOAny(buffer))
+            self.pipeline.fireChannelRead(buffer)
             self.pipeline.fireChannelReadComplete()
 
         }
