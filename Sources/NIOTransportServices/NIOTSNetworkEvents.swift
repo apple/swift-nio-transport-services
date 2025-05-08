@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-@preconcurrency import Network
+import Network
 import NIOCore
 
 /// A tag protocol that can be used to cover all network events emitted by `NIOTransportServices`.
@@ -23,7 +23,7 @@ import NIOCore
 public protocol NIOTSNetworkEvent: Equatable, _NIOPreconcurrencySendable {}
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public enum NIOTSNetworkEvents {
+public enum NIOTSNetworkEvents: Sendable {
     /// ``BetterPathAvailable`` is fired whenever the OS has informed NIO that there is a better
     /// path available to the endpoint that this `Channel` is currently connected to,
     /// e.g. the current connection is using an expensive cellular connection and

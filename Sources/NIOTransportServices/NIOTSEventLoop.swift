@@ -13,7 +13,11 @@
 //===----------------------------------------------------------------------===//
 
 #if canImport(Network)
-import Dispatch
+#if swift(<6.1)
+@preconcurrency import class Dispatch.DispatchSource
+#else
+import class Dispatch.DispatchSource
+#endif
 import Foundation
 import Network
 
@@ -28,11 +32,17 @@ import NIOConcurrencyHelpers
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public protocol QoSEventLoop: EventLoop {
     /// Submit a given task to be executed by the `EventLoop` at a given `qos`.
-    func execute(qos: DispatchQoS, _ task: @escaping () -> Void)
+    @preconcurrency
+    func execute(qos: DispatchQoS, _ task: @escaping @Sendable () -> Void)
 
     /// Schedule a `task` that is executed by this `NIOTSEventLoop` after the given amount of time at the
     /// given `qos`.
-    func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T>
+    @preconcurrency
+    func scheduleTask<T>(
+        in time: TimeAmount,
+        qos: DispatchQoS,
+        _ task: @escaping @Sendable () throws -> T
+    ) -> Scheduled<T>
 }
 
 /// The lifecycle state of a given event loop.
@@ -49,8 +59,9 @@ private enum LifecycleState {
     case closed
 }
 
+// It's okay for NIOTSEventLoop to be unchecked Sendable, since the state is isolated to the EL.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-internal class NIOTSEventLoop: QoSEventLoop {
+internal final class NIOTSEventLoop: QoSEventLoop, @unchecked Sendable {
     private let loop: DispatchQueue
     private let taskQueue: DispatchQueue
     private let inQueueKey: DispatchSpecificKey<UUID>
@@ -114,23 +125,27 @@ internal class NIOTSEventLoop: QoSEventLoop {
         loop.setSpecific(key: inQueueKey, value: self.loopID)
     }
 
-    public func execute(_ task: @escaping () -> Void) {
+    @preconcurrency
+    public func execute(_ task: @escaping @Sendable () -> Void) {
         self.execute(qos: self.defaultQoS, task)
     }
 
-    public func execute(qos: DispatchQoS, _ task: @escaping () -> Void) {
+    @preconcurrency
+    public func execute(qos: DispatchQoS, _ task: @escaping @Sendable () -> Void) {
         // Ideally we'd not accept new work while closed. Sadly, that's not possible with the current APIs for this.
         self.taskQueue.async(qos: qos, execute: task)
     }
 
-    public func scheduleTask<T>(deadline: NIODeadline, _ task: @escaping () throws -> T) -> Scheduled<T> {
+    @preconcurrency
+    public func scheduleTask<T>(deadline: NIODeadline, _ task: @escaping @Sendable () throws -> T) -> Scheduled<T> {
         self.scheduleTask(deadline: deadline, qos: self.defaultQoS, task)
     }
 
+    @preconcurrency
     public func scheduleTask<T>(
         deadline: NIODeadline,
         qos: DispatchQoS,
-        _ task: @escaping () throws -> T
+        _ task: @escaping @Sendable () throws -> T
     ) -> Scheduled<T> {
         let p: EventLoopPromise<T> = self.makePromise()
 
@@ -143,11 +158,12 @@ internal class NIOTSEventLoop: QoSEventLoop {
                 p.fail(EventLoopError.shutdown)
                 return
             }
-            do {
-                p.succeed(try task())
-            } catch {
-                p.fail(error)
-            }
+
+            p.assumeIsolated().completeWith(
+                Result {
+                    try task()
+                }
+            )
         }
         timerSource.resume()
 
@@ -165,16 +181,25 @@ internal class NIOTSEventLoop: QoSEventLoop {
         )
     }
 
-    public func scheduleTask<T>(in time: TimeAmount, _ task: @escaping () throws -> T) -> Scheduled<T> {
+    @preconcurrency
+    public func scheduleTask<T>(
+        in time: TimeAmount,
+        _ task: @escaping @Sendable () throws -> T
+    ) -> Scheduled<T> {
         self.scheduleTask(in: time, qos: self.defaultQoS, task)
     }
 
-    public func scheduleTask<T>(in time: TimeAmount, qos: DispatchQoS, _ task: @escaping () throws -> T) -> Scheduled<T>
-    {
+    @preconcurrency
+    public func scheduleTask<T>(
+        in time: TimeAmount,
+        qos: DispatchQoS,
+        _ task: @escaping @Sendable () throws -> T
+    ) -> Scheduled<T> {
         self.scheduleTask(deadline: NIODeadline.now() + time, qos: qos, task)
     }
 
-    public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping (Error?) -> Void) {
+    @preconcurrency
+    public func shutdownGracefully(queue: DispatchQueue, _ callback: @escaping @Sendable (Error?) -> Void) {
         guard self.canBeShutDownIndividually else {
             // The loops cannot be shut down by individually. They need to be shut down as a group and
             // `NIOTSEventLoopGroup` calls `closeGently` not this method.
