@@ -129,7 +129,7 @@ internal struct BackpressureManager {
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// The `ByteBufferAllocator` for this `Channel`.
-    public var allocator = ByteBufferAllocator()
+    public let allocator = ByteBufferAllocator()
 
     /// An `EventLoopFuture` that will complete when this channel is finally closed.
     public var closeFuture: EventLoopFuture<Void> {
