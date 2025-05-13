@@ -236,6 +236,15 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// A lock that guards the _addressCache.
     internal let _addressCacheLock = NIOLock()
 
+    /// The `NIOPooledRecvBufferAllocator` used to allocate buffers for incoming data
+    private var recvBufferPool: NIOPooledRecvBufferAllocator
+
+    /// A constant to hold the maximum amount of buffers that should be created by the `NIOPooledRecvBufferAllocator`
+    ///
+    /// Once we allow multiple messages per read on the channel, this should become a `maxMessagesPerRead` property
+    /// and a corresponding channel option that users can configure.
+    private let recvBufferPoolCapacity = 4
+
     /// Create a `NIOTSConnectionChannel` on a given `NIOTSEventLoop`.
     ///
     /// Note that `NIOTSConnectionChannel` objects cannot be created on arbitrary loops types.
@@ -247,6 +256,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         maximumReceiveLength: Int = 8192,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
+        recvAllocator: RecvByteBufferAllocator = AdaptiveRecvByteBufferAllocator(),
         nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.tsEventLoop = eventLoop
@@ -257,6 +267,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         self.connectionQueue = eventLoop.channelQueue(label: "nio.nioTransportServices.connectionchannel", qos: qos)
         self.tcpOptions = tcpOptions
         self.tlsOptions = tlsOptions
+        self.recvBufferPool = .init(capacity: Int(self.recvBufferPoolCapacity), recvAllocator: recvAllocator)
         self.nwParametersConfigurator = nwParametersConfigurator
 
         // Must come last, as it requires self to be completely initialized.
@@ -273,6 +284,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
         maximumReceiveLength: Int = 8192,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
+        recvAllocator: RecvByteBufferAllocator = AdaptiveRecvByteBufferAllocator(),
         nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
@@ -283,6 +295,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
             maximumReceiveLength: maximumReceiveLength,
             tcpOptions: tcpOptions,
             tlsOptions: tlsOptions,
+            recvAllocator: recvAllocator,
             nwParametersConfigurator: nwParametersConfigurator
         )
         self.connection = connection
@@ -412,10 +425,12 @@ extension NIOTSConnectionChannel {
         if let content = content {
             // It would be nice if we didn't have to do this copy, but I'm not sure how to avoid it with the current Data
             // APIs.
-            var buffer = self.allocator.buffer(capacity: content.count)
-            buffer.writeBytes(content)
+            let (buffer, bytesReceived) = self.recvBufferPool.buffer(allocator: allocator) { $0.writeBytes(content) }
+
+            self.recvBufferPool.record(actualReadBytes: bytesReceived)
             self.pipeline.fireChannelRead(buffer)
             self.pipeline.fireChannelReadComplete()
+
         }
 
         // Next, we want to check if there's an error. If there is, we're going to deliver it, and then close the connection with
