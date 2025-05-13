@@ -237,7 +237,7 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     internal let _addressCacheLock = NIOLock()
 
     /// The `NIOPooledRecvBufferAllocator` used to allocate buffers for incoming data
-    internal var recvBufferPool: NIOPooledRecvBufferAllocator
+    private var recvBufferPool: NIOPooledRecvBufferAllocator
 
     /// A constant to hold the maximum amount of buffers that should be created by the `NIOPooledRecvBufferAllocator`
     ///
