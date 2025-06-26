@@ -147,7 +147,9 @@ class NIOTSEventLoopTest: XCTestCase {
     func testIndividualLoopsCannotBeShutDownWhenPartOfGroup() async throws {
         let group = NIOTSEventLoopGroup(loopCount: 3)
         defer {
-            try! group.syncShutdownGracefully()
+            Task {
+                try! await group.shutdownGracefully()
+            }
         }
 
         for loop in group.makeIterator() {

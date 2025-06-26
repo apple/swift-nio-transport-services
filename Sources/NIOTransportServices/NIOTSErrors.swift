@@ -21,7 +21,7 @@ import NIOCore
 public protocol NIOTSError: Error, Equatable {}
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public enum NIOTSErrors {
+public enum NIOTSErrors: Sendable {
     /// ``InvalidChannelStateTransition`` is thrown when a channel has been asked to do something
     /// that is incompatible with its current channel state: e.g. attempting to register an
     /// already registered channel.

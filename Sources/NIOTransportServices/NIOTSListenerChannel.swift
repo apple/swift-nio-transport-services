@@ -81,19 +81,23 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
         qos: DispatchQoS? = nil,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childTCPOptions: NWProtocolTCP.Options,
-        childTLSOptions: NWProtocolTLS.Options?
+        childTLSOptions: NWProtocolTLS.Options?,
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             eventLoop: eventLoop,
             protocolOptions: .tcp(tcpOptions),
             tlsOptions: tlsOptions,
+            nwParametersConfigurator: nwParametersConfigurator,
             childLoopGroup: childLoopGroup,
             childChannelQoS: childChannelQoS,
             childProtocolOptions: .tcp(childTCPOptions),
-            childTLSOptions: childTLSOptions
+            childTLSOptions: childTLSOptions,
+            childNWParametersConfigurator: childNWParametersConfigurator
         )
     }
 
@@ -104,10 +108,12 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
         qos: DispatchQoS? = nil,
         tcpOptions: NWProtocolTCP.Options,
         tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childTCPOptions: NWProtocolTCP.Options,
-        childTLSOptions: NWProtocolTLS.Options?
+        childTLSOptions: NWProtocolTLS.Options?,
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             wrapping: listener,
@@ -115,10 +121,12 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
             qos: qos,
             protocolOptions: .tcp(tcpOptions),
             tlsOptions: tlsOptions,
+            nwParametersConfigurator: nwParametersConfigurator,
             childLoopGroup: childLoopGroup,
             childChannelQoS: childChannelQoS,
             childProtocolOptions: .tcp(childTCPOptions),
-            childTLSOptions: childTLSOptions
+            childTLSOptions: childTLSOptions,
+            childNWParametersConfigurator: childNWParametersConfigurator
         )
     }
 
@@ -134,10 +142,11 @@ internal final class NIOTSListenerChannel: StateManagedListenerChannel<NIOTSConn
             parent: self,
             qos: self.childChannelQoS,
             tcpOptions: self.childTCPOptions,
-            tlsOptions: self.childTLSOptions
+            tlsOptions: self.childTLSOptions,
+            nwParametersConfigurator: self.childNWParametersConfigurator
         )
 
-        self.pipeline.fireChannelRead(NIOAny(newChannel))
+        self.pipeline.fireChannelRead(newChannel)
         self.pipeline.fireChannelReadComplete()
     }
 

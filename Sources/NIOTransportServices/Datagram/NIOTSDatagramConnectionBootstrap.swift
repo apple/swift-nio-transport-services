@@ -17,9 +17,13 @@ import NIOCore
 import Dispatch
 import Network
 
-/// A `NIOTSDatagramBootstrap` is an easy way to bootstrap a `NIOTSDatagramChannel` when creating network clients.
+@available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
+public typealias NIOTSDatagramBootstrap = NIOTSDatagramConnectionBootstrap
+
+/// A ``NIOTSDatagramConnectionBootstrap`` is an easy way to bootstrap a UDP channel when creating network clients.
 ///
-/// Usually you re-use a `NIOTSDatagramBootstrap` once you set it up, calling `connect` multiple times on the same bootstrap.
+/// Usually you re-use a ``NIOTSDatagramConnectionBootstrap`` once you set it up, calling `connect` multiple times on the
+/// same bootstrap.
 /// This way you ensure that the same `EventLoop`s will be shared across all your connections.
 ///
 /// Example:
@@ -29,7 +33,7 @@ import Network
 ///     defer {
 ///         try! group.syncShutdownGracefully()
 ///     }
-///     let bootstrap = NIOTSDatagramBootstrap(group: group)
+///     let bootstrap = NIOTSDatagramConnectionBootstrap(group: group)
 ///         .channelInitializer { channel in
 ///             channel.pipeline.addHandler(MyChannelHandler())
 ///         }
@@ -37,16 +41,17 @@ import Network
 ///     /* the Channel is now connected */
 /// ```
 ///
-/// The connected `NIOTSDatagramChannel` will operate on `ByteBuffer` as inbound and outbound messages.
+/// The connected channel will operate on `ByteBuffer` as inbound and outbound messages.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-public final class NIOTSDatagramBootstrap {
+public final class NIOTSDatagramConnectionBootstrap {
     private let group: EventLoopGroup
-    private var channelInitializer: ((Channel) -> EventLoopFuture<Void>)?
+    private var channelInitializer: (@Sendable (Channel) -> EventLoopFuture<Void>)?
     private var connectTimeout: TimeAmount = TimeAmount.seconds(10)
     private var channelOptions = ChannelOptions.Storage()
     private var qos: DispatchQoS?
     private var udpOptions: NWProtocolUDP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
+    private var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
     /// Create a `NIOTSDatagramConnectionBootstrap` on the `EventLoopGroup` `group`.
     ///
@@ -72,19 +77,20 @@ public final class NIOTSDatagramBootstrap {
         self.init(group: group as EventLoopGroup)
     }
 
-    /// Initialize the connected `NIOTSDatagramConnectionChannel` with `initializer`. The most common task in initializer is to add
+    /// Initialize the connected channel with `initializer`. The most common task in initializer is to add
     /// `ChannelHandler`s to the `ChannelPipeline`.
     ///
     /// The connected `Channel` will operate on `ByteBuffer` as inbound and outbound messages.
     ///
     /// - parameters:
     ///     - handler: A closure that initializes the provided `Channel`.
-    public func channelInitializer(_ handler: @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
+    @preconcurrency
+    public func channelInitializer(_ handler: @Sendable @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
         self.channelInitializer = handler
         return self
     }
 
-    /// Specifies a `ChannelOption` to be applied to the `NIOTSDatagramConnectionChannel`.
+    /// Specifies a `ChannelOption` to be applied to the channel.
     ///
     /// - parameters:
     ///     - option: The option to be applied.
@@ -129,6 +135,14 @@ public final class NIOTSDatagramBootstrap {
     /// TLS configuration after `connect` is called.
     public func tlsOptions(_ options: NWProtocolTLS.Options) -> Self {
         self.tlsOptions = options
+        return self
+    }
+
+    /// Customise the `NWParameters` to be used when creating the connection.
+    public func configureNWParameters(
+        _ configurator: @Sendable @escaping (NWParameters) -> Void
+    ) -> Self {
+        self.nwParametersConfigurator = configurator
         return self
     }
 
@@ -180,17 +194,19 @@ public final class NIOTSDatagramBootstrap {
         }
     }
 
-    private func connect0(_ binder: @escaping (Channel, EventLoopPromise<Void>) -> Void) -> EventLoopFuture<Channel> {
-        let conn: Channel = NIOTSDatagramChannel(
+    private func connect0(
+        _ binder: @Sendable @escaping (Channel, EventLoopPromise<Void>) -> Void
+    ) -> EventLoopFuture<Channel> {
+        let conn: Channel = NIOTSDatagramConnectionChannel(
             eventLoop: self.group.next() as! NIOTSEventLoop,
             qos: self.qos,
             udpOptions: self.udpOptions,
-            tlsOptions: self.tlsOptions
+            tlsOptions: self.tlsOptions,
+            nwParametersConfigurator: self.nwParametersConfigurator
         )
-        let initializer = self.channelInitializer ?? { _ in conn.eventLoop.makeSucceededFuture(()) }
-        let channelOptions = self.channelOptions
+        let initializer = self.channelInitializer ?? { @Sendable _ in conn.eventLoop.makeSucceededFuture(()) }
 
-        return conn.eventLoop.submit {
+        return conn.eventLoop.submit { [channelOptions, connectTimeout] in
             channelOptions.applyAllChannelOptions(to: conn).flatMap {
                 initializer(conn)
             }.flatMap {
@@ -199,8 +215,8 @@ public final class NIOTSDatagramBootstrap {
             }.flatMap {
                 let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
                 binder(conn, connectPromise)
-                let cancelTask = conn.eventLoop.scheduleTask(in: self.connectTimeout) {
-                    connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
+                let cancelTask = conn.eventLoop.scheduleTask(in: connectTimeout) {
+                    connectPromise.fail(ChannelError.connectTimeout(connectTimeout))
                     conn.close(promise: nil)
                 }
 
@@ -215,4 +231,7 @@ public final class NIOTSDatagramBootstrap {
         }.flatMap { $0 }
     }
 }
+
+@available(*, unavailable)
+extension NIOTSDatagramConnectionBootstrap: Sendable {}
 #endif

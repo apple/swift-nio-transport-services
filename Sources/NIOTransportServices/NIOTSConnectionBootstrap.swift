@@ -17,9 +17,9 @@ import NIOCore
 import Dispatch
 import Network
 
-/// A `NIOTSConnectionBootstrap` is an easy way to bootstrap a `NIOTSConnectionChannel` when creating network clients.
+/// A ``NIOTSConnectionBootstrap`` is an easy way to bootstrap a channel when creating network clients.
 ///
-/// Usually you re-use a `NIOTSConnectionBootstrap` once you set it up, calling `connect` multiple times on the same bootstrap.
+/// Usually you re-use a ``NIOTSConnectionBootstrap`` once you set it up, calling `connect` multiple times on the same bootstrap.
 /// This way you ensure that the same `EventLoop`s will be shared across all your connections.
 ///
 /// Example:
@@ -37,17 +37,19 @@ import Network
 ///     /* the Channel is now connected */
 /// ```
 ///
-/// The connected `NIOTSConnectionChannel` will operate on `ByteBuffer` as inbound and on `IOData` as outbound messages.
+/// The connected channel will operate on `ByteBuffer` as inbound and on `IOData` as outbound messages.
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
 public final class NIOTSConnectionBootstrap {
     private let group: EventLoopGroup
-    private var _channelInitializer: ((Channel) -> EventLoopFuture<Void>)
-    private var channelInitializer: ((Channel) -> EventLoopFuture<Void>) {
+    private var _channelInitializer: (@Sendable (Channel) -> EventLoopFuture<Void>)
+    private var channelInitializer: (@Sendable (Channel) -> EventLoopFuture<Void>) {
         if let protocolHandlers = self.protocolHandlers {
             let channelInitializer = self._channelInitializer
             return { channel in
                 channelInitializer(channel).flatMap {
-                    channel.pipeline.addHandlers(protocolHandlers(), position: .first)
+                    channel.eventLoop.makeCompletedFuture {
+                        try channel.pipeline.syncOperations.addHandlers(protocolHandlers(), position: .first)
+                    }
                 }
             }
         } else {
@@ -59,11 +61,12 @@ public final class NIOTSConnectionBootstrap {
     private var qos: DispatchQoS?
     private var tcpOptions: NWProtocolTCP.Options = .init()
     private var tlsOptions: NWProtocolTLS.Options?
-    private var protocolHandlers: (() -> [ChannelHandler])? = nil
+    private var protocolHandlers: (@Sendable () -> [ChannelHandler])? = nil
+    private var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?
 
-    /// Create a `NIOTSConnectionBootstrap` on the `EventLoopGroup` `group`.
+    /// Create a ``NIOTSConnectionBootstrap`` on the `EventLoopGroup` `group`.
     ///
-    /// The `EventLoopGroup` `group` must be compatible, otherwise the program will crash. `NIOTSConnectionBootstrap` is
+    /// The `EventLoopGroup` `group` must be compatible, otherwise the program will crash. ``NIOTSConnectionBootstrap`` is
     /// compatible only with ``NIOTSEventLoopGroup`` as well as the `EventLoop`s returned by
     /// ``NIOTSEventLoopGroup/next()``. See ``init(validatingGroup:)`` for a fallible initializer for
     /// situations where it's impossible to tell ahead of time if the `EventLoopGroup` is compatible or not.
@@ -81,7 +84,7 @@ public final class NIOTSConnectionBootstrap {
         self.init(validatingGroup: group)!
     }
 
-    /// Create a `NIOTSConnectionBootstrap` on the ``NIOTSEventLoopGroup`` `group`.
+    /// Create a ``NIOTSConnectionBootstrap`` on the ``NIOTSEventLoopGroup`` `group`.
     ///
     /// - parameters:
     ///     - group: The ``NIOTSEventLoopGroup`` to use.
@@ -89,7 +92,7 @@ public final class NIOTSConnectionBootstrap {
         self.init(group: group as EventLoopGroup)
     }
 
-    /// Create a `NIOTSConnectionBootstrap` on the ``NIOTSEventLoopGroup`` `group`, validating
+    /// Create a ``NIOTSConnectionBootstrap`` on the ``NIOTSEventLoopGroup`` `group`, validating
     /// that the `EventLoopGroup` is compatible with ``NIOTSConnectionBootstrap``.
     ///
     /// - parameters:
@@ -104,19 +107,20 @@ public final class NIOTSConnectionBootstrap {
         self._channelInitializer = { channel in channel.eventLoop.makeSucceededVoidFuture() }
     }
 
-    /// Initialize the connected `NIOTSConnectionChannel` with `initializer`. The most common task in initializer is to add
+    /// Initialize the connected channel with `initializer`. The most common task in initializer is to add
     /// `ChannelHandler`s to the `ChannelPipeline`.
     ///
     /// The connected `Channel` will operate on `ByteBuffer` as inbound and `IOData` as outbound messages.
     ///
     /// - parameters:
     ///     - handler: A closure that initializes the provided `Channel`.
-    public func channelInitializer(_ handler: @escaping (Channel) -> EventLoopFuture<Void>) -> Self {
+    @preconcurrency
+    public func channelInitializer(_ handler: @escaping @Sendable (Channel) -> EventLoopFuture<Void>) -> Self {
         self._channelInitializer = handler
         return self
     }
 
-    /// Specifies a `ChannelOption` to be applied to the `NIOTSConnectionChannel`.
+    /// Specifies a `ChannelOption` to be applied to the channel.
     ///
     /// - parameters:
     ///     - option: The option to be applied.
@@ -160,6 +164,14 @@ public final class NIOTSConnectionBootstrap {
     /// service type for the event loop.
     public func withMultipath(_ type: NWParameters.MultipathServiceType) -> Self {
         self.channelOption(NIOTSChannelOptions.multipathServiceType, value: type)
+    }
+
+    /// Customise the `NWParameters` to be used when creating the connection.
+    public func configureNWParameters(
+        _ configurator: @Sendable @escaping (NWParameters) -> Void
+    ) -> Self {
+        self.nwParametersConfigurator = configurator
+        return self
     }
 
     /// Specify the `host` and `port` to connect to for the TCP `Channel` that will be established.
@@ -229,7 +241,10 @@ public final class NIOTSConnectionBootstrap {
     private func connect(
         existingNWConnection: NWConnection? = nil,
         shouldRegister: Bool,
-        _ connectAction: @escaping (NIOTSConnectionChannel, EventLoopPromise<Void>) -> Void
+        _ connectAction: @Sendable @escaping (
+            NIOTSConnectionChannel,
+            EventLoopPromise<Void>
+        ) -> Void
     ) -> EventLoopFuture<Channel> {
         let conn: NIOTSConnectionChannel
         if let newConnection = existingNWConnection {
@@ -237,20 +252,22 @@ public final class NIOTSConnectionBootstrap {
                 wrapping: newConnection,
                 on: self.group.next() as! NIOTSEventLoop,
                 tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions
+                tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator
             )
         } else {
             conn = NIOTSConnectionChannel(
                 eventLoop: self.group.next() as! NIOTSEventLoop,
                 qos: self.qos,
                 tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions
+                tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator
             )
         }
         let initializer = self.channelInitializer
         let channelOptions = self.channelOptions
 
-        return conn.eventLoop.flatSubmit {
+        return conn.eventLoop.flatSubmit { [connectTimeout] in
             channelOptions.applyAllChannelOptions(to: conn).flatMap {
                 initializer(conn)
             }.flatMap {
@@ -263,8 +280,8 @@ public final class NIOTSConnectionBootstrap {
             }.flatMap {
                 let connectPromise: EventLoopPromise<Void> = conn.eventLoop.makePromise()
                 connectAction(conn, connectPromise)
-                let cancelTask = conn.eventLoop.scheduleTask(in: self.connectTimeout) {
-                    connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
+                let cancelTask = conn.eventLoop.scheduleTask(in: connectTimeout) {
+                    connectPromise.fail(ChannelError.connectTimeout(connectTimeout))
                     conn.close(promise: nil)
                 }
 
@@ -285,7 +302,8 @@ public final class NIOTSConnectionBootstrap {
     /// Per bootstrap, you can only set the `protocolHandlers` once. Typically, `protocolHandlers` are used for the TLS
     /// implementation. Most notably, `NIOClientTCPBootstrap`, NIO's "universal bootstrap" abstraction, uses
     /// `protocolHandlers` to add the required `ChannelHandler`s for many TLS implementations.
-    public func protocolHandlers(_ handlers: @escaping () -> [ChannelHandler]) -> Self {
+    @preconcurrency
+    public func protocolHandlers(_ handlers: @Sendable @escaping () -> [ChannelHandler]) -> Self {
         precondition(self.protocolHandlers == nil, "protocol handlers can only be set once")
         self.protocolHandlers = handlers
         return self
@@ -419,10 +437,10 @@ extension NIOTSConnectionBootstrap {
     }
 
     @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-    private func connect0<ChannelInitializerResult>(
+    private func connect0<ChannelInitializerResult: Sendable>(
         existingNWConnection: NWConnection? = nil,
         channelInitializer: @escaping @Sendable (Channel) -> EventLoopFuture<ChannelInitializerResult>,
-        registration: @escaping (NIOTSConnectionChannel, EventLoopPromise<Void>) -> Void
+        registration: @Sendable @escaping (NIOTSConnectionChannel, EventLoopPromise<Void>) -> Void
     ) -> EventLoopFuture<ChannelInitializerResult> {
         let connectionChannel: NIOTSConnectionChannel
         if let newConnection = existingNWConnection {
@@ -430,30 +448,32 @@ extension NIOTSConnectionBootstrap {
                 wrapping: newConnection,
                 on: self.group.next() as! NIOTSEventLoop,
                 tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions
+                tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator
             )
         } else {
             connectionChannel = NIOTSConnectionChannel(
                 eventLoop: self.group.next() as! NIOTSEventLoop,
                 qos: self.qos,
                 tcpOptions: self.tcpOptions,
-                tlsOptions: self.tlsOptions
+                tlsOptions: self.tlsOptions,
+                nwParametersConfigurator: self.nwParametersConfigurator
             )
         }
-        let channelInitializer = { (channel: Channel) -> EventLoopFuture<ChannelInitializerResult> in
-            let initializer = self.channelInitializer
-            return initializer(channel).flatMap { channelInitializer(channel) }
+        let initializer = self.channelInitializer
+        let channelInitializer = { @Sendable (channel: Channel) -> EventLoopFuture<ChannelInitializerResult> in
+            initializer(channel).flatMap { channelInitializer(channel) }
         }
         let channelOptions = self.channelOptions
 
-        return connectionChannel.eventLoop.flatSubmit {
+        return connectionChannel.eventLoop.flatSubmit { [connectTimeout] in
             channelOptions.applyAllChannelOptions(to: connectionChannel).flatMap {
                 channelInitializer(connectionChannel)
             }.flatMap { result -> EventLoopFuture<ChannelInitializerResult> in
                 let connectPromise: EventLoopPromise<Void> = connectionChannel.eventLoop.makePromise()
                 registration(connectionChannel, connectPromise)
-                let cancelTask = connectionChannel.eventLoop.scheduleTask(in: self.connectTimeout) {
-                    connectPromise.fail(ChannelError.connectTimeout(self.connectTimeout))
+                let cancelTask = connectionChannel.eventLoop.scheduleTask(in: connectTimeout) {
+                    connectPromise.fail(ChannelError.connectTimeout(connectTimeout))
                     connectionChannel.close(promise: nil)
                 }
 

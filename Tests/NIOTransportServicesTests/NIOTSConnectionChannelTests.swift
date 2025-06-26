@@ -19,6 +19,7 @@ import NIOCore
 import NIOFoundationCompat
 import NIOTransportServices
 import Foundation
+import NIOConcurrencyHelpers
 
 @available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6, *)
 final class ConnectRecordingHandler: ChannelOutboundHandler {
@@ -73,13 +74,14 @@ final class DisableWaitingAfterConnect: ChannelOutboundHandler {
     typealias OutboundOut = Any
 
     func connect(context: ChannelHandlerContext, to address: SocketAddress, promise: EventLoopPromise<Void>?) {
+        do {
+            try context.channel.syncOptions?.setOption(NIOTSChannelOptions.waitForActivity, value: false)
+        } catch {
+            promise?.fail(error)
+            return
+        }
 
-        let f = context.channel.setOption(NIOTSChannelOptions.waitForActivity, value: false).flatMap {
-            context.connect(to: address)
-        }
-        if let promise = promise {
-            f.cascade(to: promise)
-        }
+        context.connect(to: address).cascade(to: promise)
     }
 }
 
@@ -112,7 +114,7 @@ final class PromiseOnActiveHandler: ChannelInboundHandler {
 }
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, *)
-final class EventWaiter<Event>: ChannelInboundHandler {
+final class EventWaiter<Event: Sendable>: ChannelInboundHandler {
     typealias InboundIn = Any
     typealias InboundOut = Any
 
@@ -145,7 +147,6 @@ class NIOTSConnectionChannelTests: XCTestCase {
     }
 
     func testConnectingToSocketAddressTraversesPipeline() throws {
-        let connectRecordingHandler = ConnectRecordingHandler()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .bind(host: "localhost", port: 0).wait()
         defer {
@@ -153,9 +154,14 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         let connectBootstrap = NIOTSConnectionBootstrap(group: self.group)
-            .channelInitializer { channel in channel.pipeline.addHandler(connectRecordingHandler) }
-        XCTAssertEqual(connectRecordingHandler.connectTargets, [])
-        XCTAssertEqual(connectRecordingHandler.endpointTargets, [])
+            .channelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    let handler = ConnectRecordingHandler()
+                    try channel.pipeline.syncOperations.addHandler(handler)
+                    XCTAssertEqual(handler.connectTargets, [])
+                    XCTAssertEqual(handler.endpointTargets, [])
+                }
+            }
 
         let connection = try connectBootstrap.connect(to: listener.localAddress!).wait()
         defer {
@@ -163,13 +169,13 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         try connection.eventLoop.submit {
-            XCTAssertEqual(connectRecordingHandler.connectTargets, [listener.localAddress!])
-            XCTAssertEqual(connectRecordingHandler.endpointTargets, [])
+            let handler = try connection.pipeline.syncOperations.handler(type: ConnectRecordingHandler.self)
+            XCTAssertEqual(handler.connectTargets, [listener.localAddress!])
+            XCTAssertEqual(handler.endpointTargets, [])
         }.wait()
     }
 
     func testConnectingToHostPortSkipsPipeline() throws {
-        let connectRecordingHandler = ConnectRecordingHandler()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .bind(host: "localhost", port: 0).wait()
         defer {
@@ -177,9 +183,14 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         let connectBootstrap = NIOTSConnectionBootstrap(group: self.group)
-            .channelInitializer { channel in channel.pipeline.addHandler(connectRecordingHandler) }
-        XCTAssertEqual(connectRecordingHandler.connectTargets, [])
-        XCTAssertEqual(connectRecordingHandler.endpointTargets, [])
+            .channelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    let connectRecordingHandler = ConnectRecordingHandler()
+                    try channel.pipeline.syncOperations.addHandler(connectRecordingHandler)
+                    XCTAssertEqual(connectRecordingHandler.connectTargets, [])
+                    XCTAssertEqual(connectRecordingHandler.endpointTargets, [])
+                }
+            }
 
         let connection = try connectBootstrap.connect(host: "localhost", port: Int(listener.localAddress!.port!)).wait()
         defer {
@@ -187,6 +198,9 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         try connection.eventLoop.submit {
+            let connectRecordingHandler = try connection.pipeline.syncOperations.handler(
+                type: ConnectRecordingHandler.self
+            )
             XCTAssertEqual(connectRecordingHandler.connectTargets, [])
             XCTAssertEqual(
                 connectRecordingHandler.endpointTargets,
@@ -201,7 +215,6 @@ class NIOTSConnectionChannelTests: XCTestCase {
     }
 
     func testConnectingToEndpointSkipsPipeline() throws {
-        let connectRecordingHandler = ConnectRecordingHandler()
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .bind(host: "localhost", port: 0).wait()
         defer {
@@ -209,9 +222,14 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         let connectBootstrap = NIOTSConnectionBootstrap(group: self.group)
-            .channelInitializer { channel in channel.pipeline.addHandler(connectRecordingHandler) }
-        XCTAssertEqual(connectRecordingHandler.connectTargets, [])
-        XCTAssertEqual(connectRecordingHandler.endpointTargets, [])
+            .channelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    let connectRecordingHandler = ConnectRecordingHandler()
+                    try channel.pipeline.syncOperations.addHandler(connectRecordingHandler)
+                    XCTAssertEqual(connectRecordingHandler.connectTargets, [])
+                    XCTAssertEqual(connectRecordingHandler.endpointTargets, [])
+                }
+            }
 
         let target = NWEndpoint.hostPort(
             host: "localhost",
@@ -224,6 +242,9 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         try connection.eventLoop.submit {
+            let connectRecordingHandler = try connection.pipeline.syncOperations.handler(
+                type: ConnectRecordingHandler.self
+            )
             XCTAssertEqual(connectRecordingHandler.connectTargets, [])
             XCTAssertEqual(connectRecordingHandler.endpointTargets, [target])
         }.wait()
@@ -231,7 +252,11 @@ class NIOTSConnectionChannelTests: XCTestCase {
 
     func testZeroLengthWritesHaveSatisfiedPromises() throws {
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .childChannelInitializer { channel in channel.pipeline.addHandler(FailOnReadHandler()) }
+            .childChannelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    try channel.pipeline.syncOperations.addHandler(FailOnReadHandler())
+                }
+            }
             .bind(host: "localhost", port: 0).wait()
         defer {
             XCTAssertNoThrow(try listener.close().wait())
@@ -247,11 +272,15 @@ class NIOTSConnectionChannelTests: XCTestCase {
     }
 
     func testSettingTCPOptionsWholesale() throws {
-        let tcpOptions = NWProtocolTCP.Options()
-        tcpOptions.disableAckStretching = true
+        let listenerTCPOptions = NWProtocolTCP.Options()
+        listenerTCPOptions.disableAckStretching = true
+
+        let connectionTCPOptions = NWProtocolTCP.Options()
+        connectionTCPOptions.disableAckStretching = true
 
         let listener = try NIOTSListenerBootstrap(group: self.group)
-            .tcpOptions(tcpOptions)
+            .tcpOptions(listenerTCPOptions)
+            .childTCPOptions(connectionTCPOptions)
             .serverChannelInitializer { channel in
                 channel.getOption(ChannelOptions.socket(IPPROTO_TCP, TCP_SENDMOREACKS)).map { value in
                     XCTAssertEqual(value, 1)
@@ -268,7 +297,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         let connection = try NIOTSConnectionBootstrap(group: self.group)
-            .tcpOptions(tcpOptions)
+            .tcpOptions(connectionTCPOptions)
             .channelInitializer { channel in
                 channel.getOption(ChannelOptions.socket(IPPROTO_TCP, TCP_SENDMOREACKS)).map { value in
                     XCTAssertEqual(value, 1)
@@ -320,13 +349,16 @@ class NIOTSConnectionChannelTests: XCTestCase {
             XCTAssertNoThrow(try listener.close().wait())
         }
 
-        var writabilities = [Bool]()
-        let handler = WritabilityChangedHandler { newValue in
-            writabilities.append(newValue)
-        }
-
+        let writabilities: NIOLockedValueBox<[Bool]> = .init([])
         let connection = try NIOTSConnectionBootstrap(group: self.group)
-            .channelInitializer { channel in channel.pipeline.addHandler(handler) }
+            .channelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    let handler = WritabilityChangedHandler { newValue in
+                        writabilities.withLockedValue { $0.append(newValue) }
+                    }
+                    try channel.pipeline.syncOperations.addHandler(handler)
+                }
+            }
             .connect(to: listener.localAddress!)
             .wait()
 
@@ -337,8 +369,6 @@ class NIOTSConnectionChannelTests: XCTestCase {
                 value: ChannelOptions.Types.WriteBufferWaterMark(low: 2, high: 2048)
             ).wait()
         )
-        var buffer = connection.allocator.buffer(capacity: 2048)
-        buffer.writeBytes(repeatElement(UInt8(4), count: 2048))
 
         // We're going to issue the following pattern of writes:
         // a: 1 byte
@@ -355,58 +385,61 @@ class NIOTSConnectionChannelTests: XCTestCase {
         // until after the promise for d has fired: by the time the promise for e has fired it will be writable
         // again.
         try connection.eventLoop.submit {
+            var buffer = connection.allocator.buffer(capacity: 2048)
+            buffer.writeBytes(repeatElement(UInt8(4), count: 2048))
+
             // Pre writing.
-            XCTAssertEqual(writabilities, [])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [])
             XCTAssertTrue(connection.isWritable)
 
             // Write a. After this write, we are still writable. When this write
             // succeeds, we'll still be not writable.
             connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete { (_: Result<Void, Error>) in
-                XCTAssertEqual(writabilities, [false])
+                XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false])
                 XCTAssertFalse(connection.isWritable)
             }
-            XCTAssertEqual(writabilities, [])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [])
             XCTAssertTrue(connection.isWritable)
 
             // Write b. After this write we are still writable. When this write
             // succeeds we'll still be not writable.
             connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete { (_: Result<Void, Error>) in
-                XCTAssertEqual(writabilities, [false])
+                XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false])
                 XCTAssertFalse(connection.isWritable)
             }
-            XCTAssertEqual(writabilities, [])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [])
             XCTAssertTrue(connection.isWritable)
 
             // Write c. After this write we are still writable (2047 bytes written).
             // When this write succeeds we'll still be not writable (2 bytes outstanding).
             connection.write(buffer.getSlice(at: 0, length: 2045)).whenComplete { (_: Result<Void, Error>) in
-                XCTAssertEqual(writabilities, [false])
+                XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false])
                 XCTAssertFalse(connection.isWritable)
             }
-            XCTAssertEqual(writabilities, [])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [])
             XCTAssertTrue(connection.isWritable)
 
             // Write d. After this write we are still writable (2048 bytes written).
             // When this write succeeds we'll become writable, but critically the promise fires before
             // the state change, so we'll *appear* to be unwritable.
             connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete { (_: Result<Void, Error>) in
-                XCTAssertEqual(writabilities, [false])
+                XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false])
                 XCTAssertFalse(connection.isWritable)
             }
-            XCTAssertEqual(writabilities, [])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [])
             XCTAssertTrue(connection.isWritable)
 
             // Write e. After this write we are now not writable (2049 bytes written).
             // When this write succeeds we'll have already been writable, thanks to the previous
             // write.
             connection.write(buffer.getSlice(at: 0, length: 1)).whenComplete { (_: Result<Void, Error>) in
-                XCTAssertEqual(writabilities, [false, true])
+                XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false, true])
                 XCTAssertTrue(connection.isWritable)
 
                 // We close after this succeeds.
                 connection.close(promise: nil)
             }
-            XCTAssertEqual(writabilities, [false])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false])
             XCTAssertFalse(connection.isWritable)
         }.wait()
 
@@ -415,7 +448,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
         XCTAssertNoThrow(try connection.closeFuture.wait())
 
         // Ok, check that the writability changes worked.
-        XCTAssertEqual(writabilities, [false, true])
+        XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false, true])
     }
 
     func testWritabilityChangesAfterChangingWatermarks() throws {
@@ -425,22 +458,21 @@ class NIOTSConnectionChannelTests: XCTestCase {
             XCTAssertNoThrow(try listener.close().wait())
         }
 
-        var writabilities = [Bool]()
-        let handler = WritabilityChangedHandler { newValue in
-            writabilities.append(newValue)
-        }
-
+        let writabilities: NIOLockedValueBox<[Bool]> = .init([])
         let connection = try NIOTSConnectionBootstrap(group: self.group)
-            .channelInitializer { channel in channel.pipeline.addHandler(handler) }
+            .channelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    let handler = WritabilityChangedHandler { newValue in
+                        writabilities.withLockedValue({ $0.append(newValue) })
+                    }
+                    try channel.pipeline.syncOperations.addHandler(handler)
+                }
+            }
             .connect(to: listener.localAddress!)
             .wait()
         defer {
             XCTAssertNoThrow(try connection.close().wait())
         }
-
-        // We're going to allocate a buffer.
-        var buffer = connection.allocator.buffer(capacity: 256)
-        buffer.writeBytes(repeatElement(UInt8(4), count: 256))
 
         // We're going to issue a 256-byte write. This write will not cause any change in channel writability
         // state.
@@ -462,13 +494,17 @@ class NIOTSConnectionChannelTests: XCTestCase {
         //
         // Then we're going to set the high watermark to 1024, and the low to 256. This will change nothing.
         try connection.eventLoop.submit {
+            // We're going to allocate a buffer.
+            var buffer = connection.allocator.buffer(capacity: 256)
+            buffer.writeBytes(repeatElement(UInt8(4), count: 256))
+
             // Pre changes.
-            XCTAssertEqual(writabilities, [])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [])
             XCTAssertTrue(connection.isWritable)
 
             // Write. No writability change.
             connection.write(buffer, promise: nil)
-            XCTAssertEqual(writabilities, [])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [])
             XCTAssertTrue(connection.isWritable)
         }.wait()
 
@@ -477,7 +513,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             value: ChannelOptions.Types.WriteBufferWaterMark(low: 128, high: 256)
         ).flatMap {
             // High to 256, low to 128. No writability change.
-            XCTAssertEqual(writabilities, [])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [])
             XCTAssertTrue(connection.isWritable)
 
             return connection.setOption(
@@ -486,7 +522,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             )
         }.flatMap {
             // High to 255, low to 127. Channel becomes not writable.
-            XCTAssertEqual(writabilities, [false])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false])
             XCTAssertFalse(connection.isWritable)
 
             return connection.setOption(
@@ -495,7 +531,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             )
         }.flatMap {
             // High back to 256, low to 128. No writability change.
-            XCTAssertEqual(writabilities, [false])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false])
             XCTAssertFalse(connection.isWritable)
 
             return connection.setOption(
@@ -504,7 +540,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             )
         }.flatMap {
             // High to 1024, low to 128. No writability change.
-            XCTAssertEqual(writabilities, [false])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false])
             XCTAssertFalse(connection.isWritable)
 
             return connection.setOption(
@@ -513,7 +549,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             )
         }.flatMap {
             // Low to 257, channel becomes writable again.
-            XCTAssertEqual(writabilities, [false, true])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false, true])
             XCTAssertTrue(connection.isWritable)
 
             return connection.setOption(
@@ -522,7 +558,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             )
         }.map {
             // Low back to 256, no writability change.
-            XCTAssertEqual(writabilities, [false, true])
+            XCTAssertEqual(writabilities.withLockedValue({ $0 }), [false, true])
             XCTAssertTrue(connection.isWritable)
         }.wait()
     }
@@ -608,7 +644,9 @@ class NIOTSConnectionChannelTests: XCTestCase {
     func testEarlyExitCanBeSetInWaitingState() throws {
         let connectFuture = NIOTSConnectionBootstrap(group: self.group)
             .channelInitializer { channel in
-                channel.pipeline.addHandler(DisableWaitingAfterConnect())
+                channel.eventLoop.makeCompletedFuture {
+                    try channel.pipeline.syncOperations.addHandler(DisableWaitingAfterConnect())
+                }
             }.connect(to: try SocketAddress(unixDomainSocketPath: "/this/path/definitely/doesnt/exist"))
 
         do {
@@ -712,7 +750,11 @@ class NIOTSConnectionChannelTests: XCTestCase {
 
         let channel = try NIOTSConnectionBootstrap(group: self.group)
             .channelInitializer { channel in
-                channel.pipeline.addHandler(PromiseOnActiveHandler(activePromise))
+                channel.eventLoop.makeCompletedFuture {
+                    try channel.pipeline.syncOperations.addHandler(
+                        PromiseOnActiveHandler(activePromise)
+                    )
+                }
             }.connect(to: listener.localAddress!).wait()
 
         XCTAssertNoThrow(try activePromise.futureResult.wait())
@@ -772,10 +814,13 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         let testCompletePromise = self.group.next().makePromise(of: Void.self)
-        let testHandler = TestHandler(testCompletePromise: testCompletePromise)
         let listener = try assertNoThrowWithValue(
             NIOTSListenerBootstrap(group: self.group)
-                .childChannelInitializer { channel in channel.pipeline.addHandler(EchoHandler()) }
+                .childChannelInitializer { channel in
+                    channel.eventLoop.makeCompletedFuture {
+                        try channel.pipeline.syncOperations.addHandler(EchoHandler())
+                    }
+                }
                 .bind(host: "localhost", port: 0).wait()
         )
         defer {
@@ -783,7 +828,13 @@ class NIOTSConnectionChannelTests: XCTestCase {
         }
 
         let connectBootstrap = NIOTSConnectionBootstrap(group: self.group)
-            .channelInitializer { channel in channel.pipeline.addHandler(testHandler) }
+            .channelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    try channel.pipeline.syncOperations.addHandler(
+                        TestHandler(testCompletePromise: testCompletePromise)
+                    )
+                }
+            }
 
         let connection = try assertNoThrowWithValue(connectBootstrap.connect(to: listener.localAddress!).wait())
         defer {
@@ -804,7 +855,8 @@ class NIOTSConnectionChannelTests: XCTestCase {
         // We expect 2.
         XCTAssertNoThrow(
             try connection.eventLoop.submit {
-                XCTAssertEqual(testHandler.readCount, 2)
+                let handler = try connection.pipeline.syncOperations.handler(type: TestHandler.self)
+                XCTAssertEqual(handler.readCount, 2)
             }.wait()
         )
     }
@@ -839,11 +891,15 @@ class NIOTSConnectionChannelTests: XCTestCase {
     func testConnectingInvolvesWaiting() throws {
         let loop = self.group.next()
         let eventPromise = loop.makePromise(of: NIOTSNetworkEvents.WaitingForConnectivity.self)
-        let eventRecordingHandler = EventWaiter<NIOTSNetworkEvents.WaitingForConnectivity>(eventPromise)
 
         // 5s is the worst-case test time: normally it'll be faster as we don't wait for this.
         let connectBootstrap = NIOTSConnectionBootstrap(group: loop)
-            .channelInitializer { channel in channel.pipeline.addHandler(eventRecordingHandler) }
+            .channelInitializer { channel in
+                channel.eventLoop.makeCompletedFuture {
+                    let eventRecordingHandler = EventWaiter<NIOTSNetworkEvents.WaitingForConnectivity>(eventPromise)
+                    try channel.pipeline.syncOperations.addHandler(eventRecordingHandler)
+                }
+            }
             .connectTimeout(.seconds(5))
 
         // We choose 443 here to avoid triggering Private Relay, which can do all kinds of weird stuff to this test.
@@ -868,7 +924,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
     }
 
     func testSyncOptionsAreSupported() throws {
-        func testSyncOptions(_ channel: Channel) {
+        @Sendable func testSyncOptions(_ channel: Channel) {
             if let sync = channel.syncOptions {
                 do {
                     let autoRead = try sync.getOption(ChannelOptions.autoRead)
@@ -919,6 +975,7 @@ class NIOTSConnectionChannelTests: XCTestCase {
             func channelActive(context: ChannelHandlerContext) {
                 listenerChannel
                     .close()
+                    .assumeIsolated()
                     .whenSuccess { _ in
                         _ = context.channel.write(ByteBuffer(data: Data()))
                     }
@@ -943,12 +1000,14 @@ class NIOTSConnectionChannelTests: XCTestCase {
         let testCompletePromise = self.group.next().makePromise(of: Error.self)
         let connection = try NIOTSConnectionBootstrap(group: self.group)
             .channelInitializer { channel in
-                channel.pipeline.addHandler(
-                    ForwardErrorHandler(
-                        testCompletePromise: testCompletePromise,
-                        listenerChannel: listener
+                channel.eventLoop.makeCompletedFuture {
+                    try channel.pipeline.syncOperations.addHandler(
+                        ForwardErrorHandler(
+                            testCompletePromise: testCompletePromise,
+                            listenerChannel: listener
+                        )
                     )
-                )
+                }
             }
             .connect(to: listener.localAddress!)
             .wait()

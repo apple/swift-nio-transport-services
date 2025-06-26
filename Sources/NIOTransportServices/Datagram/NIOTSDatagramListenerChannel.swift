@@ -22,7 +22,7 @@ import Network
 import Atomics
 
 @available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *)
-internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<NIOTSDatagramChannel> {
+internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<NIOTSDatagramConnectionChannel> {
     /// The TCP options for this listener.
     private var udpOptions: NWProtocolUDP.Options {
         get {
@@ -81,19 +81,23 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
         qos: DispatchQoS? = nil,
         udpOptions: NWProtocolUDP.Options,
         tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childUDPOptions: NWProtocolUDP.Options,
-        childTLSOptions: NWProtocolTLS.Options?
+        childTLSOptions: NWProtocolTLS.Options?,
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             eventLoop: eventLoop,
             protocolOptions: .udp(udpOptions),
             tlsOptions: tlsOptions,
+            nwParametersConfigurator: nwParametersConfigurator,
             childLoopGroup: childLoopGroup,
             childChannelQoS: childChannelQoS,
             childProtocolOptions: .udp(childUDPOptions),
-            childTLSOptions: childTLSOptions
+            childTLSOptions: childTLSOptions,
+            childNWParametersConfigurator: childNWParametersConfigurator
         )
     }
 
@@ -104,20 +108,24 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
         qos: DispatchQoS? = nil,
         udpOptions: NWProtocolUDP.Options,
         tlsOptions: NWProtocolTLS.Options?,
+        nwParametersConfigurator: (@Sendable (NWParameters) -> Void)?,
         childLoopGroup: EventLoopGroup,
         childChannelQoS: DispatchQoS?,
         childUDPOptions: NWProtocolUDP.Options,
-        childTLSOptions: NWProtocolTLS.Options?
+        childTLSOptions: NWProtocolTLS.Options?,
+        childNWParametersConfigurator: (@Sendable (NWParameters) -> Void)?
     ) {
         self.init(
             wrapping: listener,
             eventLoop: eventLoop,
             protocolOptions: .udp(udpOptions),
             tlsOptions: tlsOptions,
+            nwParametersConfigurator: nwParametersConfigurator,
             childLoopGroup: childLoopGroup,
             childChannelQoS: childChannelQoS,
             childProtocolOptions: .udp(childUDPOptions),
-            childTLSOptions: childTLSOptions
+            childTLSOptions: childTLSOptions,
+            childNWParametersConfigurator: childNWParametersConfigurator
         )
     }
 
@@ -127,15 +135,16 @@ internal final class NIOTSDatagramListenerChannel: StateManagedListenerChannel<N
             return
         }
 
-        let newChannel = NIOTSDatagramChannel(
+        let newChannel = NIOTSDatagramConnectionChannel(
             wrapping: connection,
             on: self.childLoopGroup.next() as! NIOTSEventLoop,
             parent: self,
             udpOptions: self.childUDPOptions,
-            tlsOptions: self.childTLSOptions
+            tlsOptions: self.childTLSOptions,
+            nwParametersConfigurator: self.childNWParametersConfigurator
         )
 
-        self.pipeline.fireChannelRead(NIOAny(newChannel))
+        self.pipeline.fireChannelRead(newChannel)
         self.pipeline.fireChannelReadComplete()
     }
 
