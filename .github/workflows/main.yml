@@ -23,3 +23,7 @@ jobs:
         with:
             runner_pool: nightly
             build_scheme: swift-nio-transport-services-Package
+
+    static-sdk:
+        name: Static SDK
+        uses: apple/swift-nio/.github/workflows/static_sdk.yml@main
