@@ -371,7 +371,9 @@ extension StateManagedNWConnectionChannel {
     private func stateUpdateHandler(newState: NWConnection.State) {
         switch newState {
         case .setup:
-            preconditionFailure("Should not be told about this state.")
+            // Since iOS 18, we are occasionally informed of a change into this state.
+            // We have no specific action here.
+            break
         case .waiting(let err):
             if case .activating = self.state, self.options.waitForActivity {
                 // This means the connection cannot currently be completed. We should notify the pipeline
