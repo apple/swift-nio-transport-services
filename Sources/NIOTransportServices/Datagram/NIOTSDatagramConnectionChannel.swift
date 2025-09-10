@@ -148,6 +148,9 @@ internal final class NIOTSDatagramConnectionChannel: StateManagedNWConnectionCha
         return parameters
     }
 
+    // This channel carries datagrams (UDP), not a byte stream.
+    internal var isDatagramChannel: Bool { true }
+
     var _inboundStreamOpen: Bool {
         switch self.state {
         case .active(.open):

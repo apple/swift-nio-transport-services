@@ -85,6 +85,10 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
 
     var nwParametersConfigurator: (@Sendable (NWParameters) -> Void)? { get }
 
+    /// Indicates whether this connection channel carries datagrams (UDP) rather than a byte stream (TCP/TLS).
+    /// Defaults to `false` and is overridden by datagram-specific channel implementations.
+    var isDatagramChannel: Bool { get }
+
     func setChannelSpecificOption0<Option: ChannelOption>(option: Option, value: Option.Value) throws
 
     func getChannelSpecificOption0<Option: ChannelOption>(option: Option) throws -> Option.Value
@@ -99,6 +103,8 @@ extension StateManagedNWConnectionChannel {
     public var _channelCore: ChannelCore {
         self
     }
+
+    public var isDatagramChannel: Bool { false }
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
@@ -443,11 +449,19 @@ extension StateManagedNWConnectionChannel {
 
         // Next, we want to check if there's an error. If there is, we're going to deliver it, and then close the connection with
         // it. Otherwise, we're going to check if we read EOF, and if we did we'll close with that instead.
+        //
+        // Important: For datagram (UDP) connections, Network.framework reports `isComplete == true` for each
+        // received datagram. This does NOT indicate stream EOF. Treating it as EOF closes the connected UDP
+        // channel after the first packet ("one‑shot"). Guard against this by only considering `isComplete`
+        // a real EOF on non-datagram (stream) channels.
         if let error = error {
             self.pipeline.fireErrorCaught(error)
             self.close0(error: error, mode: .all, promise: nil)
         } else if isComplete {
-            self.didReadEOF()
+            // Only streams should translate `isComplete` into EOF. For datagrams, continue receiving.
+            if !self.isDatagramChannel {
+                self.didReadEOF()
+            }
         }
 
         // Last, issue a new read automatically if we need to.

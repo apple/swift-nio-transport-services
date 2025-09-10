@@ -76,6 +76,7 @@ let package = Package(
                 "NIOTransportServices",
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOEmbedded", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
                 .product(name: "Atomics", package: "swift-atomics"),
             ],
             swiftSettings: strictConcurrencySettings
