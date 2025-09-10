@@ -48,6 +48,9 @@ internal protocol StateManagedNWConnectionChannel: StateManagedChannel where Act
     var nwOptions: NWOptions { get }
 
     var connection: NWConnection? { get set }
+    
+    /// If `true`, `isComplete` on a NWConnection's `receive` callback indicates the socket has closed
+    var completionClosesChannel: Bool { get }
 
     var minimumIncompleteReceiveLength: Int { get set }
 
@@ -438,7 +441,12 @@ extension StateManagedNWConnectionChannel {
             var buffer = self.allocator.buffer(capacity: content.count)
             buffer.writeBytes(content)
             self.pipeline.fireChannelRead(buffer)
-            self.pipeline.fireChannelReadComplete()
+            
+            if isComplete {
+                self.pipeline.fireChannelReadComplete()
+            } else if !completionClosesChannel {
+                self.pipeline.fireChannelReadComplete()
+            }
         }
 
         // Next, we want to check if there's an error. If there is, we're going to deliver it, and then close the connection with
@@ -446,7 +454,7 @@ extension StateManagedNWConnectionChannel {
         if let error = error {
             self.pipeline.fireErrorCaught(error)
             self.close0(error: error, mode: .all, promise: nil)
-        } else if isComplete {
+        } else if isComplete && completionClosesChannel {
             self.didReadEOF()
         }
 
