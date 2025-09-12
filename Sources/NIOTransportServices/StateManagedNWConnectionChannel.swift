@@ -457,11 +457,9 @@ extension StateManagedNWConnectionChannel {
         if let error = error {
             self.pipeline.fireErrorCaught(error)
             self.close0(error: error, mode: .all, promise: nil)
-        } else if isComplete {
+        } else if isComplete && !self.isDatagramChannel {
             // Only streams should translate `isComplete` into EOF. For datagrams, continue receiving.
-            if !self.isDatagramChannel {
-                self.didReadEOF()
-            }
+            self.didReadEOF()
         }
 
         // Last, issue a new read automatically if we need to.

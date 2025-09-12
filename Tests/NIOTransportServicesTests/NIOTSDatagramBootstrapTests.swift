@@ -54,14 +54,20 @@ extension Channel {
     }
 }
 
-// *** codex
 private final class EchoByteBufferHandler: ChannelInboundHandler {
     typealias InboundIn = ByteBuffer
+    typealias InboundOut = ByteBuffer
     typealias OutboundOut = ByteBuffer
     
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let buf = self.unwrapInboundIn(data)
         context.writeAndFlush(self.wrapOutboundOut(buf), promise: nil)
+        // Forward inbound so downstream handlers (e.g. ReadRecorder) can observe it.
+        context.fireChannelRead(self.wrapInboundOut(buf))
+    }
+
+    func channelReadComplete(context: ChannelHandlerContext) {
+        context.fireChannelReadComplete()
     }
 }
 
@@ -222,7 +228,7 @@ final class NIOTSDatagramBootstrapTests: XCTestCase {
         XCTAssertEqual(reads[0], buffer)
     }
 
-    func testConnectedUDPTwoEchoes_expectedFailure() throws {
+    func testConnectedUDPEchoesTwoDatagrams() throws {
         // Server: NIOTS datagram listener with an echoing child channel.
         let serverHandlePromise = self.group.next().makePromise(of: Channel.self)
         let server = try self.buildServerChannel(group: self.group, onConnect: { child in
@@ -237,11 +243,23 @@ final class NIOTSDatagramBootstrapTests: XCTestCase {
         defer { XCTAssertNoThrow(try client.close().wait()) }
         
         // Send “hello”, expect the first echo strictly.
-        var hello = client.allocator.buffer(capacity: 50); hello.writeString("hello")
+        var hello = client.allocator.buffer(capacity: 50)
+        hello.writeString("hello")
         XCTAssertNoThrow(try client.writeAndFlush(hello).wait())
         
+        // Obtain the server-side child channel created upon first datagram arrival
+        // and assert the server observed the datagram as well.
+        let serverHandle = try serverHandlePromise.futureResult.wait()
         do {
-            let reads = try timedWaitForDatagrams(client, count: 1, timeout: .seconds(2))
+            let serverReads = try serverHandle.waitForDatagrams(count: 1)
+            XCTAssertEqual(serverReads.count, 1)
+            XCTAssertEqual(serverReads[0], hello)
+        } catch {
+            XCTFail("Server did not observe first datagram: \(error)")
+        }
+        
+        do {
+            let reads = try timedWaitForDatagrams(client, count: 1, timeout: .seconds(1))
             XCTAssertEqual(reads.count, 1)
             XCTAssertEqual(reads[0], hello)
         } catch {
@@ -249,8 +267,18 @@ final class NIOTSDatagramBootstrapTests: XCTestCase {
         }
         
         // Send “world” and expect a second echo as well (strict).
-        var world = client.allocator.buffer(capacity: 5); world.writeString("world")
+        var world = client.allocator.buffer(capacity: 5)
+        world.writeString("world")
         XCTAssertNoThrow(try client.writeAndFlush(world).wait())
+        
+        // Server should observe the second datagram too.
+        do {
+            let serverReads = try serverHandle.waitForDatagrams(count: 2)
+            XCTAssertEqual(serverReads.count, 2)
+            XCTAssertEqual(serverReads[1], world)
+        } catch {
+            XCTFail("Server did not observe second datagram: \(error)")
+        }
 
         do {
             let reads = try timedWaitForDatagrams(client, count: 2, timeout: .seconds(2))

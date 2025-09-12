@@ -3,7 +3,7 @@
 //
 // This source file is part of the SwiftNIO open source project
 //
-// Copyright (c) 2017-2018 Apple Inc. and the SwiftNIO project authors
+// Copyright (c) 2017-2025 Apple Inc. and the SwiftNIO project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -68,6 +68,13 @@ let package = Package(
                 "NIOTransportServices",
                 .product(name: "NIOCore", package: "swift-nio"),
                 .product(name: "NIOHTTP1", package: "swift-nio"),
+            ]
+        ),
+        .executableTarget(
+            name: "NIOTSEchoClient",
+            dependencies: [
+                "NIOTransportServices",
+                .product(name: "NIOCore", package: "swift-nio"),
             ]
         ),
         .testTarget(
