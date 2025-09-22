@@ -104,7 +104,7 @@ extension StateManagedNWConnectionChannel {
         self
     }
 
-    public var isDatagramChannel: Bool { false }
+    internal var isDatagramChannel: Bool { false }
 
     /// The local address for this channel.
     public var localAddress: SocketAddress? {
