@@ -23,7 +23,6 @@
 //    - From the swift-nio-transport-services repo root:
 //    - swift test -v --filter NIOTransportServicesTests/NIOTSUDPMultiDatagramsPOSIXServerTests.testNIOTSClient_POSIXServer_MultipleDatagrams
 
-
 #if canImport(Network)
 import XCTest
 import NIOCore
@@ -107,15 +106,17 @@ final class NIOTSUDPMultiDatagramsPOSIXServerTests: XCTestCase {
             .channelInitializer { ch in
                 ch.eventLoop.makeCompletedFuture {
                     try ch.pipeline.syncOperations.addHandler(UDPClientActiveHandler(clientActive))
-                    try ch.pipeline.syncOperations.addHandler(ClientCaptureHandler { text in
-                        if text == "hello" { gotHello.fulfill() }
-                        if text == "world" { gotWorld.fulfill() }
-                    })
+                    try ch.pipeline.syncOperations.addHandler(
+                        ClientCaptureHandler { text in
+                            if text == "hello" { gotHello.fulfill() }
+                            if text == "world" { gotWorld.fulfill() }
+                        }
+                    )
                 }
             }
             .connect(host: "127.0.0.1", port: port)
             .wait()
-        
+
         defer { XCTAssertNoThrow(try client.close().wait()) }
 
         // Avoid early write before active

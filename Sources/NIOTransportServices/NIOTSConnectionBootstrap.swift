@@ -241,10 +241,11 @@ public final class NIOTSConnectionBootstrap {
     private func connect(
         existingNWConnection: NWConnection? = nil,
         shouldRegister: Bool,
-        _ connectAction: @Sendable @escaping (
-            NIOTSConnectionChannel,
-            EventLoopPromise<Void>
-        ) -> Void
+        _ connectAction:
+            @Sendable @escaping (
+                NIOTSConnectionChannel,
+                EventLoopPromise<Void>
+            ) -> Void
     ) -> EventLoopFuture<Channel> {
         let conn: NIOTSConnectionChannel
         if let newConnection = existingNWConnection {

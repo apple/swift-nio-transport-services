@@ -31,21 +31,21 @@ import Darwin
 final class EchoHandler: ChannelInboundHandler {
     typealias InboundIn = ByteBuffer
     typealias OutboundOut = ByteBuffer
-    
+
     func channelActive(context: ChannelHandlerContext) {
         print("Channel active")
     }
-    
+
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         var buf = self.unwrapInboundIn(data)
         let text = buf.readString(length: buf.readableBytes) ?? "<\(buf.readableBytes) bytes>"
         print("echo:", text)
     }
-    
+
     func channelInactive(context: ChannelHandlerContext) {
         print("Channel inactive (closed)")
     }
-    
+
     func errorCaught(context: ChannelHandlerContext, error: Error) {
         print("error:", error)
         // Intentionally do not close here; keep running to observe behavior.

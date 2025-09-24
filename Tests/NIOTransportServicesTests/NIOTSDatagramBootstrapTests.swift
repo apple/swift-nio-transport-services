@@ -58,7 +58,7 @@ private final class EchoByteBufferHandler: ChannelInboundHandler {
     typealias InboundIn = ByteBuffer
     typealias InboundOut = ByteBuffer
     typealias OutboundOut = ByteBuffer
-    
+
     func channelRead(context: ChannelHandlerContext, data: NIOAny) {
         let buf = self.unwrapInboundIn(data)
         context.writeAndFlush(self.wrapOutboundOut(buf), promise: nil)
@@ -71,12 +71,14 @@ private final class EchoByteBufferHandler: ChannelInboundHandler {
     }
 }
 
-private func timedWaitForDatagrams(_ channel: Channel,
-                                   count: Int,
-                                   timeout: TimeAmount) throws -> [ByteBuffer] {
+private func timedWaitForDatagrams(
+    _ channel: Channel,
+    count: Int,
+    timeout: TimeAmount
+) throws -> [ByteBuffer] {
     let loop = channel.eventLoop
     let result = loop.makePromise(of: [ByteBuffer].self)
-    
+
     let want: EventLoopFuture<[ByteBuffer]> = channel.pipeline
         .context(name: "ByteReadRecorder")
         .flatMap { ctx in
@@ -85,18 +87,18 @@ private func timedWaitForDatagrams(_ channel: Channel,
             }
             return loop.makeSucceededFuture([])
         }
-    
+
     let timeoutTask = loop.scheduleTask(in: timeout) {
-        result.succeed([]) // empty => timed out (prevents indefinite hang)
+        result.succeed([])  // empty => timed out (prevents indefinite stall)
     }
     want.whenComplete { res in
         timeoutTask.cancel()
         switch res {
-            case .success(let reads): result.succeed(reads)
-            case .failure(let error): result.fail(error)
+        case .success(let reads): result.succeed(reads)
+        case .failure(let error): result.fail(error)
         }
     }
-    
+
     return try result.futureResult.wait()
 }
 
@@ -231,22 +233,25 @@ final class NIOTSDatagramBootstrapTests: XCTestCase {
     func testConnectedUDPEchoesTwoDatagrams() throws {
         // Server: NIOTS datagram listener with an echoing child channel.
         let serverHandlePromise = self.group.next().makePromise(of: Channel.self)
-        let server = try self.buildServerChannel(group: self.group, onConnect: { child in
-            // Install echo before the recorder to bounce datagrams back to the client.
-            try! child.pipeline.syncOperations.addHandler(EchoByteBufferHandler())
-            serverHandlePromise.succeed(child)
-        })
+        let server = try self.buildServerChannel(
+            group: self.group,
+            onConnect: { child in
+                // Install echo before the recorder to bounce datagrams back to the client.
+                try! child.pipeline.syncOperations.addHandler(EchoByteBufferHandler())
+                serverHandlePromise.succeed(child)
+            }
+        )
         defer { XCTAssertNoThrow(try server.close().wait()) }
-        
+
         // Client: NIOTS connected UDP with ByteReadRecorder (added in buildClientChannel).
         let client = try self.buildClientChannel(group: self.group, port: server.localAddress!.port!)
         defer { XCTAssertNoThrow(try client.close().wait()) }
-        
+
         // Send “hello”, expect the first echo strictly.
         var hello = client.allocator.buffer(capacity: 50)
         hello.writeString("hello")
         XCTAssertNoThrow(try client.writeAndFlush(hello).wait())
-        
+
         // Obtain the server-side child channel created upon first datagram arrival
         // and assert the server observed the datagram as well.
         let serverHandle = try serverHandlePromise.futureResult.wait()
@@ -257,7 +262,7 @@ final class NIOTSDatagramBootstrapTests: XCTestCase {
         } catch {
             XCTFail("Server did not observe first datagram: \(error)")
         }
-        
+
         do {
             let reads = try timedWaitForDatagrams(client, count: 1, timeout: .seconds(1))
             XCTAssertEqual(reads.count, 1)
@@ -265,12 +270,12 @@ final class NIOTSDatagramBootstrapTests: XCTestCase {
         } catch {
             XCTFail("Did not receive first echo: \(error)")
         }
-        
+
         // Send “world” and expect a second echo as well (strict).
         var world = client.allocator.buffer(capacity: 5)
         world.writeString("world")
         XCTAssertNoThrow(try client.writeAndFlush(world).wait())
-        
+
         // Server should observe the second datagram too.
         do {
             let serverReads = try serverHandle.waitForDatagrams(count: 2)
