@@ -69,6 +69,9 @@ internal final class NIOTSDatagramConnectionChannel: StateManagedNWConnectionCha
     /// The underlying `NWConnection` that this `Channel` wraps. This is only non-nil
     /// after the initial connection attempt has been made.
     internal var connection: NWConnection?
+    
+    /// `isComplete` on a NWConnection's `receive` callback indicates the datagram has been fully received
+    var completionClosesChannel: Bool { false }
 
     /// The minimum length of data to receive from this connection, until the content is complete.
     internal var minimumIncompleteReceiveLength: Int

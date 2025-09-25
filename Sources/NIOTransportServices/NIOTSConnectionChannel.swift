@@ -151,6 +151,9 @@ internal final class NIOTSConnectionChannel: StateManagedNWConnectionChannel {
     /// The underlying `NWConnection` that this `Channel` wraps. This is only non-nil
     /// after the initial connection attempt has been made.
     internal var connection: NWConnection?
+    
+    /// `isComplete` on a NWConnection's `receive` callback indicates the socket has closed
+    internal var completionClosesChannel: Bool { true }
 
     /// The minimum length of data to receive from this connection, until the content is complete.
     internal var minimumIncompleteReceiveLength: Int

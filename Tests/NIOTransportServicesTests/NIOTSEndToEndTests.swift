@@ -16,6 +16,7 @@
 import XCTest
 import NIOCore
 import NIOTransportServices
+import NIOPosix
 import Foundation
 import Network
 import NIOConcurrencyHelpers
@@ -39,7 +40,7 @@ func assertNoThrowWithValue<T>(
     }
 }
 
-final class EchoHandler: ChannelInboundHandler {
+final class EchoHandler: ChannelInboundHandler, Sendable {
     typealias InboundIn = Any
     typealias OutboundOut = Any
 
@@ -124,6 +125,19 @@ final class HalfCloseHandler: ChannelInboundHandler {
         XCTAssertTrue(self.alreadyHalfClosed)
         XCTAssertFalse(self.closed)
         self.closed = true
+    }
+}
+
+final class ReplyExpecter<InboundIn>: ChannelInboundHandler {
+    let onRead: (InboundIn) -> Void
+    
+    init(onRead: @escaping (InboundIn) -> Void) {
+        self.onRead = onRead
+    }
+    
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
+        let data = unwrapInboundIn(data)
+        onRead(data)
     }
 }
 
@@ -556,6 +570,46 @@ class NIOTSEndToEndTests: XCTestCase {
         let completeFuture = connection.expectRead(buffer)
         connection.writeAndFlush(buffer, promise: nil)
         XCTAssertNoThrow(try completeFuture.wait())
+    }
+    
+    func testBasicDatagramConnection() throws {
+        let posixChannel = try DatagramBootstrap(group: MultiThreadedEventLoopGroup(numberOfThreads: 1))
+            .channelInitializer { channel in
+                channel.pipeline.addHandler(EchoHandler())
+            }
+            .bind(host: "localhost", port: 0)
+            .wait()
+        
+        let posixAddress = posixChannel.localAddress!
+        var replyCount = 0
+        let messageCount = 10
+        let done = self.group.any().makePromise(of: Void.self)
+        
+        let nwChannel = try NIOTSDatagramBootstrap(group: self.group)
+            .channelInitializer { channel in
+                channel.pipeline.addHandler(ReplyExpecter<ByteBuffer> { data in
+                    XCTAssertEqual(String(buffer: data), "Hello \(replyCount)")
+                    replyCount += 1
+                    if replyCount == messageCount {
+                        done.succeed()
+                    }
+                })
+            }
+            .connect(to: posixAddress)
+            .wait()
+        
+        let nwAddress = nwChannel.localAddress!
+        
+        DispatchQueue(label: #function).asyncAfter(deadline: .now () + .seconds(5)) {
+            struct TimeoutError: Error {}
+            done.fail(TimeoutError())
+        }
+        
+        for index in 0..<messageCount {
+            try nwChannel.writeAndFlush(ByteBuffer(string: "Hello \(index)")).wait()
+        }
+        
+        try done.futureResult.wait()
     }
 
     func testBasicConnectionTimeout() throws {
