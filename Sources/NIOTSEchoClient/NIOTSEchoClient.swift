@@ -65,7 +65,9 @@ struct NIOTSEchoClient {
             // Use the connected-UDP bootstrap (aka NIOTSDatagramBootstrap via typealias).
             let bootstrap = NIOTSDatagramConnectionBootstrap(group: group)
                 .channelInitializer { channel in
-                    channel.pipeline.addHandler(EchoHandler())
+                    channel.eventLoop.makeCompletedFuture {
+                        try channel.pipeline.syncOperations.addHandler(EchoHandler())
+                    }
                 }
 
             let channel = try bootstrap.connect(host: host, port: port).wait()

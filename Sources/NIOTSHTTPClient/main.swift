@@ -64,8 +64,9 @@ if #available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *) {
         .channelOption(ChannelOptions.socket(IPPROTO_TCP, TCP_NODELAY), value: 1)
         .tlsOptions(NWProtocolTLS.Options())
         .channelInitializer { channel in
-            channel.pipeline.addHTTPClientHandlers().flatMap {
-                channel.pipeline.addHandler(HTTP1ClientHandler())
+            channel.eventLoop.makeCompletedFuture {
+                try channel.pipeline.syncOperations.addHTTPClientHandlers()
+                try channel.pipeline.syncOperations.addHandler(HTTP1ClientHandler())
             }
         }.connect(host: "httpbin.org", port: 443).wait()
 
