@@ -42,7 +42,10 @@ if #available(macOS 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *) {
     let channel = try! NIOTSListenerBootstrap(group: group)
         .childChannelInitializer { channel in
             channel.eventLoop.makeCompletedFuture {
-                try channel.pipeline.syncOperations.configureHTTPServerPipeline(withPipeliningAssistance: true, withErrorHandling: true)
+                try channel.pipeline.syncOperations.configureHTTPServerPipeline(
+                    withPipeliningAssistance: true,
+                    withErrorHandling: true
+                )
                 try channel.pipeline.syncOperations.addHandler(HTTP1ServerHandler())
             }
         }.bind(host: "127.0.0.1", port: 8888).wait()
