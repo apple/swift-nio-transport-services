@@ -54,17 +54,19 @@ To depend on `swift-nio-transport-services `, put the following in the `dependen
 
     .package(url: "https://github.com/apple/swift-nio-transport-services.git", from: "1.0.0"),
 
-The most recent versions of SwiftNIO Transport Services support Swift 5.7 and newer. The minimum Swift version supported by SwiftNIO Transport Services releases are detailed below:
+The most recent versions of SwiftNIO Transport Services support Swift 6.0 and newer. The minimum Swift version supported by SwiftNIO Transport Services releases are detailed below:
 
-SwiftNIO Extras     | Minimum Swift Version
---------------------|----------------------
-`1.0.0 ..< 1.11.0`  | 5.0
-`1.11.0 ..< 1.12.0` | 5.2
-`1.12.0 ..< 1.15.0` | 5.4
-`1.15.0 ..< 1.17.0` | 5.5.2
-`1.17.0 ..< 1.19.0` | 5.6
-`1.19.0 ..< 1.21.0` | 5.7
-`1.21.0 ...`        | 5.8
+SwiftNIO Transport Services | Minimum Swift Version
+----------------------------|----------------------
+`1.0.0 ..< 1.11.0`          | 5.0
+`1.11.0 ..< 1.12.0`         | 5.2
+`1.12.0 ..< 1.15.0`         | 5.4
+`1.15.0 ..< 1.17.0`         | 5.5.2
+`1.17.0 ..< 1.19.0`         | 5.6
+`1.19.0 ..< 1.21.0`         | 5.7
+`1.21.0 ..< 1.25.0`         | 5.8
+`1.25.0 ..< 1.26.0`         | 5.10
+`1.26.0 ...`                | 6.0
 
 ### `swift-nio-transport-services ` 0.x
 
