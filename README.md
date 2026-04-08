@@ -66,7 +66,8 @@ SwiftNIO Transport Services | Minimum Swift Version
 `1.19.0 ..< 1.21.0`         | 5.7
 `1.21.0 ..< 1.25.0`         | 5.8
 `1.25.0 ..< 1.26.0`         | 5.10
-`1.26.0 ...`                | 6.0
+`1.26.0 ..< 1.27.0`         | 6.0
+`1.27.0 ...`                | 6.1
 
 ### `swift-nio-transport-services ` 0.x
 
