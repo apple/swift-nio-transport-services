@@ -46,7 +46,11 @@ let package = Package(
             dependencies: [
                 .product(name: "NIO", package: "swift-nio"),
                 .product(name: "NIOCore", package: "swift-nio"),
-                .product(name: "NIOFoundationCompat", package: "swift-nio", condition: .when(platforms: applePlatforms)),
+                .product(
+                    name: "NIOFoundationCompat",
+                    package: "swift-nio",
+                    condition: .when(platforms: applePlatforms)
+                ),
                 .product(name: "NIOTLS", package: "swift-nio"),
                 .product(name: "Atomics", package: "swift-atomics"),
             ],
