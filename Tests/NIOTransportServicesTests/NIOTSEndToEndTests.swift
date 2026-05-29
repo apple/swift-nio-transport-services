@@ -494,6 +494,9 @@ class NIOTSEndToEndTests: XCTestCase {
         // sockaddr_un cannot hold paths as long as the true temporary directories used by
         // FileManager.
         let udsPath = "/tmp/\(UUID().uuidString)_testBasicUnixSockets.sock"
+        defer {
+            try? FileManager.default.removeItem(atPath: udsPath)
+        }
 
         let listener = try NIOTSListenerBootstrap(group: self.group)
             .childChannelInitializer { channel in
