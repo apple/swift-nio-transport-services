@@ -215,7 +215,7 @@ final class NIOTSDatagramBootstrapTests: XCTestCase {
 
     func testBasicChannelCommunication() throws {
         let serverHandlePromise = group.next().makePromise(of: Channel.self)
-        let server = try buildServerChannel(group: group, onConnect: serverHandlePromise.succeed)
+        let server = try buildServerChannel(group: group, onConnect: { serverHandlePromise.succeed($0) })
         let client = try buildClientChannel(group: group, port: server.localAddress!.port!)
 
         var buffer = client.allocator.buffer(capacity: 256)
